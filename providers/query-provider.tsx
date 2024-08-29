@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { PropsWithChildren } from "react";
+import { useEffect, useState } from "react";
 
 function makeQueryClient() {
   return new QueryClient({
@@ -25,9 +26,17 @@ function getQueryClient() {
 }
 
 export const QueryProviders = ({ children }: PropsWithChildren) => {
-  const queryClient = getQueryClient();
+  const [queryClient, setQueryClient] = useState<QueryClient | null>(null);
+
+  useEffect(() => {
+    setQueryClient(getQueryClient());
+  }, []);
+
+  if (!queryClient) return null;
 
   return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      {children}
+    </QueryClientProvider>
   );
 };

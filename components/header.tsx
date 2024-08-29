@@ -1,9 +1,5 @@
 import { ClerkLoaded, ClerkLoading, UserButton } from "@clerk/nextjs";
 import { Loader2 } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
-
-import { links } from "@/config";
 
 import { Filters } from "./filters";
 import { HeaderLogo } from "./header-logo";
@@ -28,15 +24,6 @@ export const Header = () => {
             <ClerkLoading>
               <Loader2 className="size-8 animate-spin text-slate-400" />
             </ClerkLoading>
-
-            <Link
-              href={links.sourceCode}
-              target="_blank"
-              rel="noreferrer noopener"
-              title="Source Code"
-            >
-              <Image src="/github.svg" alt="GitHub" height={24} width={24} />
-            </Link>
           </div>
         </div>
 
