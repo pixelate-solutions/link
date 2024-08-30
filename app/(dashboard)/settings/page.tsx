@@ -2,14 +2,15 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { loadStripe } from '@stripe/stripe-js';
+import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { useUser } from '@clerk/clerk-react';
-import { createCheckoutSession } from '@/app/api/[[...route]]/create-checkout-session';
-import { getSubscriptionStatus } from '@/app/services/user-service';
 import { useEffect, useState } from "react";
 
+const STRIPE_PUBLISHABLE_TEST_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_TEST_KEY!;
+const NEXT_PUBLIC_APP_URL = process.env.NEXT_PUBLIC_APP_URL!;
+
 const SettingsPage = () => {
-  const stripePromise = loadStripe(process.env.STRIPE_PUBLISHABLE_TEST_KEY!);
+  const stripePromise = loadStripe(STRIPE_PUBLISHABLE_TEST_KEY);
   const { user } = useUser();
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>('Loading...');
 
@@ -21,14 +22,15 @@ const SettingsPage = () => {
       'price_1PtUbMFsKVJDw69rMOHiQqgH': 'Lifetime',
     };
 
-    return priceLabels[priceId] || 'Unknown Plan';
+    return priceId;
   };
 
   useEffect(() => {
     if (user?.id) {
-      getSubscriptionStatus(user.id)
-        .then(status => {
-          const label = getSubscriptionLabel(status);
+      fetch(`/api/subscription-status?userId=${user.id}`)
+        .then(response => response.json())
+        .then(data => {
+          const label = getSubscriptionLabel(data.plan);
           setSubscriptionStatus(label);
         })
         .catch(() => setSubscriptionStatus('Error fetching subscription status'));
@@ -37,18 +39,28 @@ const SettingsPage = () => {
 
   const handleCheckout = async () => {
     try {
-      const stripe = await stripePromise;
+      const stripe: Stripe | null = await stripePromise;
 
-      const sessionId = await createCheckoutSession({
-        userId: user?.id,
-        customerEmail: user?.emailAddresses[0]?.emailAddress
-      });
+      if (stripe && user?.id && user?.emailAddresses[0]?.emailAddress) {
+        const response = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: user.id,
+            customerEmail: user.emailAddresses[0].emailAddress,
+          }),
+        });
 
-      if (stripe) {
+        const { sessionId } = await response.json();
+
         const result = await stripe.redirectToCheckout({ sessionId });
         if (result.error) {
           console.error(result.error.message);
         }
+      } else {
+        console.error('Stripe object or user information is missing.');
       }
     } catch (error) {
       console.error('Error during checkout:', error);
