@@ -9,7 +9,7 @@ import { getSubscriptionStatus } from '@/app/services/user-service';
 import { useEffect, useState } from "react";
 
 const SettingsPage = () => {
-  const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_TEST_KEY!);
+  const stripePromise = loadStripe(process.env.STRIPE_PUBLISHABLE_TEST_KEY!);
   const { user } = useUser();
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>('Loading...');
 

@@ -5,7 +5,7 @@ import { storeStripeCustomerId } from '@/app/services/stripe-service';
 
 config({ path: ".env.local" });
 
-const stripe = new Stripe(process.env.NEXT_PUBLIC_STRIPE_SECRET_TEST_KEY);
+const stripe = new Stripe(process.env.STRIPE_SECRET_TEST_KEY);
 
 export const createCheckoutSession = async ({ userId, customerEmail }) => {
   try {
@@ -21,7 +21,7 @@ export const createCheckoutSession = async ({ userId, customerEmail }) => {
       payment_method_types: ['card'],
       line_items: [
         {
-          price: process.env.NEXT_PUBLIC_STRIPE_TEST_PRICE_ID,
+          price: process.env.STRIPE_TEST_PRICE_ID,
           quantity: 1,
         },
       ],

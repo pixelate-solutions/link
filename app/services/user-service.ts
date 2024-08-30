@@ -4,7 +4,7 @@ import Stripe from 'stripe';
 import { eq } from 'drizzle-orm';
 
 export const getSubscriptionStatus = async (userId: string): Promise<string> => {
-  const stripe = new Stripe(process.env.NEXT_PUBLIC_STRIPE_SECRET_TEST_KEY!);
+  const stripe = new Stripe(process.env.STRIPE_SECRET_TEST_KEY!);
 
   try {
     const results = await db.select({
