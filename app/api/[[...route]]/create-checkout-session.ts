@@ -54,7 +54,6 @@ const app = new Hono()
           },
         });
 
-        // Return the session ID
         return ctx.json({ sessionId: session.id });
       } catch (error) {
         console.error('Error creating checkout session:', error);
