@@ -57,3 +57,11 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
 export const insertTransactionSchema = createInsertSchema(transactions, {
   date: z.coerce.date(),
 });
+
+export const stripeCustomers = pgTable("stripe_customers", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  stripeCustomerId: text("stripe_customer_id").notNull(),
+});
+
+export const insertStripeCustomerSchema = createInsertSchema(stripeCustomers);

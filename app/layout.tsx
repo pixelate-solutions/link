@@ -22,6 +22,9 @@ const RootLayout = ({ children }: Readonly<PropsWithChildren>) => {
   return (
     <ClerkProvider>
       <html lang="en">
+        <head>
+          <link rel="icon" href="/favicon.ico" />
+        </head>
         <body className={inter.className}>
           <QueryProviders>
             <SheetProvider />

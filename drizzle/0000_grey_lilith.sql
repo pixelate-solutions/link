@@ -10,6 +10,12 @@ CREATE TABLE IF NOT EXISTS "categories" (
 	"user_id" text NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "stripe_customers" (
+	"id" text PRIMARY KEY NOT NULL,
+	"user_id" text NOT NULL,
+	"stripe_customer_id" text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "transactions" (
 	"id" text PRIMARY KEY NOT NULL,
 	"amount" integer NOT NULL,

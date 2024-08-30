@@ -3,12 +3,12 @@ import { eachDayOfInterval, format, subDays } from "date-fns";
 import { config } from "dotenv";
 import { drizzle } from "drizzle-orm/neon-http";
 
-import { accounts, categories, transactions } from "@/db/schema";
+import { accounts, categories, transactions, stripeCustomers } from "@/db/schema";
 import { convertAmountToMilliunits } from "@/lib/utils";
 
 config({ path: ".env.local" });
 
-const sql = neon(process.env.DATABASE_URL!);
+const sql = neon(process.env.NEXT_PUBLIC_DATABASE_URL!);
 const db = drizzle(sql);
 
 const SEED_USER_ID = "user_2gIujdiMTbMqEMKu0iUjgYUmox1";
@@ -35,16 +35,36 @@ const SEED_CATEGORIES = [
   },
 ];
 
-const SEED_ACCOUNTS = [
+const SEED_STRIPE_CUSTOMERS = [
+  {
+    id: "stripe_customer_1",
+    userId: SEED_USER_ID,
+    stripeCustomerId: "cus_test_12345",
+  },
+  {
+    id: "stripe_customer_2",
+    userId: SEED_USER_ID,
+    stripeCustomerId: "cus_test_67890",
+  },
+];
+
+const SEED_ACCOUNTS: {
+  id: string;
+  name: string;
+  userId: string;
+  stripeCustomerId: string;
+}[] = [
   {
     id: "account_1",
     name: "Checking",
     userId: SEED_USER_ID,
+    stripeCustomerId: SEED_STRIPE_CUSTOMERS[0].id,
   },
   {
     id: "account_2",
     name: "Savings",
     userId: SEED_USER_ID,
+    stripeCustomerId: SEED_STRIPE_CUSTOMERS[1].id,
   },
 ];
 
@@ -114,7 +134,10 @@ const main = async () => {
     await db.delete(transactions).execute();
     await db.delete(accounts).execute();
     await db.delete(categories).execute();
+    await db.delete(stripeCustomers).execute();
 
+    // seed stripe customers
+    await db.insert(stripeCustomers).values(SEED_STRIPE_CUSTOMERS).execute();
     // seed categories
     await db.insert(categories).values(SEED_CATEGORIES).execute();
     // seed accounts

@@ -1,0 +1,93 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { loadStripe } from '@stripe/stripe-js';
+import { useUser } from '@clerk/clerk-react';
+import { createCheckoutSession } from '@/app/api/[[...route]]/create-checkout-session';
+import { getSubscriptionStatus } from '@/app/services/user-service';
+import { useEffect, useState } from "react";
+
+const SettingsPage = () => {
+  const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_TEST_KEY!);
+  const { user } = useUser();
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string>('Loading...');
+
+  const getSubscriptionLabel = (priceId: string): string => {
+    const priceLabels: Record<string, string> = {
+      'price_1PtVjyFsKVJDw69rKzGengkQ': 'Test',
+      'price_1PtUYSFsKVJDw69raZF7jB0v': 'Monthly',
+      'price_1PtUZXFsKVJDw69rewkjf2f1': 'Annual',
+      'price_1PtUbMFsKVJDw69rMOHiQqgH': 'Lifetime',
+    };
+
+    return priceLabels[priceId] || 'Unknown Plan';
+  };
+
+  useEffect(() => {
+    if (user?.id) {
+      getSubscriptionStatus(user.id)
+        .then(status => {
+          const label = getSubscriptionLabel(status);
+          setSubscriptionStatus(label);
+        })
+        .catch(() => setSubscriptionStatus('Error fetching subscription status'));
+    }
+  }, [user]);
+
+  const handleCheckout = async () => {
+    try {
+      const stripe = await stripePromise;
+
+      const sessionId = await createCheckoutSession({
+        userId: user?.id,
+        customerEmail: user?.emailAddresses[0]?.emailAddress
+      });
+
+      if (stripe) {
+        const result = await stripe.redirectToCheckout({ sessionId });
+        if (result.error) {
+          console.error(result.error.message);
+        }
+      }
+    } catch (error) {
+      console.error('Error during checkout:', error);
+    }
+  };
+
+  return (
+    <div className="mx-auto -mt-6 w-full max-w-screen-2xl pb-10">
+      <Card className="border-none drop-shadow-sm">
+        <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between">
+          <CardTitle className="line-clamp-1 text-xl">Settings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex w-full border-t">
+            <p className="w-[30%] md:w-[25%] lg:w-[20%] ml-[5%] md:ml-[10%] my-4 font-bold">
+              Subscription
+            </p>
+            <p className="w-[30%] md:w-[20%] lg:w-[15%] text-left mt-4 text-gray-500">
+              {subscriptionStatus}
+            </p>
+            <Button className="ml-[10%] md:ml-[20%] lg:ml-[40%] mt-2 border" variant="ghost" onClick={handleCheckout}>
+              Upgrade
+            </Button>
+          </div>
+          <div className="flex w-full border-t">
+            <p className="w-[30%] md:w-[25%] lg:w-[20%] ml-[5%] md:ml-[10%] mt-4 font-bold">
+              Accounts
+            </p>
+            <p className="w-[30%] md:w-[20%] lg:w-[15%] text-left mt-4 text-gray-500">
+              No accounts connected.
+            </p>
+            <Button className="ml-[10%] md:ml-[20%] lg:ml-[40%] mt-2 border" variant="ghost">
+              Connect
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default SettingsPage;
