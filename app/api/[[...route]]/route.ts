@@ -16,7 +16,6 @@ const routes = app
 .route('/summary', summary)
 .route('/transactions', transactions)
 
-// Register the new routes
 .route('/subscription-status', subscriptionStatus)
 .route('/create-checkout-session', createCheckoutSession)
 
