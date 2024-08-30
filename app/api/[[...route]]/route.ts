@@ -10,19 +10,19 @@ import createCheckoutSession from './create-checkout-session'; // Import the new
 
 const app = new Hono().basePath('/api');
 
-// Register existing routes
-app.route('/accounts', accounts);
-app.route('/categories', categories);
-app.route('/summary', summary);
-app.route('/transactions', transactions);
+const routes = app
+.route('/accounts', accounts)
+.route('/categories', categories)
+.route('/summary', summary)
+.route('/transactions', transactions)
 
 // Register the new routes
-app.route('/subscription-status', subscriptionStatus);
-app.route('/create-checkout-session', createCheckoutSession);
+.route('/subscription-status', subscriptionStatus)
+.route('/create-checkout-session', createCheckoutSession)
 
 export const GET = handle(app);
 export const POST = handle(app);
 export const PATCH = handle(app);
 export const DELETE = handle(app);
 
-export type AppType = typeof app;
+export type AppType = typeof routes;
