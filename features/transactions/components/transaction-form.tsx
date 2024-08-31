@@ -92,11 +92,16 @@ export const TransactionForm = ({
           render={({ field }) => (
             <FormItem>
               <FormControl>
+                <div
+                  onClick={() => field.onChange()} // Trigger change or focus event on click
+                  onTouchStart={() => field.onChange()} // Handle touch events for mobile
+                >
                 <DatePicker
                   value={field.value}
                   onChange={field.onChange}
                   disabled={disabled}
                 />
+                </div>
               </FormControl>
 
               <FormMessage />
