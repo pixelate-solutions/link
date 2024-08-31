@@ -77,6 +77,7 @@ export const TransactionForm = ({
   const handleDelete = () => {
     onDelete?.();
   };
+
   return (
     <Form {...form}>
       <form
@@ -88,22 +89,15 @@ export const TransactionForm = ({
         <FormField
           name="date"
           control={form.control}
-          disabled={disabled}
           render={({ field }) => (
             <FormItem>
               <FormControl>
-                <div
-                  onClick={() => field.onChange()} // Trigger change or focus event on click
-                  onTouchStart={() => field.onChange()} // Handle touch events for mobile
-                >
                 <DatePicker
                   value={field.value}
-                  onChange={field.onChange}
+                  onChange={(date) => field.onChange(date)}
                   disabled={disabled}
                 />
-                </div>
               </FormControl>
-
               <FormMessage />
             </FormItem>
           )}
@@ -112,11 +106,9 @@ export const TransactionForm = ({
         <FormField
           name="accountId"
           control={form.control}
-          disabled={disabled}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Account</FormLabel>
-
               <FormControl>
                 <Select
                   placeholder="Select an account"
@@ -127,7 +119,6 @@ export const TransactionForm = ({
                   disabled={disabled}
                 />
               </FormControl>
-
               <FormMessage />
             </FormItem>
           )}
@@ -136,11 +127,9 @@ export const TransactionForm = ({
         <FormField
           name="categoryId"
           control={form.control}
-          disabled={disabled}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Category</FormLabel>
-
               <FormControl>
                 <Select
                   placeholder="Select a category"
@@ -151,7 +140,6 @@ export const TransactionForm = ({
                   disabled={disabled}
                 />
               </FormControl>
-
               <FormMessage />
             </FormItem>
           )}
@@ -160,11 +148,9 @@ export const TransactionForm = ({
         <FormField
           name="payee"
           control={form.control}
-          disabled={disabled}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Payee</FormLabel>
-
               <FormControl>
                 <Input
                   disabled={disabled}
@@ -172,7 +158,6 @@ export const TransactionForm = ({
                   {...field}
                 />
               </FormControl>
-
               <FormMessage />
             </FormItem>
           )}
@@ -181,11 +166,9 @@ export const TransactionForm = ({
         <FormField
           name="amount"
           control={form.control}
-          disabled={disabled}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Amount</FormLabel>
-
               <FormControl>
                 <AmountInput
                   {...field}
@@ -193,7 +176,6 @@ export const TransactionForm = ({
                   placeholder="0.00"
                 />
               </FormControl>
-
               <FormMessage />
             </FormItem>
           )}
@@ -202,11 +184,9 @@ export const TransactionForm = ({
         <FormField
           name="notes"
           control={form.control}
-          disabled={disabled}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Notes</FormLabel>
-
               <FormControl>
                 <Textarea
                   {...field}
@@ -215,7 +195,6 @@ export const TransactionForm = ({
                   placeholder="Optional notes..."
                 />
               </FormControl>
-
               <FormMessage />
             </FormItem>
           )}
