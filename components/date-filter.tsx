@@ -5,6 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import qs from "query-string";
 import { useState } from "react";
+import { useMediaQuery } from 'react-responsive'; // Import for media query
 import { type DateRange } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,8 @@ export const DateFilter = () => {
   };
 
   const [date, setDate] = useState<DateRange | undefined>(paramState);
+
+  const isSmallScreen = useMediaQuery({ maxWidth: '640px' }); // Tailwind's `sm` screen size is 640px
 
   const pushToUrl = (dateRange: DateRange | undefined) => {
     const adjustedFrom = dateRange?.from ? addDays(dateRange.from, 1) : defaultFrom;
@@ -85,7 +88,7 @@ export const DateFilter = () => {
           defaultMonth={date?.from}
           selected={date}
           onSelect={setDate}
-          numberOfMonths={2}
+          numberOfMonths={isSmallScreen ? 1 : 2} // Show one month on small screens, two on larger screens
         />
 
         <div className="flex w-full items-center gap-x-2 p-4">
