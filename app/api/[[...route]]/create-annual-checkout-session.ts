@@ -8,7 +8,7 @@ import { config } from 'dotenv';
 
 config({ path: '.env.local' });
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_TEST_KEY!);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const app = new Hono()
   .post(
@@ -41,7 +41,7 @@ const app = new Hono()
           payment_method_types: ['card'],
           line_items: [
             {
-              price: process.env.STRIPE_TEST_PRICE_ID!,
+              price: process.env.STRIPE_ANNUAL_PRICE_ID!,
               quantity: 1,
             },
           ],
