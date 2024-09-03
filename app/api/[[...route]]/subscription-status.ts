@@ -48,13 +48,13 @@ app.get('/', clerkMiddleware(), async (ctx) => {
       if (items.length > 0) {
         const priceId = items[0].price.id;
         switch (priceId) {
-          case process.env.STRIPE_MONTHLY_PRICE_ID:
+          case process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID:
             plan = 'Monthly';
             break;
-          case process.env.STRIPE_ANNUAL_PRICE_ID:
+          case process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID:
             plan = 'Annual';
             break;
-          case process.env.STRIPE_LIFETIME_PRICE_ID:
+          case process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID:
             plan = 'Lifetime';
             break;
           default:

@@ -41,7 +41,7 @@ const app = new Hono()
           payment_method_types: ['card'],
           line_items: [
             {
-              price: process.env.STRIPE_MONTHLY_PRICE_ID!,
+              price: process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID!,
               quantity: 1,
             },
           ],

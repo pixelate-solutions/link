@@ -88,6 +88,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
 
   const handleSwitch = async (newPriceId: string) => {
     try {
+      console.log(newPriceId);
       const response = await fetch('/api/switch-subscription', {
         method: 'POST',
         headers: {
@@ -96,19 +97,21 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
         body: JSON.stringify({ newPriceId }),
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        console.log('Subscription switched successfully:', data);
-        // Handle successful subscription switch (e.g., update UI, show success message)
-      } else {
-        console.error('Failed to switch subscription:', data.error);
+      if (!response.ok) {
+        const errorText = await response.text(); // Read the error message as text
+        console.error('Failed to switch subscription:', errorText);
         // Handle errors (e.g., show error message)
+        return;
       }
+
+      const data = await response.json();
+      console.log('Subscription switched successfully:', data);
+      // Handle successful subscription switch (e.g., update UI, show success message)
     } catch (error) {
       console.error('Error switching subscription:', error);
     }
   };
+
 
 
   useEffect(() => {
@@ -149,7 +152,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-test-checkout-session');
                 } else {
-                  handleSwitch(process.env.STRIPE_TEST_PRICE_ID!);
+                  handleSwitch(process.env.NEXT_PUBLIC_STRIPE_TEST_PRICE_ID!);
                 }
               }} className="bg-gray-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
                 Select
@@ -162,7 +165,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-test-checkout-session');
                 } else {
-                  handleSwitch(process.env.STRIPE_TEST_PRICE_ID!);
+                  handleSwitch(process.env.NEXT_PUBLIC_STRIPE_TEST_PRICE_ID!);
                 }
               }} className="bg-gray-100 text-black hover:bg-200 md:hidden w-1/2 border border-transparent hover:border-gray-300">
                 $0.00
@@ -188,7 +191,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-monthly-checkout-session');
                 } else {
-                  handleSwitch(process.env.STRIPE_MONTHLY_PRICE_ID!);
+                  handleSwitch(process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID!);
                 }
               }} className="bg-gray-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
                 Select
@@ -201,7 +204,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-monthly-checkout-session');
                 } else {
-                  handleSwitch(process.env.STRIPE_MONTHLY_PRICE_ID!);
+                  handleSwitch(process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID!);
                 }
               }} className="bg-gray-100 text-black hover:bg-200 md:hidden w-1/2 border border-transparent hover:border-gray-300">
                 $7.50
@@ -227,7 +230,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-annual-checkout-session');
                 } else {
-                  handleSwitch(process.env.STRIPE_ANNUAL_PRICE_ID!);
+                  handleSwitch(process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID!);
                 }
               }} className="bg-gray-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
                 Select
@@ -240,7 +243,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-annual-checkout-session');
                 } else {
-                  handleSwitch(process.env.STRIPE_ANNUAL_PRICE_ID!);
+                  handleSwitch(process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID!);
                 }
               }} className="bg-gray-100 text-black hover:bg-200 md:hidden w-1/2 border border-transparent hover:border-gray-300">
                 $75.00
@@ -266,7 +269,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-lifetime-checkout-session');
                 } else {
-                  handleSwitch(process.env.STRIPE_LIFETIME_PRICE_ID!);
+                  handleSwitch(process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID!);
                 }
               }} className="bg-gray-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
                 Select
@@ -279,7 +282,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-lifetime-checkout-session');
                 } else {
-                  handleSwitch(process.env.STRIPE_LIFETIME_PRICE_ID!);
+                  handleSwitch(process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID!);
                 }
               }} className="bg-gray-100 text-black hover:bg-200 md:hidden w-1/2 border border-transparent hover:border-gray-300">
                 $90.00

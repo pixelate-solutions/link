@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { clerkMiddleware, getAuth } from '@hono/clerk-auth';
-import { stripe } from './stripe'; // Adjust the import path if needed
+import { stripe } from './stripe';
 import { db } from '@/db/drizzle';
 import { stripeCustomers } from '@/db/schema';
 import { eq } from "drizzle-orm";
@@ -8,66 +8,77 @@ import { eq } from "drizzle-orm";
 const app = new Hono();
 
 app.post('/', clerkMiddleware(), async (ctx) => {
-  const auth = getAuth(ctx);
-
-  if (!auth?.userId) {
-    return ctx.json({ error: 'Unauthorized.' }, 401);
-  }
-
-  const { newPriceId } = await ctx.req.json();
-
   try {
-    // Fetch the Stripe customer ID from the database
-    const [customerRecord] = await db
-      .select({
-        stripeCustomerId: stripeCustomers.stripeCustomerId,
-      })
-      .from(stripeCustomers)
-      .where(eq(stripeCustomers.userId, auth.userId));
+    const auth = getAuth(ctx);
+    const userId = auth?.userId;
+    const { newPriceId } = await ctx.req.json();
 
-    if (!customerRecord) {
-      return ctx.json({ error: 'Customer not found.' }, 404);
+    if (!userId || !newPriceId) {
+      return ctx.json({ error: 'Missing user ID or new price ID' }, 400);
     }
 
-    const stripeCustomerId = customerRecord.stripeCustomerId;
+    const customerRecord = await db.select()
+      .from(stripeCustomers)
+      .where(eq(stripeCustomers.userId, userId))
+      .limit(1);
+    
+    if (customerRecord.length === 0) {
+      return ctx.json({ error: 'Customer not found' }, 404);
+    }
 
-    // Fetch the current subscription
+    const customerId = customerRecord[0].stripeCustomerId;
+
+    // Retrieve the customer's active subscriptions
     const subscriptions = await stripe.subscriptions.list({
-      customer: stripeCustomerId,
+      customer: customerId,
       status: 'active',
+      limit: 1,
     });
 
-    if (subscriptions.data.length > 0) {
-      const subscription = subscriptions.data[0];
+    if (subscriptions.data.length === 0) {
+      return ctx.json({ error: 'Active subscription not found' }, 404);
+    }
 
-      // Cancel the current subscription at the end of the current period
-      await stripe.subscriptions.update(subscription.id, {
+    const subscriptionId = subscriptions.data[0].id;
+
+    // Retrieve the new price to check its type
+    const newPrice = await stripe.prices.retrieve(newPriceId);
+
+    if (newPrice.type === 'one_time') {
+      // If the new price is a one-time payment, cancel the existing subscription
+      await stripe.subscriptions.update(subscriptionId, {
         cancel_at_period_end: true,
       });
 
-      // Log cancelation success
-      console.log(`Subscription ${subscription.id} scheduled for cancelation.`);
-
-      // Create a new subscription starting immediately
-      const newSubscription = await stripe.subscriptions.create({
-        customer: stripeCustomerId,
-        items: [{ price: newPriceId }],
-        expand: ['latest_invoice.payment_intent'],
+      // Optionally, create a checkout session for the one-time payment
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price: newPriceId,
+            quantity: 1,
+          },
+        ],
+        mode: 'payment',
+        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings`,
+        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings`,
       });
 
-      // Log new subscription creation
-      console.log(`New subscription ${newSubscription.id} created successfully.`);
-
-      return ctx.json({
-        message: 'Subscription switched successfully.',
-        newSubscriptionId: newSubscription.id,
-      });
+      return ctx.json({ success: true, sessionId: session.id });
     } else {
-      return ctx.json({ error: 'No active subscription found.' }, 404);
+      // Otherwise, update the subscription with the new recurring price
+      const updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
+        items: [{
+          id: subscriptions.data[0].items.data[0].id,
+          price: newPriceId,
+        }],
+      });
+
+      return ctx.json({ success: true, subscription: updatedSubscription });
     }
   } catch (error) {
-    console.error('Error switching subscription:', error.message);
-    return ctx.json({ error: 'Internal Server Error', details: error.message }, 500);
+    console.error('Error in switch-subscription:', error);
+    return ctx.json({ error: 'Internal Server Error' }, 500);
   }
 });
 
