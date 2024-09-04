@@ -39,46 +39,35 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       return ctx.json({ error: 'Active subscription not found' }, 404);
     }
 
-    const subscriptionId = subscriptions.data[0].id;
+    const currentSubscription = subscriptions.data[0];
 
-    // Retrieve the new price to check its type
-    const newPrice = await stripe.prices.retrieve(newPriceId);
+    // Cancel the current subscription immediately
+    await stripe.subscriptions.cancel(currentSubscription.id, {
+      prorate: true,
+    });
 
-    if (newPrice.type === 'one_time') {
-      // If the new price is a one-time payment, cancel the existing subscription
-      await stripe.subscriptions.update(subscriptionId, {
-        cancel_at_period_end: true,
-      });
+    // Create the new subscription with the specified price ID
+    const newSubscription = await stripe.subscriptions.create({
+      customer: customerId,
+      items: [{ price: newPriceId }],
+      proration_behavior: 'create_prorations', // Apply proration if applicable
+      expand: ['latest_invoice.payment_intent'],
+    });
 
-      // Optionally, create a checkout session for the one-time payment
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: [
-          {
-            price: newPriceId,
-            quantity: 1,
-          },
-        ],
-        mode: 'payment',
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings`,
-      });
-
-      return ctx.json({ success: true, sessionId: session.id });
+    let sessionId;
+    // Return the session ID for redirecting to the checkout
+    if (typeof newSubscription.latest_invoice === 'object' && newSubscription.latest_invoice?.payment_intent) {
+      sessionId = newSubscription.latest_invoice.payment_intent;
+      // Continue with your logic here
     } else {
-      // Otherwise, update the subscription with the new recurring price
-      const updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
-        items: [{
-          id: subscriptions.data[0].items.data[0].id,
-          price: newPriceId,
-        }],
-      });
-
-      return ctx.json({ success: true, subscription: updatedSubscription });
+      return ctx.json({ error: 'Failed to switch subscription' }, 500);
     }
+
+
+    return ctx.json({ sessionId });
   } catch (error) {
-    console.error('Error in switch-subscription:', error);
-    return ctx.json({ error: 'Internal Server Error' }, 500);
+    console.error('Error switching subscription:', error);
+    return ctx.json({ error: 'Failed to switch subscription' }, 500);
   }
 });
 

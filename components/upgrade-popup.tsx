@@ -88,7 +88,6 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
 
   const handleSwitch = async (newPriceId: string) => {
     try {
-      console.log(newPriceId);
       const response = await fetch('/api/switch-subscription', {
         method: 'POST',
         headers: {
@@ -98,19 +97,25 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
       });
 
       if (!response.ok) {
-        const errorText = await response.text(); // Read the error message as text
+        const errorText = await response.text();
         console.error('Failed to switch subscription:', errorText);
-        // Handle errors (e.g., show error message)
         return;
       }
 
-      const data = await response.json();
-      console.log('Subscription switched successfully:', data);
-      // Handle successful subscription switch (e.g., update UI, show success message)
+      const { sessionId } = await response.json();
+
+      if (sessionId) {
+        const stripe = await stripePromise;
+        const result = await stripe?.redirectToCheckout({ sessionId });
+        if (result?.error) {
+          console.error(result.error.message);
+        }
+      }
     } catch (error) {
       console.error('Error switching subscription:', error);
     }
   };
+
 
 
 
@@ -146,9 +151,9 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
         <div className="flex items-center">
           <div className="ml-[10%] w-1/3 font-semibold">Test</div>
           <div className="hidden md:inline w-1/3 text-gray-500">$0.00</div>
-          {(currentSubscription !== "Test" || canceling) && (
+          {(currentSubscription !== "Test") && (
             <AlertDialogAction asChild className="w-1/3">
-              <Button disabled={canceling} variant="ghost" onClick={() => {
+              <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-test-checkout-session');
                 } else {
@@ -159,9 +164,9 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
               </Button>
             </AlertDialogAction>
           )}
-          {currentSubscription !== "Test" && (
+          {(currentSubscription !== "Test") && (
             <AlertDialogAction asChild className="w-1/3">
-              <Button disabled={canceling} variant="ghost" onClick={() => {
+              <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-test-checkout-session');
                 } else {
@@ -172,9 +177,9 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
               </Button>
             </AlertDialogAction>
           )}
-          {(currentSubscription === "Test" && !canceling) && (
+          {(currentSubscription === "Test") && (
             <AlertDialogAction asChild className="w-1/3">
-              <Button disabled={currentSubscription !== "Test" || canceling} variant="ghost" onClick={() => handleCancel('/api/cancel-test-subscription')} className="bg-gray-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
+              <Button disabled={canceling} variant="ghost" onClick={() => handleCancel('/api/cancel-subscription')} className="bg-gray-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
                 Cancel
               </Button>
             </AlertDialogAction>
@@ -185,9 +190,9 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
         <div className="flex items-center">
           <div className="ml-[10%] w-1/3 font-semibold">Monthly</div>
           <div className="hidden md:inline w-1/3 text-gray-500">$7.50/month</div>
-          {(currentSubscription !== "Monthly" || canceling) && (
+          {(currentSubscription !== "Monthly") && (
             <AlertDialogAction asChild className="w-1/3">
-              <Button disabled={canceling} variant="ghost" onClick={() => {
+              <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-monthly-checkout-session');
                 } else {
@@ -198,9 +203,9 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
               </Button>
             </AlertDialogAction>
           )}
-          {currentSubscription !== "Monthly" && (
+          {(currentSubscription !== "Monthly") && (
             <AlertDialogAction asChild className="w-1/3">
-              <Button disabled={canceling} variant="ghost" onClick={() => {
+              <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-monthly-checkout-session');
                 } else {
@@ -211,9 +216,9 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
               </Button>
             </AlertDialogAction>
           )}
-          {(currentSubscription === "Monthly" && !canceling) && (
+          {(currentSubscription === "Monthly") && (
             <AlertDialogAction asChild className="w-1/3">
-              <Button disabled={currentSubscription !== "Monthly"  || canceling} variant="ghost" onClick={() => handleCancel('/api/cancel-monthly-subscription')} className="bg-gray-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
+              <Button disabled={canceling} variant="ghost" onClick={() => handleCancel('/api/cancel-monthly-subscription')} className="bg-gray-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
                 Cancel
               </Button>
             </AlertDialogAction>
@@ -224,9 +229,9 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
         <div className="flex items-center">
           <div className="ml-[10%] w-1/3 font-semibold">Annual</div>
           <div className="hidden md:inline w-1/3 text-gray-500">$75.00/year</div>
-          {(currentSubscription !== "Annual" || canceling) && (
+          {(currentSubscription !== "Annual") && (
             <AlertDialogAction asChild className="w-1/3">
-              <Button disabled={false} variant="ghost" onClick={() => {
+              <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-annual-checkout-session');
                 } else {
@@ -237,9 +242,9 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
               </Button>
             </AlertDialogAction>
           )}
-          {currentSubscription !== "Annual" && (
+          {(currentSubscription !== "Annual") && (
             <AlertDialogAction asChild className="w-1/3">
-              <Button disabled={canceling} variant="ghost" onClick={() => {
+              <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-annual-checkout-session');
                 } else {
@@ -250,9 +255,9 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
               </Button>
             </AlertDialogAction>
           )}
-          {(currentSubscription === "Annual" && !canceling) && (
+          {(currentSubscription === "Annual") && (
             <AlertDialogAction asChild className="w-1/3">
-              <Button disabled={currentSubscription !== "Annual"  || canceling} variant="ghost" onClick={() => handleCancel('/api/cancel-annual-subscription')} className="bg-gray-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
+              <Button disabled={canceling} variant="ghost" onClick={() => handleCancel('/api/cancel-annual-subscription')} className="bg-gray-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
                 Cancel
               </Button>
             </AlertDialogAction>
@@ -263,9 +268,9 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
         <div className="flex items-center">
           <div className="ml-[10%] w-1/3 font-semibold">Lifetime</div>
           <div className="hidden md:inline w-1/3 text-gray-500">$90.00</div>
-          {(currentSubscription !== "Lifetime" || canceling) && (
+          {(currentSubscription !== "Lifetime") && (
             <AlertDialogAction asChild className="w-1/3">
-              <Button disabled={canceling} variant="ghost" onClick={() => {
+              <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-lifetime-checkout-session');
                 } else {
@@ -276,9 +281,9 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
               </Button>
             </AlertDialogAction>
           )}
-          {currentSubscription !== "Lifetime" && (
+          {(currentSubscription !== "Lifetime") && (
             <AlertDialogAction asChild className="w-1/3">
-              <Button disabled={canceling} variant="ghost" onClick={() => {
+              <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-lifetime-checkout-session');
                 } else {

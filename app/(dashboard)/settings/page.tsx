@@ -28,7 +28,7 @@ const SettingsPage = () => {
             setSubscriptionButton("Complete");
           }
           if (data.cancelAtPeriodEnd) {
-            setActiveOrCancel(`: Canceling ${new Date(data.cancelAt * 1000).toLocaleString()}`)
+            setActiveOrCancel(`: Expires ${new Date(data.cancelAt * 1000).toLocaleString()}`)
           } else {
             setActiveOrCancel(": Active");
           }
