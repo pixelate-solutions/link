@@ -23,12 +23,12 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
 
   const { user } = useUser();
 
-  const handleCheckout = async (url: string) => {
+  const handleCheckout = async (priceId: string) => {
     try {
       const stripe: Stripe | null = await stripePromise;
 
       if (stripe && user?.id && user?.emailAddresses[0]?.emailAddress) {
-        const response = await fetch(url, {
+        const response = await fetch(`/api/create-checkout-session`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -36,6 +36,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
           body: JSON.stringify({
             userId: user.id,
             customerEmail: user.emailAddresses[0].emailAddress,
+            priceId: priceId
           }),
         });
 
@@ -152,7 +153,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
             <AlertDialogAction asChild className="w-1/3">
               <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
-                  handleCheckout('/api/create-test-checkout-session');
+                  handleCheckout(process.env.NEXT_PUBLIC_STRIPE_TEST_PRICE_ID!);
                 } else {
                   handleSwitch(process.env.NEXT_PUBLIC_STRIPE_TEST_PRICE_ID!);
                    
@@ -166,7 +167,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
             <AlertDialogAction asChild className="w-1/3">
               <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
-                  handleCheckout('/api/create-test-checkout-session');
+                  handleCheckout(process.env.NEXT_PUBLIC_STRIPE_TEST_PRICE_ID!);
                    
                 } else {
                   handleSwitch(process.env.NEXT_PUBLIC_STRIPE_TEST_PRICE_ID!);
@@ -197,7 +198,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
             <AlertDialogAction asChild className="w-1/3">
               <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
-                  handleCheckout('/api/create-monthly-checkout-session');
+                  handleCheckout(process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID!);
                    
                 } else {
                   handleSwitch(process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID!);
@@ -212,7 +213,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
             <AlertDialogAction asChild className="w-1/3">
               <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
-                  handleCheckout('/api/create-monthly-checkout-session');
+                  handleCheckout(process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID!);
                    
                 } else {
                   handleSwitch(process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID!);
@@ -243,7 +244,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
             <AlertDialogAction asChild className="w-1/3">
               <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
-                  handleCheckout('/api/create-annual-checkout-session');
+                  handleCheckout(process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID!);
                    
                 } else {
                   handleSwitch(process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID!);
@@ -258,7 +259,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
             <AlertDialogAction asChild className="w-1/3">
               <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
-                  handleCheckout('/api/create-annual-checkout-session');
+                  handleCheckout(process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID!);
                    
                 } else {
                   handleSwitch(process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID!);
@@ -289,7 +290,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
             <AlertDialogAction asChild className="w-1/3">
               <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
-                  handleCheckout('/api/create-lifetime-checkout-session');
+                  handleCheckout(process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID!);
                    
                 } else {
                   handleSwitch(process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID!);
@@ -304,7 +305,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
             <AlertDialogAction asChild className="w-1/3">
               <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
-                  handleCheckout('/api/create-lifetime-checkout-session');
+                  handleCheckout(process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID!);
                    
                 } else {
                   handleSwitch(process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID!);

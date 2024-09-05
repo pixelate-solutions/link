@@ -60,7 +60,8 @@ const app = new Hono()
           .delete(stripeCustomers)
           .where(eq(stripeCustomers.userId, auth.userId));
 
-        return ctx.json({ message: 'Subscription canceled and user record deleted successfully.', canceledSubscription });
+        // Redirect the user to the home route ("/") after cancellation and deletion
+        return ctx.redirect('/');
       } catch (error) {
         console.error('Error canceling subscription:', error);
         return ctx.json({ error: 'Internal Server Error' }, 500);
