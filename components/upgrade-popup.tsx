@@ -116,9 +116,6 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
     }
   };
 
-
-
-
   useEffect(() => {
     if (user?.id) {
       fetch(`/api/subscription-status?userId=${user.id}`)
@@ -158,6 +155,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
                   handleCheckout('/api/create-test-checkout-session');
                 } else {
                   handleSwitch(process.env.NEXT_PUBLIC_STRIPE_TEST_PRICE_ID!);
+                   
                 }
               }} className="bg-gray-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
                 Select
@@ -169,8 +167,10 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
               <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-test-checkout-session');
+                   
                 } else {
                   handleSwitch(process.env.NEXT_PUBLIC_STRIPE_TEST_PRICE_ID!);
+                   
                 }
               }} className="bg-gray-100 text-black hover:bg-200 md:hidden w-1/2 border border-transparent hover:border-gray-300">
                 $0.00
@@ -179,7 +179,10 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
           )}
           {(currentSubscription === "Test") && (
             <AlertDialogAction asChild className="w-1/3">
-              <Button disabled={canceling} variant="ghost" onClick={() => handleCancel('/api/cancel-subscription')} className="bg-gray-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
+              <Button disabled={canceling} variant="ghost" onClick={() => {
+                handleCancel('/api/cancel-subscription');
+                 
+              }} className="bg-gray-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
                 Cancel
               </Button>
             </AlertDialogAction>
@@ -195,8 +198,10 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
               <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-monthly-checkout-session');
+                   
                 } else {
                   handleSwitch(process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID!);
+                   
                 }
               }} className="bg-gray-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
                 Select
@@ -208,8 +213,10 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
               <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-monthly-checkout-session');
+                   
                 } else {
                   handleSwitch(process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID!);
+                   
                 }
               }} className="bg-gray-100 text-black hover:bg-200 md:hidden w-1/2 border border-transparent hover:border-gray-300">
                 $7.50
@@ -218,7 +225,10 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
           )}
           {(currentSubscription === "Monthly") && (
             <AlertDialogAction asChild className="w-1/3">
-              <Button disabled={canceling} variant="ghost" onClick={() => handleCancel('/api/cancel-monthly-subscription')} className="bg-gray-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
+              <Button disabled={canceling} variant="ghost" onClick={() => {
+                handleCancel('/api/cancel-subscription');
+                 
+              }} className="bg-gray-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
                 Cancel
               </Button>
             </AlertDialogAction>
@@ -234,8 +244,10 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
               <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-annual-checkout-session');
+                   
                 } else {
                   handleSwitch(process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID!);
+                   
                 }
               }} className="bg-gray-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
                 Select
@@ -247,8 +259,10 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
               <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-annual-checkout-session');
+                   
                 } else {
                   handleSwitch(process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID!);
+                   
                 }
               }} className="bg-gray-100 text-black hover:bg-200 md:hidden w-1/2 border border-transparent hover:border-gray-300">
                 $75.00
@@ -257,7 +271,10 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
           )}
           {(currentSubscription === "Annual") && (
             <AlertDialogAction asChild className="w-1/3">
-              <Button disabled={canceling} variant="ghost" onClick={() => handleCancel('/api/cancel-annual-subscription')} className="bg-gray-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
+              <Button disabled={canceling} variant="ghost" onClick={() => {
+                handleCancel('/api/cancel-subscription');
+                 
+              }} className="bg-gray-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
                 Cancel
               </Button>
             </AlertDialogAction>
@@ -273,8 +290,10 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
               <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-lifetime-checkout-session');
+                   
                 } else {
                   handleSwitch(process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID!);
+                   
                 }
               }} className="bg-gray-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
                 Select
@@ -286,8 +305,10 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
               <Button variant="ghost" onClick={() => {
                 if (currentSubscription === "Free") {
                   handleCheckout('/api/create-lifetime-checkout-session');
+                   
                 } else {
                   handleSwitch(process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID!);
+                   
                 }
               }} className="bg-gray-100 text-black hover:bg-200 md:hidden w-1/2 border border-transparent hover:border-gray-300">
                 $90.00

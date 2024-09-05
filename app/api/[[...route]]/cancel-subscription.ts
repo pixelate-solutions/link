@@ -50,12 +50,17 @@ const app = new Hono()
           return ctx.json({ error: 'No active subscription found.' }, 404);
         }
 
-        // Schedule the subscription to cancel at the end of the current period
-        const canceledSubscription = await stripe.subscriptions.update(subscription.id, {
-          cancel_at_period_end: true,
+        // Cancel the subscription immediately and apply proration
+        const canceledSubscription = await stripe.subscriptions.cancel(subscription.id, {
+          prorate: true,  // Apply proration for the remaining period
         });
 
-        return ctx.json({ message: 'Subscription cancellation scheduled successfully.', canceledSubscription });
+        // Delete the user record from the database after subscription cancellation
+        await db
+          .delete(stripeCustomers)
+          .where(eq(stripeCustomers.userId, auth.userId));
+
+        return ctx.json({ message: 'Subscription canceled and user record deleted successfully.', canceledSubscription });
       } catch (error) {
         console.error('Error canceling subscription:', error);
         return ctx.json({ error: 'Internal Server Error' }, 500);

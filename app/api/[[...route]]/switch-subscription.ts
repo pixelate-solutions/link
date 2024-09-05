@@ -41,10 +41,15 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
     const currentSubscription = subscriptions.data[0];
 
-    // Cancel the current subscription immediately
-    await stripe.subscriptions.cancel(currentSubscription.id, {
-      prorate: true,
+    // Cancel the current subscription immediately and apply proration
+    await stripe.subscriptions.update(currentSubscription.id, {
+      cancel_at_period_end: false,
+      proration_behavior: 'create_prorations',
     });
+
+    // Wait a moment to ensure the cancellation and proration are fully processed
+    // before creating a new subscription. 
+    await new Promise((resolve) => setTimeout(resolve, 500)); // 0.5 second delay
 
     // Create the new subscription with the specified price ID
     const newSubscription = await stripe.subscriptions.create({
@@ -55,14 +60,19 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     });
 
     let sessionId;
-    // Return the session ID for redirecting to the checkout
-    if (typeof newSubscription.latest_invoice === 'object' && newSubscription.latest_invoice?.payment_intent) {
-      sessionId = newSubscription.latest_invoice.payment_intent;
-      // Continue with your logic here
+    // Check if latest_invoice is an object and has payment_intent
+    if (newSubscription.latest_invoice && typeof newSubscription.latest_invoice === 'object') {
+      const invoice = newSubscription.latest_invoice;
+      if (invoice.payment_intent && typeof invoice.payment_intent === 'object') {
+        sessionId = invoice.payment_intent.id; // Extract PaymentIntent ID
+      } else if (typeof invoice.payment_intent === 'string') {
+        sessionId = invoice.payment_intent; // PaymentIntent ID as a string
+      } else {
+        return ctx.json({ error: 'Payment intent not found' }, 500);
+      }
     } else {
-      return ctx.json({ error: 'Failed to switch subscription' }, 500);
+      return ctx.json({ error: 'Latest invoice not found or invalid' }, 500);
     }
-
 
     return ctx.json({ sessionId });
   } catch (error) {

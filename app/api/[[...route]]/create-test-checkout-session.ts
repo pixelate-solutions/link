@@ -44,8 +44,8 @@ app.post('/', clerkMiddleware(), async (ctx) => {
         },
       ],
       mode: 'subscription',
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/`,
       customer: customer.id,
       metadata: {
         userId: auth.userId,
