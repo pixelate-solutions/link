@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { integer, pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -58,10 +58,11 @@ export const insertTransactionSchema = createInsertSchema(transactions, {
   date: z.coerce.date(),
 });
 
-export const stripeCustomers = pgTable("stripe_customers", {
-  id: text("id").primaryKey(),
-  userId: text("user_id").notNull(),
-  stripeCustomerId: text("stripe_customer_id").notNull(),
+export const stripeCustomers = pgTable('stripe_customers', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  stripeCustomerId: text('stripe_customer_id').notNull(),
+  lifetimePurchase: boolean('lifetime_purchase').default(false),
 });
 
 export const insertStripeCustomerSchema = createInsertSchema(stripeCustomers);

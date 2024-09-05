@@ -16,10 +16,11 @@ app.get('/', clerkMiddleware(), async (ctx) => {
   }
 
   try {
-    // Fetch the Stripe customer ID from the database using the userId
+    // Fetch the Stripe customer ID and lifetime purchase status from the database
     const [customerRecord] = await db
       .select({
         stripeCustomerId: stripeCustomers.stripeCustomerId,
+        lifetimePurchase: stripeCustomers.lifetimePurchase,
       })
       .from(stripeCustomers)
       .where(eq(stripeCustomers.userId, auth.userId));
@@ -29,8 +30,9 @@ app.get('/', clerkMiddleware(), async (ctx) => {
     }
 
     const stripeCustomerId = customerRecord.stripeCustomerId;
+    const lifetimePurchase = customerRecord.lifetimePurchase;
 
-    // Fetch subscriptions for the customer using their Stripe customer ID
+    // Check if the customer has active subscriptions
     const subscriptions = await stripe.subscriptions.list({
       customer: stripeCustomerId,
     });
@@ -54,15 +56,15 @@ app.get('/', clerkMiddleware(), async (ctx) => {
           case process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID:
             plan = 'Annual';
             break;
-          case process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID:
-            plan = 'Lifetime';
-            break;
           default:
-            plan = 'Test';
+            plan = 'Free';
         }
       }
 
       return ctx.json({ status, plan, cancelAtPeriodEnd, cancelAt, canceledAt });
+    } else if (lifetimePurchase) {
+      // If no active subscriptions but lifetime purchase exists
+      return ctx.json({ status: 'Paid', plan: 'Lifetime' });
     } else {
       return ctx.json({ status: 'Free', plan: 'Free' });
     }

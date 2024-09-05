@@ -10,63 +10,58 @@ config({ path: '.env.local' });
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_TEST_KEY!);
 
-const app = new Hono()
-  .post(
-    '/',
-    clerkMiddleware(),
-    async (ctx) => {
-      const auth = getAuth(ctx);
+const app = new Hono();
 
-      if (!auth?.userId) {
-        return ctx.json({ error: 'Unauthorized.' }, 401);
-      }
+app.post('/', clerkMiddleware(), async (ctx) => {
+  const auth = getAuth(ctx);
 
-      try {
-        // Fetch the Stripe customer ID from the database
-        const [customerRecord] = await db
-          .select({
-            stripeCustomerId: stripeCustomers.stripeCustomerId,
-          })
-          .from(stripeCustomers)
-          .where(eq(stripeCustomers.userId, auth.userId))
-          .limit(1);
+  if (!auth?.userId) {
+    return ctx.json({ error: 'Unauthorized.' }, 401);
+  }
 
-        if (!customerRecord) {
-          return ctx.json({ error: 'Stripe customer not found.' }, 404);
-        }
+  try {
+    // Fetch the Stripe customer ID from the database
+    const [customerRecord] = await db
+      .select({
+        stripeCustomerId: stripeCustomers.stripeCustomerId,
+      })
+      .from(stripeCustomers)
+      .where(eq(stripeCustomers.userId, auth.userId))
+      .limit(1);
 
-        const customerId = customerRecord.stripeCustomerId;
-
-        // Fetch active subscriptions for the customer
-        const subscriptions = await stripe.subscriptions.list({
-          customer: customerId,
-          status: 'active',
-          limit: 1,
-        });
-
-        const subscription = subscriptions.data[0];
-
-        if (!subscription) {
-          return ctx.json({ error: 'No active subscription found.' }, 404);
-        }
-
-        // Cancel the subscription immediately and apply proration
-        const canceledSubscription = await stripe.subscriptions.cancel(subscription.id, {
-          prorate: true,  // Apply proration for the remaining period
-        });
-
-        // Delete the user record from the database after subscription cancellation
-        await db
-          .delete(stripeCustomers)
-          .where(eq(stripeCustomers.userId, auth.userId));
-
-        // Redirect the user to the home route ("/") after cancellation and deletion
-        return ctx.redirect('/');
-      } catch (error) {
-        console.error('Error canceling subscription:', error);
-        return ctx.json({ error: 'Internal Server Error' }, 500);
-      }
+    if (!customerRecord) {
+      return ctx.json({ error: 'Stripe customer not found.' }, 404);
     }
-  );
+
+    const customerId = customerRecord.stripeCustomerId;
+
+    // Fetch active subscriptions for the customer
+    const subscriptions = await stripe.subscriptions.list({
+      customer: customerId,
+      status: 'active',
+      limit: 1,
+    });
+
+    const subscription = subscriptions.data[0];
+
+    if (!subscription) {
+      return ctx.json({ error: 'No active subscription found.' }, 404);
+    }
+
+    // Cancel the subscription immediately and apply proration
+    await stripe.subscriptions.cancel(subscription.id, {
+      prorate: true,  // Apply proration for the remaining period
+    });
+
+    // Optionally clean up or update records
+    // await db.delete(stripeCustomers).where(eq(stripeCustomers.userId, auth.userId));
+
+    // Respond with a redirect URL
+    return ctx.json({ message: 'Subscription canceled successfully.', redirectUrl: '/' });
+  } catch (error) {
+    console.error('Error canceling subscription:', error);
+    return ctx.json({ error: 'Internal Server Error' }, 500);
+  }
+});
 
 export default app;

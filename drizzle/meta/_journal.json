@@ -8,6 +8,13 @@
       "when": 1725036152169,
       "tag": "0000_grey_lilith",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1725569726402,
+      "tag": "0001_red_banshee",
+      "breakpoints": true
     }
   ]
 }

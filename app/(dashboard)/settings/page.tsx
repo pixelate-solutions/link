@@ -11,7 +11,6 @@ const SettingsPage = () => {
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>('Loading...');
   const [subscriptionButton, setSubscriptionButton] = useState<string>('Loading...');
   const [openUpgradeDialog, setOpenUpgradeDialog] = useState<boolean>(false);
-  const [activeOrCancel, setActiveOrCancel] = useState<string>('');
 
   useEffect(() => {
     if (user?.id) {
@@ -22,15 +21,10 @@ const SettingsPage = () => {
           setSubscriptionStatus(label);
           if (label === "Free") {
             setSubscriptionButton("Upgrade");
-          } else if (label === "Monthly" || label === "Annual" || label === "Test") {
+          } else if (label === "Monthly" || label === "Annual") {
             setSubscriptionButton("Update");
           } else if (label === "Lifetime") {
             setSubscriptionButton("Complete");
-          }
-          if (data.cancelAtPeriodEnd) {
-            setActiveOrCancel(`: Expires ${new Date(data.cancelAt * 1000).toLocaleString()}`)
-          } else {
-            setActiveOrCancel(": Active");
           }
         })
         .catch(() => setSubscriptionStatus('Error fetching subscription status'));
@@ -48,10 +42,10 @@ const SettingsPage = () => {
           <CardContent>
             <div className="flex w-full border-t">
               <p className="w-[30%] md:w-[25%] lg:w-[20%] ml-[5%] md:ml-[10%] text-sm md:text-normal my-4 font-bold">
-                  Subscription Status
+                  Current Subscription
               </p>
               <p className="w-[35%] md:w-[20%] lg:w-[35%] pl-[10%] text-sm md:text-normal text-center md:text-left mt-4 text-gray-500">
-                <b>{subscriptionStatus}</b>{activeOrCancel}
+                <b>{subscriptionStatus}</b>
               </p>
               <Button disabled={subscriptionButton === "Loading..." || subscriptionStatus === "Lifetime"} className="ml-[10%] md:ml-[20%] w-1/4 mt-2 border" variant="ghost" onClick={() => setOpenUpgradeDialog(true)}>
                 {subscriptionButton}
@@ -64,7 +58,7 @@ const SettingsPage = () => {
               <p className="w-[35%] md:w-[20%] lg:w-[35%] pl-[10%] text-center md:text-left mt-4 text-sm md:text-normal text-gray-500">
                 None
               </p>
-              <Button className="ml-[10%] md:ml-[20%] w-1/4 mt-2 border" variant="ghost">
+              <Button disabled={subscriptionStatus === "Free"} className="ml-[10%] md:ml-[20%] w-1/4 mt-2 border" variant="ghost">
                 Connect
               </Button>
             </div>

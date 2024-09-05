@@ -1,0 +1,1 @@
+ALTER TABLE "stripe_customers" ADD COLUMN "lifetime_purchase" boolean DEFAULT false;
