@@ -71,11 +71,11 @@ export const stripeCustomers = pgTable('stripe_customers', {
 export const insertStripeCustomerSchema = createInsertSchema(stripeCustomers);
 
 export const userTokens = pgTable('user_tokens', {
-  userId: text('user_id').notNull(),           
+  id: text('id').notNull().primaryKey(),
+  userId: text('user_id').notNull(),
   accessToken: text('access_token').notNull(),
   itemId: text('item_id').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 export const insertUserTokensSchema = createInsertSchema(userTokens);

@@ -16,13 +16,26 @@ const app = new Hono()
       return ctx.json({ error: "Unauthorized." }, 401);
     }
 
+    // Fetch query parameter for isFromPlaid (optional)
+    const isFromPlaidParam = ctx.req.query("isFromPlaid");
+
+    // Validate isFromPlaid parameter (should be "true" or "false")
+    const isFromPlaid = isFromPlaidParam === "true" ? true : isFromPlaidParam === "false" ? false : null;
+
+    if (isFromPlaid === null) {
+      return ctx.json({ error: "Invalid query parameter." }, 400);
+    }
+
     const data = await db
       .select({
         id: accounts.id,
         name: accounts.name,
+        isFromPlaid: accounts.isFromPlaid,  // Select this for debugging
       })
       .from(accounts)
-      .where(eq(accounts.userId, auth.userId));
+      .where(
+        and(eq(accounts.userId, auth.userId), eq(accounts.isFromPlaid, isFromPlaid)) // Filter by isFromPlaid
+      );
 
     return ctx.json({ data });
   })
@@ -69,6 +82,7 @@ const app = new Hono()
       "json",
       insertAccountSchema.pick({
         name: true,
+        isFromPlaid: true,  // Ensure that isFromPlaid is included
       })
     ),
     async (ctx) => {
@@ -136,6 +150,7 @@ const app = new Hono()
       "json",
       insertAccountSchema.pick({
         name: true,
+        isFromPlaid: true,  // Ensure isFromPlaid can be updated if needed
       })
     ),
     async (ctx) => {

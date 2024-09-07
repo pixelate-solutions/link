@@ -1,11 +1,13 @@
 import { Hono } from 'hono';
-import plaidClient from './plaid';  // Initialize the Plaid client
-import { userTokens } from '@/db/schema'; // Database schema
-import { db } from '@/db/drizzle';        // Database connection
+import plaidClient from './plaid';
+import { userTokens } from '@/db/schema';
+import { db } from '@/db/drizzle';
+import { clerkMiddleware } from '@hono/clerk-auth';
+import { createId } from '@paralleldrive/cuid2';
 
 const app = new Hono();
 
-app.post('/', async (ctx) => {
+app.post('/', clerkMiddleware(), async (ctx) => {
   try {
     const { public_token, userId } = await ctx.req.json();
 
@@ -15,14 +17,15 @@ app.post('/', async (ctx) => {
 
     // Store the access_token and item_id securely in your database
     await db.insert(userTokens).values({
+      id: createId(),
       userId,
       accessToken: access_token,
       itemId: item_id,
       createdAt: new Date(),
-      updatedAt: new Date(),
     });
 
     // Respond with success
+    console.log("set success")
     return ctx.json({
       success: true,
       message: 'Access token stored successfully.',

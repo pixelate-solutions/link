@@ -12,6 +12,7 @@ const SettingsPage = () => {
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>('Loading...');
   const [subscriptionButton, setSubscriptionButton] = useState<string>('Loading...');
   const [openUpgradeDialog, setOpenUpgradeDialog] = useState<boolean>(false);
+  const [plaidIsOpen, setPlaidIsOpen] = useState<boolean>(false);
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [openPlaid, setOpenPlaid] = useState<() => void>(() => () => {});
 
@@ -39,25 +40,42 @@ const SettingsPage = () => {
     fetchLinkToken();
   }, [user]);
 
+  const onSuccess = async (public_token: string) => {
+    try {
+      const response = await fetch('/api/plaid/set-access-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ public_token, userId: user?.id }),
+      });
+
+      // After successfully setting the access token, upload accounts and transactions
+      await fetch('/api/plaid/upload-accounts', { method: 'POST' });
+      await fetch('/api/plaid/upload-transactions', { method: 'POST' });
+
+      console.log("Accounts and transactions uploaded");
+      setPlaidIsOpen(false);
+    } catch (error) {
+      console.error("Error exchanging public token and uploading data:", error);
+    }
+  };
+
   const config = {
     token: linkToken!,
-    onSuccess: async (public_token: string) => {
-      try {
-        const response = await fetch('/api/plaid/set_access_token', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ public_token, userId: user?.id }),
-        });
-        console.log(response);
-      } catch (error) {
-        console.error("Error exchanging public token:", error);
-      }
+    onSuccess,
+    onExit: () => {
+      setPlaidIsOpen(false);
     },
   };
 
   const { open, ready } = usePlaidLink(config);
+
+  useEffect(() => {
+    if (ready) {
+      setOpenPlaid(() => open);
+    }
+  }, [ready, open]);
 
   useEffect(() => {
     if (ready) {
@@ -85,9 +103,9 @@ const SettingsPage = () => {
   }, [user]);
 
   return (
-    <div>
+    <div className={`relative ${plaidIsOpen ? 'blur-md' : ''}`}>
       <UpgradePopup open={openUpgradeDialog} onOpenChange={setOpenUpgradeDialog} />
-      <div className="mx-auto -mt-6 w-full max-w-screen-2xl pb-10">
+      <div className={`mx-auto -mt-6 w-full max-w-screen-2xl pb-10 ${plaidIsOpen ? 'opacity-75' : ''}`}>
         <Card className="border-none drop-shadow-sm">
           <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between align-middle">
             <CardTitle className="line-clamp-1 text-xl">Settings</CardTitle>
@@ -95,15 +113,15 @@ const SettingsPage = () => {
           <CardContent className="pb-0">
             <div className="flex w-full border-t py-3 items-center">
               <p className="w-[30%] md:w-[25%] lg:w-[20%] ml-[5%] md:ml-[10%] text-sm md:text-normal my-4 font-bold">
-                  Current Subscription
+                Current Subscription
               </p>
               <p className="w-[35%] md:w-[20%] lg:w-[35%] pl-[10%] text-sm md:text-normal text-center md:text-left text-gray-500">
                 <b>{subscriptionStatus}</b>
               </p>
-              <Button 
-                disabled={subscriptionButton === "Loading..." || subscriptionStatus === "Lifetime"} 
-                className="ml-[10%] md:ml-[20%] w-1/4 border" 
-                variant="ghost" 
+              <Button
+                disabled={subscriptionButton === "Loading..." || subscriptionStatus === "Lifetime"}
+                className="ml-[10%] md:ml-[20%] w-1/4 border"
+                variant="ghost"
                 onClick={() => setOpenUpgradeDialog(true)}>
                 {subscriptionButton}
               </Button>
@@ -118,22 +136,32 @@ const SettingsPage = () => {
               <p className="md:hidden w-[35%] md:w-[20%] lg:w-[35%] pl-[10%] text-center md:text-left text-sm md:text-normal text-gray-500 pt-2">
                 Link accounts to populate transactions automatically.
               </p>
-              <Button disabled={!isLoaded} className="hidden md:inline ml-[10%] md:ml-[20%] w-1/4 border" variant="ghost" onClick={() => {
-                if (subscriptionStatus !== "Free") {
-                  openPlaid();
-                } else {
-                  setOpenUpgradeDialog(true);
-                }
-              }}>
+              <Button
+                disabled={!isLoaded}
+                className="hidden md:inline ml-[10%] md:ml-[20%] w-1/4 border"
+                variant="ghost"
+                onClick={() => {
+                  if (subscriptionStatus !== "Free") {
+                    openPlaid();
+                    setPlaidIsOpen(true);
+                  } else {
+                    setOpenUpgradeDialog(true);
+                  }
+                }}>
                 Link Account
               </Button>
-              <Button disabled={!isLoaded} className="md:hidden ml-[10%] md:ml-[20%] w-1/4 border" variant="ghost" onClick={() => {
-                if (subscriptionStatus !== "Free") {
-                  openPlaid();
-                } else {
-                  setOpenUpgradeDialog(true);
-                }
-              }}>
+              <Button
+                disabled={!isLoaded}
+                className="md:hidden ml-[10%] md:ml-[20%] w-1/4 border"
+                variant="ghost"
+                onClick={() => {
+                  if (subscriptionStatus !== "Free") {
+                    openPlaid();
+                    setPlaidIsOpen(true);
+                  } else {
+                    setOpenUpgradeDialog(true);
+                  }
+                }}>
                 Link
               </Button>
             </div>

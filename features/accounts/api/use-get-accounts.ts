@@ -2,11 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 
 import { client } from "@/lib/hono";
 
-export const useGetAccounts = () => {
+export const useGetAccounts = (isFromPlaid: boolean) => {
   const query = useQuery({
-    queryKey: ["accounts"],
+    queryKey: ["accounts", { isFromPlaid }],
     queryFn: async () => {
-      const response = await client.api.accounts.$get();
+      const response = await client.api.accounts.$get({
+        query: { isFromPlaid: isFromPlaid.toString() },
+      });
 
       if (!response.ok) throw new Error("Failed to fetch accounts.");
 
@@ -18,3 +20,4 @@ export const useGetAccounts = () => {
 
   return query;
 };
+

@@ -36,6 +36,27 @@
       "when": 1725679627653,
       "tag": "0004_strange_gravity",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1725736807542,
+      "tag": "0005_freezing_maelstrom",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1725737544089,
+      "tag": "0006_curvy_black_crow",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1725737692258,
+      "tag": "0007_overrated_black_panther",
+      "breakpoints": true
     }
   ]
 }

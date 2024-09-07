@@ -10,6 +10,8 @@ import createCheckoutSession from './create-checkout-session';
 import cancelSubscription from './cancel-subscription';
 import connectPlaid from './plaid-route';
 import setAccessToken from './set-access-token';
+import uploadPlaidAccounts from './upload-plaid-accounts';
+import uploadPlaidTransactions from './upload-plaid-transactions';
 
 const app = new Hono().basePath('/api');
 
@@ -23,6 +25,8 @@ const routes = app
   .route('/cancel-subscription', cancelSubscription)
   .route('/plaid/connect', connectPlaid)
   .route('/plaid/set-access-token', setAccessToken)
+  .route('/plaid/upload-accounts', uploadPlaidAccounts)
+  .route('/plaid/upload-transactions', uploadPlaidTransactions)
 
 export const GET = handle(app);
 export const POST = handle(app);
