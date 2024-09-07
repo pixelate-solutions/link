@@ -4,13 +4,66 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUser } from '@clerk/clerk-react';
 import { useEffect, useState } from "react";
+import { usePlaidLink } from 'react-plaid-link';
 import { UpgradePopup } from "@/components/upgrade-popup";
 
 const SettingsPage = () => {
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>('Loading...');
   const [subscriptionButton, setSubscriptionButton] = useState<string>('Loading...');
   const [openUpgradeDialog, setOpenUpgradeDialog] = useState<boolean>(false);
+  const [linkToken, setLinkToken] = useState<string | null>(null);
+  const [openPlaid, setOpenPlaid] = useState<() => void>(() => () => {});
+
+  // Fetch Plaid link token and initialize the Plaid Link UI
+  useEffect(() => {
+    const fetchLinkToken = async () => {
+      if (user?.id) {
+        try {
+          const response = await fetch(`/api/plaid/connect`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ userId: user.id }),
+          });
+
+          const data = await response.json();
+          setLinkToken(data.link_token);
+        } catch (error) {
+          console.error("Error connecting Plaid:", error);
+        }
+      }
+    };
+
+    fetchLinkToken();
+  }, [user]);
+
+  const config = {
+    token: linkToken!,
+    onSuccess: async (public_token: string) => {
+      try {
+        const response = await fetch('/api/plaid/set_access_token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ public_token, userId: user?.id }),
+        });
+        console.log(response);
+      } catch (error) {
+        console.error("Error exchanging public token:", error);
+      }
+    },
+  };
+
+  const { open, ready } = usePlaidLink(config);
+
+  useEffect(() => {
+    if (ready) {
+      setOpenPlaid(() => open);
+    }
+  }, [ready, open]);
 
   useEffect(() => {
     if (user?.id) {
@@ -36,30 +89,52 @@ const SettingsPage = () => {
       <UpgradePopup open={openUpgradeDialog} onOpenChange={setOpenUpgradeDialog} />
       <div className="mx-auto -mt-6 w-full max-w-screen-2xl pb-10">
         <Card className="border-none drop-shadow-sm">
-          <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between">
+          <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between align-middle">
             <CardTitle className="line-clamp-1 text-xl">Settings</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex w-full border-t">
+          <CardContent className="pb-0">
+            <div className="flex w-full border-t py-3 items-center">
               <p className="w-[30%] md:w-[25%] lg:w-[20%] ml-[5%] md:ml-[10%] text-sm md:text-normal my-4 font-bold">
                   Current Subscription
               </p>
-              <p className="w-[35%] md:w-[20%] lg:w-[35%] pl-[10%] text-sm md:text-normal text-center md:text-left mt-4 text-gray-500">
+              <p className="w-[35%] md:w-[20%] lg:w-[35%] pl-[10%] text-sm md:text-normal text-center md:text-left text-gray-500">
                 <b>{subscriptionStatus}</b>
               </p>
-              <Button disabled={subscriptionButton === "Loading..." || subscriptionStatus === "Lifetime"} className="ml-[10%] md:ml-[20%] w-1/4 mt-2 border" variant="ghost" onClick={() => setOpenUpgradeDialog(true)}>
+              <Button 
+                disabled={subscriptionButton === "Loading..." || subscriptionStatus === "Lifetime"} 
+                className="ml-[10%] md:ml-[20%] w-1/4 border" 
+                variant="ghost" 
+                onClick={() => setOpenUpgradeDialog(true)}>
                 {subscriptionButton}
               </Button>
             </div>
-            <div className="flex w-full border-t">
-              <p className="w-[30%] md:w-[25%] lg:w-[20%] ml-[5%] md:ml-[10%] text-sm md:text-normal mt-4 font-bold">
-                Accounts
+            <div className="flex w-full border-t py-3 items-center">
+              <p className="w-[30%] md:w-[25%] lg:w-[20%] ml-[5%] md:ml-[10%] text-sm md:text-normal my-4 font-bold">
+                Automate
               </p>
-              <p className="w-[35%] md:w-[20%] lg:w-[35%] pl-[10%] text-center md:text-left mt-4 text-sm md:text-normal text-gray-500">
-                None
+              <p className="hidden md:inline w-[35%] md:w-[20%] lg:w-[35%] pl-[10%] text-center md:text-left text-sm md:text-normal text-gray-500 pt-2">
+                Link accounts to populate transactions automatically.
               </p>
-              <Button disabled={subscriptionStatus === "Free"} className="ml-[10%] md:ml-[20%] w-1/4 mt-2 border" variant="ghost">
-                Connect
+              <p className="md:hidden w-[35%] md:w-[20%] lg:w-[35%] pl-[10%] text-center md:text-left text-sm md:text-normal text-gray-500 pt-2">
+                Link accounts to populate transactions automatically.
+              </p>
+              <Button disabled={!isLoaded} className="hidden md:inline ml-[10%] md:ml-[20%] w-1/4 border" variant="ghost" onClick={() => {
+                if (subscriptionStatus !== "Free") {
+                  openPlaid();
+                } else {
+                  setOpenUpgradeDialog(true);
+                }
+              }}>
+                Link Account
+              </Button>
+              <Button disabled={!isLoaded} className="md:hidden ml-[10%] md:ml-[20%] w-1/4 border" variant="ghost" onClick={() => {
+                if (subscriptionStatus !== "Free") {
+                  openPlaid();
+                } else {
+                  setOpenUpgradeDialog(true);
+                }
+              }}>
+                Link
               </Button>
             </div>
           </CardContent>

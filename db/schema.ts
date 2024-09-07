@@ -7,6 +7,7 @@ export const accounts = pgTable("accounts", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   userId: text("user_id").notNull(),
+  isFromPlaid: boolean("is_from_plaid").default(false).notNull(),
 });
 
 export const accountsRelations = relations(accounts, ({ many }) => ({
@@ -19,6 +20,7 @@ export const categories = pgTable("categories", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   userId: text("user_id").notNull(),
+  isFromPlaid: boolean("is_from_plaid").default(false).notNull(),
 });
 
 export const categoriesRelations = relations(categories, ({ many }) => ({
@@ -41,6 +43,7 @@ export const transactions = pgTable("transactions", {
   categoryId: text("category_id").references(() => categories.id, {
     onDelete: "set null",
   }),
+  isFromPlaid: boolean("is_from_plaid").default(false).notNull(),
 });
 
 export const transactionsRelations = relations(transactions, ({ one }) => ({
@@ -66,3 +69,13 @@ export const stripeCustomers = pgTable('stripe_customers', {
 });
 
 export const insertStripeCustomerSchema = createInsertSchema(stripeCustomers);
+
+export const userTokens = pgTable('user_tokens', {
+  userId: text('user_id').notNull(),           
+  accessToken: text('access_token').notNull(),
+  itemId: text('item_id').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const insertUserTokensSchema = createInsertSchema(userTokens);

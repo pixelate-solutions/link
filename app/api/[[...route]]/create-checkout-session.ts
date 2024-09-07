@@ -4,10 +4,7 @@ import Stripe from 'stripe';
 import { db } from '@/db/drizzle';
 import { stripeCustomers } from '@/db/schema';
 import { createId } from '@paralleldrive/cuid2';
-import { config } from 'dotenv';
 import { eq } from 'drizzle-orm';
-
-config({ path: '.env.local' });
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_TEST_KEY!);
 
@@ -68,7 +65,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
         },
       ],
       mode: stripeMode,
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/overview`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings`,
       customer: customerId,
       metadata: {

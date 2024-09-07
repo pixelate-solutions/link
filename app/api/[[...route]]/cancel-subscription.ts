@@ -57,7 +57,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     // await db.delete(stripeCustomers).where(eq(stripeCustomers.userId, auth.userId));
 
     // Respond with a redirect URL
-    return ctx.json({ message: 'Subscription canceled successfully.', redirectUrl: '/' });
+    return ctx.json({ message: 'Subscription canceled successfully.', redirectUrl: '/overview' });
   } catch (error) {
     console.error('Error canceling subscription:', error);
     return ctx.json({ error: 'Internal Server Error' }, 500);

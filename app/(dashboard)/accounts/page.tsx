@@ -42,7 +42,30 @@ const AccountsPage = () => {
     <div className="mx-auto -mt-6 w-full max-w-screen-2xl pb-10">
       <Card className="border-none drop-shadow-sm">
         <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between">
-          <CardTitle className="line-clamp-1 text-xl">Accounts Page</CardTitle>
+          <CardTitle className="line-clamp-1 text-xl">Manual Accounts</CardTitle>
+
+          <Button size="sm" onClick={newAccount.onOpen}>
+            <Plus className="mr-2 size-4" /> Add new
+          </Button>
+        </CardHeader>
+
+        <CardContent>
+          <DataTable
+            filterKey="name"
+            columns={columns}
+            data={accounts}
+            onDelete={(row) => {
+              const ids = row.map((r) => r.original.id);
+
+              deleteAccounts.mutate({ ids });
+            }}
+            disabled={isDisabled}
+          />
+        </CardContent>
+      </Card>
+      <Card className="border-t drop-shadow-sm mt-10">
+        <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between">
+          <CardTitle className="line-clamp-1 text-xl">Connected Accounts</CardTitle>
 
           <Button size="sm" onClick={newAccount.onOpen}>
             <Plus className="mr-2 size-4" /> Add new

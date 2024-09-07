@@ -8,6 +8,8 @@ import transactions from './transactions';
 import subscriptionStatus from './subscription-status';
 import createCheckoutSession from './create-checkout-session';
 import cancelSubscription from './cancel-subscription';
+import connectPlaid from './plaid-route';
+import setAccessToken from './set-access-token';
 
 const app = new Hono().basePath('/api');
 
@@ -19,6 +21,8 @@ const routes = app
   .route('/subscription-status', subscriptionStatus)
   .route('/create-checkout-session', createCheckoutSession)
   .route('/cancel-subscription', cancelSubscription)
+  .route('/plaid/connect', connectPlaid)
+  .route('/plaid/set-access-token', setAccessToken)
 
 export const GET = handle(app);
 export const POST = handle(app);

@@ -15,6 +15,27 @@
       "when": 1725569726402,
       "tag": "0001_red_banshee",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1725653712556,
+      "tag": "0002_famous_ken_ellis",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1725655478566,
+      "tag": "0003_awesome_fabian_cortez",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1725679627653,
+      "tag": "0004_strange_gravity",
+      "breakpoints": true
     }
   ]
 }

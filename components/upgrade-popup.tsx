@@ -77,7 +77,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
         }
         // Redirect to the URL returned by the server
         if (!isSwitch) {
-          window.location.href = result.redirectUrl || '/';
+          window.location.href = result.redirectUrl || '/overview';
         }
         return { ok: true };
       } else {

@@ -12,7 +12,7 @@ import { NavButton } from "./nav-button";
 
 const routes = [
   {
-    href: "/",
+    href: "/overview",
     label: "Overview",
   },
   {
