@@ -39,17 +39,31 @@ export const EditTransactionSheet = () => {
 
   const categoryMutation = useCreateCategory();
   const categoryQuery = useGetCategories();
-  const categoryOptions = (categoryQuery.data ?? []).map((category) => ({
-    label: category.name,
+  const categoryOptions = (categoryQuery.data ?? [])
+  .map((category) => ({
+    label: category.name ?? "",
     value: category.id,
-  }));
+  }))
+  .sort((a, b) => a.label.localeCompare(b.label));
+
 
   const accountMutation = useCreateAccount();
-  const accountQuery = useGetAccounts();
-  const accountOptions = (accountQuery.data ?? []).map((account) => ({
-    label: account.name,
+  const plaidAccountsQuery = useGetAccounts(true);
+  const nonPlaidAccountsQuery = useGetAccounts(false);
+
+  // Combine both queries' data into one array
+  let accountQuery: { id: string; name: string; isFromPlaid: boolean }[] = [];
+
+  if (plaidAccountsQuery.data && nonPlaidAccountsQuery.data) {
+    accountQuery = [...plaidAccountsQuery.data, ...nonPlaidAccountsQuery.data];
+  }
+
+  const accountOptions = accountQuery
+  .map((account) => ({
+    label: account.name ?? "Unnamed Account",
     value: account.id,
-  }));
+  }))
+  .sort((a, b) => a.label.localeCompare(b.label)); 
 
   const onCreateAccount = (name: string) => accountMutation.mutate({ name });
   const onCreateCategory = (name: string) => categoryMutation.mutate({ name });
@@ -64,7 +78,8 @@ export const EditTransactionSheet = () => {
   const isLoading =
     transactionQuery.isLoading ||
     categoryQuery.isLoading ||
-    accountQuery.isLoading;
+    plaidAccountsQuery.isLoading ||
+    nonPlaidAccountsQuery.isLoading;
 
   const onSubmit = (values: FormValues) => {
     editMutation.mutate(values, {
@@ -75,24 +90,25 @@ export const EditTransactionSheet = () => {
   };
 
   const defaultValues = transactionQuery.data
-    ? {
-        accountId: transactionQuery.data.accountId,
-        categoryId: transactionQuery.data.categoryId,
-        amount: transactionQuery.data.amount.toString(),
-        date: transactionQuery.data.date
-          ? new Date(transactionQuery.data.date)
-          : new Date(),
-        payee: transactionQuery.data.payee,
-        notes: transactionQuery.data.notes,
-      }
-    : {
-        accountId: "",
-        categoryId: "",
-        amount: "",
-        date: new Date(),
-        payee: "",
-        notes: "",
-      };
+  ? {
+      accountId: transactionQuery.data.accountId,
+      categoryId: transactionQuery.data.categoryId,
+      amount: transactionQuery.data.amount.toString(),
+      date: transactionQuery.data.date
+        ? new Date(transactionQuery.data.date)
+        : new Date(),
+      payee: transactionQuery.data.payee ?? "", 
+      notes: transactionQuery.data.notes ?? "",
+    }
+  : {
+      accountId: "",
+      categoryId: "",
+      amount: "",
+      date: new Date(),
+      payee: "",
+      notes: "",
+    };
+
 
   const onDelete = async () => {
     const ok = await confirm();
