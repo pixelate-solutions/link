@@ -1,11 +1,10 @@
 import { Hono } from "hono";
 import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 import { db } from "@/db/drizzle";
-import { accounts, transactions } from "@/db/schema";
+import { accounts, transactions, userTokens, categories } from "@/db/schema";
 import { createId } from "@paralleldrive/cuid2";
 import plaidClient from "./plaid";
-import { userTokens } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 const app = new Hono();
 
@@ -37,7 +36,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
   const startDate = new Date();
   const endDate = new Date();
- 
+  
   startDate.setFullYear(endDate.getFullYear() - 10);
 
   const formattedEndDate = endDate.toISOString().split('T')[0];
@@ -55,7 +54,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     .select({ id: accounts.id, plaidAccountId: accounts.id })
     .from(accounts)
     .where(eq(accounts.userId, userId));
-  
+
   // Create a map of Plaid account IDs to database account IDs
   const accountIdMap = dbAccounts.reduce((map, account) => {
     const plaidAccount = plaidAccounts.find(
@@ -67,20 +66,75 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     return map;
   }, {} as Record<string, string>);
 
-  // Insert each transaction into the transactions table
+  // Fetch all categories for the user
+  const dbCategories = await db
+    .select({ id: categories.id, plaidCategoryId: categories.plaidCategoryId })
+    .from(categories)
+    .where(eq(categories.userId, userId));
+
+  // Create a map of Plaid category IDs to database category IDs
+  const categoryIdMap = dbCategories.reduce((map, category) => {
+    if (category.plaidCategoryId) {
+      map[category.plaidCategoryId] = category.id; // Map Plaid category ID to database category ID
+    }
+    return map;
+  }, {} as Record<string, string>);
+
+  // Insert missing categories
+  const categoriesToInsert = plaidTransactions.reduce((set, transaction) => {
+    const plaidCategoryId = transaction.personal_finance_category?.detailed || transaction.personal_finance_category?.primary || null;
+    if (plaidCategoryId && !categoryIdMap[plaidCategoryId]) {
+      set.add(plaidCategoryId);
+    }
+    return set;
+  }, new Set<string>());
+
+  function formatCategory(input: string) {
+  // Replace underscores with spaces
+  let result = input.replace(/_/g, ' ');
+
+  // Capitalize the first letter of each word and lowercase the rest
+  result = result
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+
+  return result;
+}
+
+  for (const plaidCategoryId of categoriesToInsert) {
+    await db.insert(categories).values({
+      id: createId(),
+      userId,
+        name: formatCategory(plaidCategoryId),
+      plaidCategoryId,
+      isFromPlaid: true,
+    }).returning();
+  }
+
+  // Refresh category map after insertion
+  const updatedDbCategories = await db
+    .select({ id: categories.id, plaidCategoryId: categories.plaidCategoryId })
+    .from(categories)
+    .where(eq(categories.userId, userId));
+
+  const updatedCategoryIdMap = updatedDbCategories.reduce((map, category) => {
+    if (category.plaidCategoryId) {
+      map[category.plaidCategoryId] = category.id; // Map Plaid category ID to database category ID
+    }
+    return map;
+  }, {} as Record<string, string>);
+
+  // Insert transactions
   const insertedTransactions = await Promise.all(
     plaidTransactions.map(async (transaction) => {
-      const accountId = accountIdMap[transaction.account_id]; // Ensure accountId is either a valid string or undefined
-      const categoryId = transaction.personal_finance_category?.detailed || transaction.personal_finance_category?.primary || null; // Handle category ID, defaulting to null if undefined
-
-      // Only insert transactions if accountId is valid
-      if (!accountId) {
-        return { error: `No matching account for Plaid account ID ${transaction.account_id}` };
-      }
+      const accountId = accountIdMap[transaction.account_id];
+      const plaidCategoryId = transaction.personal_finance_category?.detailed || transaction.personal_finance_category?.primary || null;
+      const categoryId = plaidCategoryId ? updatedCategoryIdMap[plaidCategoryId] : null;
 
       return db.insert(transactions).values({
         id: createId(),
-        amount: transaction.amount,
+        amount: transaction.amount.toString(),
         payee: transaction.name,
         date: new Date(transaction.date),
         accountId,

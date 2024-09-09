@@ -122,7 +122,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
       setStartOrSwitch("Switch");
       setPopupMessage("Change your subscription status and receive a prorated refund for unused time.")
     }
-  }, [user, open]);
+  }, [user, open, currentSubscription]);
 
   return (
     <>

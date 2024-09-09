@@ -1,6 +1,3 @@
-import { DataCharts } from "@/components/data-charts";
-import { DataGrid } from "@/components/data-grid";
-
 const LandingPage = () => {
   return (
     <div className="mx-auto -mt-6 w-full max-w-screen-2xl pb-10">

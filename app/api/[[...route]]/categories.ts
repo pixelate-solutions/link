@@ -67,28 +67,36 @@ const app = new Hono()
     clerkMiddleware(),
     zValidator(
       "json",
-      insertCategorySchema.pick({
-        name: true,
+      z.object({
+        name: z.string(),
+        plaidCategoryId: z.string().optional(),
       })
     ),
     async (ctx) => {
       const auth = getAuth(ctx);
-      const values = ctx.req.valid("json");
+      const { name, plaidCategoryId } = ctx.req.valid("json");
+      const userId = auth?.userId;
 
-      if (!auth?.userId) {
+      if (!userId) {
         return ctx.json({ error: "Unauthorized." }, 401);
       }
 
-      const [data] = await db
+      if (!name) {
+        return ctx.json({ error: "Category name is required." }, 400);
+      }
+
+      const newCategory = await db
         .insert(categories)
         .values({
           id: createId(),
-          userId: auth.userId,
-          ...values,
+          userId,
+          name,
+          plaidCategoryId: plaidCategoryId || null,
+          isFromPlaid: !!plaidCategoryId,
         })
         .returning();
 
-      return ctx.json({ data });
+      return ctx.json({ category: newCategory }, 201);
     }
   )
   .post(

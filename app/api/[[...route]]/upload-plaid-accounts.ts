@@ -34,17 +34,39 @@ app.post('/', clerkMiddleware(), async (ctx) => {
   const plaidResponse = await plaidClient.accountsGet({ access_token: accessToken });
   const plaidAccounts = plaidResponse.data.accounts;
 
-  // Insert each account into the accounts table
   const insertedAccounts = await Promise.all(
     plaidAccounts.map(async (account) => {
-      return db.insert(accounts).values({
-        id: createId(),
-        userId: userId,
-        name: account.name,
-        isFromPlaid: true,
-      }).returning();
+        try {
+        return await db.insert(accounts).values({
+            id: account.account_id,
+            userId: userId,
+            name: account.name,
+            isFromPlaid: true,
+        }).returning();
+        } catch (error: unknown) {
+        if (error instanceof Error) {
+            // Parse the error message to extract the code, if needed
+            const errorMessage = error.message;
+            
+            // Example: Checking for a specific PostgreSQL error code in the message
+            if (errorMessage.includes('23505')) {
+            // Handle duplicate record case
+            return { error: `Account ${account.account_id} already exists` };
+            }
+
+            // Log other errors
+            console.error('Database error:', errorMessage);
+        } else {
+            // Handle unknown errors
+            console.error('Unknown error occurred:', error);
+        }
+        
+        // Re-throw the error if it's not handled
+        throw error;
+        }
     })
-  );
+    );
+
 
   return ctx.json({ accounts: insertedAccounts });
 });

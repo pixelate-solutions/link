@@ -2,9 +2,9 @@ import { Hono } from 'hono';
 import { handle } from 'hono/vercel';
 
 import accounts from './accounts';
-import categories from './categories';
 import summary from './summary';
 import transactions from './transactions';
+import categories from './categories';
 import subscriptionStatus from './subscription-status';
 import createCheckoutSession from './create-checkout-session';
 import cancelSubscription from './cancel-subscription';
