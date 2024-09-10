@@ -44,7 +44,9 @@ export const AccountFilter = () => {
     router.push(url);
   };
 
-  const { data: accounts, isLoading: isLoadingAccounts } = useGetAccounts();
+  // Provide a value for `isFromPlaid` when calling the hook
+  const { data: accounts, isLoading: isLoadingAccounts } = useGetAccounts(false);
+
   return (
     <Select
       value={accountId}
