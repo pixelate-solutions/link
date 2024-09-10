@@ -16,9 +16,12 @@ export const useGetTransaction = (id?: string) => {
 
       const { data } = await response.json();
 
+      // Ensure amount is a number before passing to convertAmountFromMilliunits
+      const amount = Number(data.amount); // Convert amount from string to number
+
       return {
         ...data,
-        amount: convertAmountFromMilliunits(data.amount),
+        amount: convertAmountFromMilliunits(amount),
       };
     },
   });
