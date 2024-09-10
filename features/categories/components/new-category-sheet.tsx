@@ -24,7 +24,14 @@ export const NewCategorySheet = () => {
   const mutation = useCreateCategory();
 
   const onSubmit = (values: FormValues) => {
-    mutation.mutate(values, {
+    // Ensure 'name' is a valid string
+    const name = values.name?.trim();
+    if (!name) {
+      console.error("Name is required and cannot be empty.");
+      return;
+    }
+
+    mutation.mutate({ name }, {
       onSuccess: () => {
         onClose();
       },
@@ -44,7 +51,7 @@ export const NewCategorySheet = () => {
 
         <CategoryForm
           defaultValues={{
-            name: "",
+            name: "", // Ensure this is valid as per FormValues type
           }}
           onSubmit={onSubmit}
           disabled={mutation.isPending}
