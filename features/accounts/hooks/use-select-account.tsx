@@ -17,7 +17,8 @@ export const useSelectAccount = (): [
   () => JSX.Element,
   () => Promise<unknown>,
 ] => {
-  const accountQuery = useGetAccounts();
+  // Provide the required argument for useGetAccounts
+  const accountQuery = useGetAccounts(false); // Assuming false is a suitable default value
   const accountMutation = useCreateAccount();
 
   const onCreateAccount = (name: string) =>
