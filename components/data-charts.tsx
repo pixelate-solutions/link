@@ -22,6 +22,11 @@ export const DataCharts = () => {
     );
   }
 
+  const processedCategories = data?.categories?.map(item => ({
+    name: item.name ?? 'Unknown',
+    value: item.value,
+  }));
+
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-6">
       <div className="col-span-1 lg:col-span-3 xl:col-span-4">
@@ -29,7 +34,7 @@ export const DataCharts = () => {
       </div>
 
       <div className="col-span-1 lg:col-span-3 xl:col-span-2">
-        <SpendingPie data={data?.categories} />
+        <SpendingPie data={processedCategories} />
       </div>
     </div>
   );
