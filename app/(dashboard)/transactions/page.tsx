@@ -130,16 +130,18 @@ const TransactionsPage = () => {
 
         <CardContent>
           <DataTable
-            filterKey="payee"
-            columns={columns}
-            data={transactions}
-            onDelete={(row) => {
-              const ids = row.map((r) => r.original.id);
-
-              deleteTransactions.mutate({ ids });
-            }}
-            disabled={isDisabled}
-          />
+          filterKey="payee"
+          columns={columns}
+          data={transactions.map((transaction) => ({
+            ...transaction,
+            amount: transaction.amount.toString(),
+          }))}
+          onDelete={(row) => {
+            const ids = row.map((r) => r.original.id);
+            deleteTransactions.mutate({ ids });
+          }}
+          disabled={isDisabled}
+        />
         </CardContent>
       </Card>
     </div>
