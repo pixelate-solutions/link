@@ -49,11 +49,19 @@ app.get('/', clerkMiddleware(), async (ctx) => {
       let plan = 'Free';
       if (items.length > 0) {
         const priceId = items[0].price.id;
+        const monthlyPriceId = process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
+        ? process.env.NEXT_PUBLIC_STRIPE_MONTHLY_TEST_PRICE_ID
+        : process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
+        
+        const annualPriceId = process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
+        ? process.env.NEXT_PUBLIC_STRIPE_ANNUAL_TEST_PRICE_ID
+        : process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
+        
         switch (priceId) {
-          case process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID:
+          case monthlyPriceId:
             plan = 'Monthly';
             break;
-          case process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID:
+          case annualPriceId:
             plan = 'Annual';
             break;
           default:

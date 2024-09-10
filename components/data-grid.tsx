@@ -7,7 +7,7 @@ import { FaArrowTrendUp, FaArrowTrendDown } from "react-icons/fa6";
 import { useGetSummary } from "@/features/summary/api/use-get-summary";
 import { formatDateRange } from "@/lib/utils";
 
-import { DataCard, DataCardLoading } from "./data-card";
+import { DataCard, DataCardLoading, ExpensesDataCard } from "./data-card";
 
 export const DataGrid = () => {
   const { data, isLoading } = useGetSummary();
@@ -46,7 +46,7 @@ export const DataGrid = () => {
         dateRange={dateRangeLabel}
       />
 
-      <DataCard
+      <ExpensesDataCard
         title="Expenses"
         value={data?.expensesAmount}
         percentageChange={data?.expensesChange}

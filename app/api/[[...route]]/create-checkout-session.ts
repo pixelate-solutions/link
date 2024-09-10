@@ -48,7 +48,11 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     // Determine if this is a lifetime plan or subscription
     let stripeMode: 'payment' | 'subscription';
     let isLifetime = false;
-    if (priceId === process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID) {
+    const lifetimePriceId = process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
+    ? process.env.NEXT_PUBLIC_STRIPE_LIFETIME_TEST_PRICE_ID
+    : process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID;
+
+    if (priceId === lifetimePriceId) {
       stripeMode = 'payment';
       isLifetime = true;
     } else {

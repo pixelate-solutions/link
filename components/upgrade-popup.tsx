@@ -11,10 +11,23 @@ interface UpgradePopupProps {
 }
 
 export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
-  const STRIPE_PUBLISHABLE_TEST_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_TEST_KEY!;
-  const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!;
-  const NEXT_PUBLIC_APP_URL = process.env.NEXT_PUBLIC_APP_URL!;
-  const stripePromise = loadStripe(STRIPE_PUBLISHABLE_TEST_KEY);
+  const monthlyPriceId = process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
+  ? process.env.NEXT_PUBLIC_STRIPE_MONTHLY_TEST_PRICE_ID
+  : process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
+  
+  const annualPriceId = process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
+  ? process.env.NEXT_PUBLIC_STRIPE_ANNUAL_TEST_PRICE_ID
+  : process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
+  
+  const lifetimePriceId = process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
+  ? process.env.NEXT_PUBLIC_STRIPE_LIFETIME_TEST_PRICE_ID
+  : process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID;
+
+  const publishableKey = process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
+  ? process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_TEST_KEY
+  : process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  
+  const stripePromise = loadStripe(publishableKey!);
   const [currentSubscription, setCurrentSubscription] = useState<string>('Free');
   const [startOrSwitch, setStartOrSwitch] = useState<string>('Start');
   const [cancelPopupOpen, setCancelPopupOpen] = useState<boolean>(false);
@@ -145,9 +158,9 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
               <AlertDialogAction asChild className="w-1/3">
                 <Button variant="ghost" onClick={() => {
                   if (currentSubscription === "Free") {
-                    handleCheckout(process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID!);
+                    handleCheckout(monthlyPriceId!);
                   } else {
-                    handleSwitch(process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID!);
+                    handleSwitch(monthlyPriceId!);
                   }
                 }} className="bg-green-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
                   {startOrSwitch}
@@ -158,9 +171,9 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
               <AlertDialogAction asChild className="w-1/3">
                 <Button variant="ghost" onClick={() => {
                   if (currentSubscription === "Free") {
-                    handleCheckout(process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID!);
+                    handleCheckout(monthlyPriceId!);
                   } else {
-                    handleSwitch(process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID!);
+                    handleSwitch(monthlyPriceId!);
                   }
                 }} className="bg-gray-100 text-black hover:bg-200 md:hidden w-1/2 border border-transparent hover:border-gray-300">
                   $7.50
@@ -184,9 +197,9 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
               <AlertDialogAction asChild className="w-1/3">
                 <Button variant="ghost" onClick={() => {
                   if (currentSubscription === "Free") {
-                    handleCheckout(process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID!);
+                    handleCheckout(annualPriceId!);
                   } else {
-                    handleSwitch(process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID!);
+                    handleSwitch(annualPriceId!);
                   }
                 }} className="bg-green-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
                   {startOrSwitch}
@@ -197,9 +210,9 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
               <AlertDialogAction asChild className="w-1/3">
                 <Button variant="ghost" onClick={() => {
                   if (currentSubscription === "Free") {
-                    handleCheckout(process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID!);
+                    handleCheckout(annualPriceId!);
                   } else {
-                    handleSwitch(process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID!);
+                    handleSwitch(annualPriceId!);
                   }
                 }} className="bg-gray-100 text-black hover:bg-200 md:hidden w-1/2 border border-transparent hover:border-gray-300">
                   $75.00
@@ -223,9 +236,9 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
               <AlertDialogAction asChild className="w-1/3">
                 <Button variant="ghost" onClick={() => {
                   if (currentSubscription === "Free") {
-                    handleCheckout(process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID!);
+                    handleCheckout(lifetimePriceId!);
                   } else {
-                    handleSwitch(process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID!);
+                    handleSwitch(lifetimePriceId!);
                   }
                 }} className="bg-green-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
                   {startOrSwitch}
@@ -236,9 +249,9 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
               <AlertDialogAction asChild className="w-1/3">
                 <Button variant="ghost" onClick={() => {
                   if (currentSubscription === "Free") {
-                    handleCheckout(process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID!);
+                    handleCheckout(lifetimePriceId!);
                   } else {
-                    handleSwitch(process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID!);
+                    handleSwitch(lifetimePriceId!);
                   }
                 }} className="bg-gray-100 text-black hover:bg-200 md:hidden w-1/2 border border-transparent hover:border-gray-300">
                   $90.00

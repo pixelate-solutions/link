@@ -51,7 +51,7 @@ type DataCardProps = BoxVariants &
     value?: number;
     dateRange: string;
     percentageChange?: number;
-  };
+};
 
 export const DataCard = ({
   title,
@@ -94,6 +94,57 @@ export const DataCard = ({
             "line-clamp-1 text-sm text-muted-foreground",
             percentageChange > 0 && "text-emerald-500",
             percentageChange < 0 && "text-rose-500"
+          )}
+        >
+          {formatPercentage(percentageChange, { addPrefix: true })} from last
+          period.
+        </p>
+      </CardContent>
+    </Card>
+  );
+};
+
+export const ExpensesDataCard = ({
+  title,
+  value = 0,
+  percentageChange = 0,
+  icon: Icon,
+  variant,
+  dateRange,
+}: DataCardProps) => {
+  return (
+    <Card className="border-none drop-shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between gap-x-4">
+        <div className="space-y-2">
+          <CardTitle className="line-clamp-1 text-2xl">{title}</CardTitle>
+
+          <CardDescription className="line-clamp-1">
+            {dateRange}
+          </CardDescription>
+        </div>
+
+        <div className={cn(boxVariant({ variant }))}>
+          <Icon className={cn(iconVariant({ variant }))} />
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        <h1 className="mb-2 line-clamp-1 break-all text-2xl font-bold">
+          <CountUp
+            preserveValue
+            start={0}
+            end={value}
+            decimals={2}
+            decimalPlaces={2}
+            formattingFn={formatCurrency}
+          />
+        </h1>
+
+        <p
+          className={cn(
+            "line-clamp-1 text-sm text-muted-foreground",
+            percentageChange < 0 && "text-emerald-500",
+            percentageChange > 0 && "text-rose-500"
           )}
         >
           {formatPercentage(percentageChange, { addPrefix: true })} from last
