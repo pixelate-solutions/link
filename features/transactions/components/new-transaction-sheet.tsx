@@ -29,14 +29,14 @@ export const NewTransactionSheet = () => {
   const categoryMutation = useCreateCategory();
   const categoryQuery = useGetCategories();
   const categoryOptions = (categoryQuery.data ?? []).map((category) => ({
-    label: category.name,
+    label: category.name ?? "Unnamed Category", // Provide a default value if name is null or undefined
     value: category.id,
   }));
 
   const accountMutation = useCreateAccount();
-  const accountQuery = useGetAccounts();
+  const accountQuery = useGetAccounts(true); // Pass the required argument here
   const accountOptions = (accountQuery.data ?? []).map((account) => ({
-    label: account.name,
+    label: account.name ?? "Unnamed Account", // Provide a default value if name is null or undefined
     value: account.id,
   }));
 
