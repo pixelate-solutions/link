@@ -48,6 +48,7 @@ export const CategoryForm = ({
   const handleDelete = () => {
     onDelete?.();
   };
+
   return (
     <Form {...form}>
       <form
@@ -65,7 +66,15 @@ export const CategoryForm = ({
               <FormLabel>Name</FormLabel>
 
               <FormControl>
-                <Input placeholder="e.g. Food, Travel, etc." {...field} />
+                <Input
+                  placeholder="e.g. Food, Travel, etc."
+                  value={field.value || ''} // Ensure value is not null
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                  ref={field.ref}
+                  disabled={disabled}
+                />
               </FormControl>
 
               <FormMessage />
