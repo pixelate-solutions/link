@@ -110,7 +110,8 @@ const generateTransactionPerDay = (day: Date) => {
       accountId: SEED_ACCOUNTS[0].id, // using first account
       categoryId: category.id,
       date: day,
-      amount: formattedAmount,
+      amount: formattedAmount.toString(),
+      isFromPlaid: false,
       payee: "Merchant",
       notes: "Random transaction",
     });
