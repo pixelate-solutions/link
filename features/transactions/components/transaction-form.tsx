@@ -70,7 +70,7 @@ export const TransactionForm = ({
 
     onSubmit({
       ...values,
-      amount: amountInMilliunits,
+      amount: amountInMilliunits.toString(),
     });
   };
 
