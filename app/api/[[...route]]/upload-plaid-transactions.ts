@@ -4,7 +4,7 @@ import { db } from "@/db/drizzle";
 import { accounts, transactions, userTokens, categories } from "@/db/schema";
 import { createId } from "@paralleldrive/cuid2";
 import plaidClient from "./plaid";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 const app = new Hono();
 

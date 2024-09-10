@@ -3,7 +3,6 @@ import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 import { db } from "@/db/drizzle";
 import { eq } from "drizzle-orm";
 import { accounts } from "@/db/schema";
-import { createId } from "@paralleldrive/cuid2";
 import plaidClient from "./plaid";
 import { userTokens } from "@/db/schema";
 
