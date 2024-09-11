@@ -156,13 +156,13 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       const accountId = updatedAccountIdMap[transaction.account_id];
 
       // Convert amount to string
-      const amount = transaction.amount.toString();
+      const amount = transaction.amount
 
       // Ensure values are of expected types and handle nulls appropriately
       return db.insert(transactions).values({
         id: createId(),
         userId: userId,
-        amount: amount, // Convert amount to string
+        amount: amount.toString(),
         payee: transaction.name,
         date: new Date(transaction.date),
         accountId: accountId, 

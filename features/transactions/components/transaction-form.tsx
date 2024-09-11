@@ -20,6 +20,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { insertTransactionSchema } from "@/db/schema";
 import { convertAmountToMilliunits } from "@/lib/utils";
 
+import { useUser } from "@clerk/nextjs";
+
 const formSchema = z.object({
   date: z.coerce.date(),
   accountId: z.string(),
@@ -64,12 +66,15 @@ export const TransactionForm = ({
     defaultValues,
   });
 
+  const { user } = useUser();
+
   const handleSubmit = (values: FormValues) => {
-    const amount = parseFloat(values.amount);
-    const amountInMilliunits = convertAmountToMilliunits(amount);
+    const amount = values.amount;
+    const amountInMilliunits = convertAmountToMilliunits(parseFloat(amount));
 
     onSubmit({
       ...values,
+      userId: user?.id || "-",
       amount: amountInMilliunits.toString(),
     });
   };

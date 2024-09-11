@@ -107,6 +107,7 @@ const generateTransactionPerDay = (day: Date) => {
 
     SEED_TRANSACTIONS.push({
       id: `transaction_${format(day, "yyyy-MM-dd")}_${i}`,
+      userId: SEED_USER_ID,
       accountId: SEED_ACCOUNTS[0].id, // using first account
       categoryId: category.id,
       date: day,
