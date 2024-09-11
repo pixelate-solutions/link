@@ -87,11 +87,20 @@ const SettingsPage = () => {
     if (user?.id) {
       fetch(`/api/subscription-status?userId=${user.id}`)
         .then(response => response.json())
-        .then(data => {
+        .then(async (data) => {
           const label = data.plan;
           setSubscriptionStatus(label);
           if (label === "Free") {
             setSubscriptionButton("Upgrade");
+
+            // Call the API to delete all Plaid-related data
+            await fetch(`/api/d`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ userId: user.id }),
+            });
           } else if (label === "Monthly" || label === "Annual") {
             setSubscriptionButton("Update");
           } else if (label === "Lifetime") {
@@ -128,7 +137,7 @@ const SettingsPage = () => {
             </div>
             <div className="flex w-full border-t py-3 items-center">
               <p className="w-[30%] md:w-[25%] lg:w-[20%] ml-[5%] md:ml-[10%] text-sm md:text-normal my-4 font-bold">
-                Automate
+                Link Accounts
               </p>
               <p className="hidden md:inline w-[35%] md:w-[20%] lg:w-[35%] pl-[10%] text-center md:text-left text-sm md:text-normal text-gray-500 pt-2">
                 Link accounts to populate transactions automatically.

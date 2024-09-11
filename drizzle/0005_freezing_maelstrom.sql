@@ -1,1 +1,0 @@
-ALTER TABLE "user_tokens" ADD PRIMARY KEY ("user_id");

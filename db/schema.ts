@@ -1,13 +1,14 @@
 import { relations } from "drizzle-orm";
-import { integer, pgTable, text, timestamp, boolean, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const accounts = pgTable("accounts", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  userId: text("user_id").notNull(),
-  isFromPlaid: boolean("is_from_plaid").default(false).notNull(),
+export const accounts = pgTable('accounts', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  plaidAccountId: text('plaid_account_id'),
+  name: text('name').notNull(),
+  isFromPlaid: boolean('is_from_plaid').notNull().default(true),
 });
 
 export const accountsRelations = relations(accounts, ({ many }) => ({
@@ -32,6 +33,7 @@ export const insertCategorySchema = createInsertSchema(categories);
 
 export const transactions = pgTable("transactions", {
   id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
   amount: numeric("amount").notNull(),
   payee: text("payee"),
   notes: text("notes"),
@@ -75,7 +77,7 @@ export const userTokens = pgTable('user_tokens', {
   id: text('id').notNull().primaryKey(),
   userId: text('user_id').notNull(),
   accessToken: text('access_token').notNull(),
-  itemId: text('item_id').notNull(),
+  itemId: text('item_id'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 

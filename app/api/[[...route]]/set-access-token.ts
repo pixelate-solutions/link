@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import plaidClient from './plaid';
 import { userTokens } from '@/db/schema';
 import { db } from '@/db/drizzle';
+import { eq, and } from 'drizzle-orm';
 import { clerkMiddleware } from '@hono/clerk-auth';
 import { createId } from '@paralleldrive/cuid2';
 
@@ -15,6 +16,20 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     const response = await plaidClient.itemPublicTokenExchange({ public_token });
     const { access_token, item_id } = response.data;
 
+    // Check if a record already exists for this userId and itemId
+    const existingToken = await db
+      .select()
+      .from(userTokens)
+      .where(and((eq(userTokens.userId, userId)), (eq(userTokens.accessToken, access_token))))
+      .limit(1);
+
+    if (existingToken.length > 0) {
+      return ctx.json({
+        success: true,
+        message: 'Access token already exists for this user and item.',
+      });
+    }
+
     // Store the access_token and item_id securely in your database
     await db.insert(userTokens).values({
       id: createId(),
@@ -25,7 +40,6 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     });
 
     // Respond with success
-    console.log("set success")
     return ctx.json({
       success: true,
       message: 'Access token stored successfully.',

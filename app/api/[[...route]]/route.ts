@@ -12,6 +12,7 @@ import connectPlaid from './plaid-route';
 import setAccessToken from './set-access-token';
 import uploadPlaidAccounts from './upload-plaid-accounts';
 import uploadPlaidTransactions from './upload-plaid-transactions';
+import deletePlaidData from './delete-plaid';
 
 const app = new Hono().basePath('/api');
 
@@ -27,7 +28,8 @@ const routes = app
   .route('/plaid/set-access-token', setAccessToken)
   .route('/plaid/upload-accounts', uploadPlaidAccounts)
   .route('/plaid/upload-transactions', uploadPlaidTransactions)
-
+  .route('/plaid/delete-data', deletePlaidData)
+  
 export const GET = handle(app);
 export const POST = handle(app);
 export const PATCH = handle(app);

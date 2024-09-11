@@ -51,17 +51,41 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
   // Fetch all database accounts for the user
   const dbAccounts = await db
-    .select({ id: accounts.id, plaidAccountId: accounts.id })
+    .select({ id: accounts.id, plaidAccountId: accounts.plaidAccountId })
     .from(accounts)
     .where(eq(accounts.userId, userId));
 
   // Create a map of Plaid account IDs to database account IDs
   const accountIdMap = dbAccounts.reduce((map, account) => {
-    const plaidAccount = plaidAccounts.find(
-      (pAccount) => pAccount.account_id === account.plaidAccountId
-    );
-    if (plaidAccount) {
-      map[plaidAccount.account_id] = account.id; // Map Plaid account ID to database account ID
+    if (account.plaidAccountId) {
+      map[account.plaidAccountId] = account.id; // Map Plaid account ID to database account ID
+    }
+    return map;
+  }, {} as Record<string, string>);
+
+  // Determine which Plaid accounts are missing in the database
+  const accountsToInsert = plaidAccounts.filter(pAccount => !accountIdMap[pAccount.account_id]);
+
+  // Insert missing accounts
+  for (const plaidAccount of accountsToInsert) {
+    await db.insert(accounts).values({
+      id: createId(),
+      userId,
+      plaidAccountId: plaidAccount.account_id,
+      name: plaidAccount.name,
+      isFromPlaid: true,
+    }).returning();
+  }
+
+  // Refresh account map after insertion
+  const updatedDbAccounts = await db
+    .select({ id: accounts.id, plaidAccountId: accounts.plaidAccountId })
+    .from(accounts)
+    .where(eq(accounts.userId, userId));
+
+  const updatedAccountIdMap = updatedDbAccounts.reduce((map, account) => {
+    if (account.plaidAccountId) {
+      map[account.plaidAccountId] = account.id; // Map Plaid account ID to database account ID
     }
     return map;
   }, {} as Record<string, string>);
@@ -90,23 +114,23 @@ app.post('/', clerkMiddleware(), async (ctx) => {
   }, new Set<string>());
 
   function formatCategory(input: string) {
-  // Replace underscores with spaces
-  let result = input.replace(/_/g, ' ');
+    // Replace underscores with spaces
+    let result = input.replace(/_/g, ' ');
 
-  // Capitalize the first letter of each word and lowercase the rest
-  result = result
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
+    // Capitalize the first letter of each word and lowercase the rest
+    result = result
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
 
-  return result;
-}
+    return result;
+  }
 
   for (const plaidCategoryId of categoriesToInsert) {
     await db.insert(categories).values({
       id: createId(),
       userId,
-        name: formatCategory(plaidCategoryId),
+      name: formatCategory(plaidCategoryId),
       plaidCategoryId,
       isFromPlaid: true,
     }).returning();
@@ -125,24 +149,29 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     return map;
   }, {} as Record<string, string>);
 
-  // Insert transactions
   const insertedTransactions = await Promise.all(
     plaidTransactions.map(async (transaction) => {
-      const accountId = accountIdMap[transaction.account_id];
       const plaidCategoryId = transaction.personal_finance_category?.detailed || transaction.personal_finance_category?.primary || null;
       const categoryId = plaidCategoryId ? updatedCategoryIdMap[plaidCategoryId] : null;
+      const accountId = updatedAccountIdMap[transaction.account_id];
 
+      // Convert amount to string
+      const amount = transaction.amount.toString();
+
+      // Ensure values are of expected types and handle nulls appropriately
       return db.insert(transactions).values({
         id: createId(),
-        amount: transaction.amount.toString(),
+        userId: userId,
+        amount: amount, // Convert amount to string
         payee: transaction.name,
         date: new Date(transaction.date),
-        accountId,
-        categoryId,
+        accountId: accountId, 
+        categoryId: categoryId,
         isFromPlaid: true,
       }).returning();
     })
   );
+
 
   return ctx.json({ transactions: insertedTransactions });
 });
