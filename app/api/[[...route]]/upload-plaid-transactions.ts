@@ -106,7 +106,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
   // Insert missing categories
   const categoriesToInsert = plaidTransactions.reduce((set, transaction) => {
-    const plaidCategoryId = transaction.personal_finance_category?.detailed || transaction.personal_finance_category?.primary || null;
+    const plaidCategoryId = transaction.personal_finance_category?.primary || null;
     if (plaidCategoryId && !categoryIdMap[plaidCategoryId]) {
       set.add(plaidCategoryId);
     }
