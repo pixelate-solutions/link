@@ -146,7 +146,7 @@ const SettingsPage = () => {
                 Link accounts to populate transactions automatically.
               </p>
               <Button
-                disabled={!isLoaded}
+                disabled={subscriptionStatus === "Loading..."}
                 className="hidden md:inline ml-[10%] md:ml-[20%] w-1/4 border"
                 variant="ghost"
                 onClick={() => {
@@ -157,10 +157,10 @@ const SettingsPage = () => {
                     setOpenUpgradeDialog(true);
                   }
                 }}>
-                Link Account
+                {subscriptionStatus === "Loading..." ? "Loading..." : "Link Account"}
               </Button>
               <Button
-                disabled={!isLoaded}
+                disabled={subscriptionStatus === "Loading..."}
                 className="md:hidden ml-[10%] md:ml-[20%] w-1/4 border"
                 variant="ghost"
                 onClick={() => {
@@ -171,7 +171,7 @@ const SettingsPage = () => {
                     setOpenUpgradeDialog(true);
                   }
                 }}>
-                Link
+                {subscriptionStatus === "Loading..." ? "Loading..." : "Link"}
               </Button>
             </div>
           </CardContent>

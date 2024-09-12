@@ -93,7 +93,7 @@ export const columns: ColumnDef<ResponseType>[] = [
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Paid To
+          Payee
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       );
@@ -113,16 +113,21 @@ export const columns: ColumnDef<ResponseType>[] = [
       );
     },
     cell: ({ row }) => {
-      const amount = parseFloat(row.getValue("amount"));
+      const amount = (row.getValue("amount") || "0").toString();
 
       return (
         <Badge
-          variant={amount < 0 ? "destructive" : "primary"}
+          variant={parseFloat(amount) < 0 ? "destructive" : "primary"}
           className="px-2.5 py-2.5 text-xs font-medium"
         >
-          {formatCurrency(amount)}
+          {formatCurrency(parseFloat(amount))}
         </Badge>
       );
+    },
+    sortingFn: (rowA, rowB, columnId) => {
+      const amountA = parseFloat(rowA.getValue(columnId) as string) || 0;
+      const amountB = parseFloat(rowB.getValue(columnId) as string) || 0;
+      return amountA - amountB;
     },
   },
   {

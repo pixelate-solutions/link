@@ -27,7 +27,7 @@ export const useGetTransactions = () => {
 
       return data.map((transaction) => ({
         ...transaction,
-        amount: convertAmountFromMilliunits(Number(transaction.amount)),
+        amount: transaction.amount,
       }));
     },
   });

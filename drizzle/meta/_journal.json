@@ -225,6 +225,27 @@
       "when": 1726093290745,
       "tag": "0031_needy_may_parker",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1726113107386,
+      "tag": "0032_swift_chimera",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1726113318709,
+      "tag": "0033_flawless_doctor_doom",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1726113736870,
+      "tag": "0034_numerous_the_stranger",
+      "breakpoints": true
     }
   ]
 }

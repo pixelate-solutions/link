@@ -1,7 +1,7 @@
 import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 import { zValidator } from "@hono/zod-validator";
 import { differenceInDays, parse, subDays } from "date-fns";
-import { and, desc, eq, gte, lt, lte, sql, sum } from "drizzle-orm";
+import { and, desc, eq, gte, lte, sql, sum } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 
@@ -47,15 +47,15 @@ const app = new Hono().get(
     ) {
       return await db
         .select({
-          income:
-            sql`SUM(CASE WHEN ${transactions.amount} >= 0 THEN ${transactions.amount} ELSE 0 END)`.mapWith(
-              Number
-            ),
-          expenses:
-            sql`SUM(CASE WHEN ${transactions.amount} < 0 THEN ${transactions.amount} ELSE 0 END)`.mapWith(
-              Number
-            ),
-          remaining: sum(transactions.amount).mapWith(Number),
+          income: sql`
+            SUM(CAST(CASE WHEN ${transactions.amount} >= '0' THEN ${transactions.amount} ELSE '0' END AS numeric))
+          `.mapWith(Number),
+          expenses: sql`
+            SUM(CAST(CASE WHEN ${transactions.amount} < '0' THEN ${transactions.amount} ELSE '0' END AS numeric))
+          `.mapWith(Number),
+          remaining: sum(
+            sql`CAST(${transactions.amount} AS numeric)`
+          ).mapWith(Number),
         })
         .from(transactions)
         .innerJoin(accounts, eq(transactions.accountId, accounts.id))
@@ -98,7 +98,9 @@ const app = new Hono().get(
     const category = await db
       .select({
         name: categories.name,
-        value: sql`SUM(ABS(${transactions.amount}))`.mapWith(Number),
+        value: sql`
+          SUM(CAST(ABS(CAST(${transactions.amount} AS numeric)) AS numeric))
+        `.mapWith(Number),
       })
       .from(transactions)
       .innerJoin(accounts, eq(transactions.accountId, accounts.id))
@@ -107,13 +109,13 @@ const app = new Hono().get(
         and(
           accountId ? eq(transactions.accountId, accountId) : undefined,
           eq(accounts.userId, auth.userId),
-          lt(sql`CAST(${transactions.amount} AS numeric)`, sql`0`),
           gte(transactions.date, startDate),
-          lte(transactions.date, endDate)
+          lte(transactions.date, endDate),
+          sql`CAST(${transactions.amount} AS numeric) < 0`
         )
       )
       .groupBy(categories.name)
-      .orderBy(desc(sql`SUM(ABS(${transactions.amount}))`));
+      .orderBy(desc(sql`SUM(CAST(ABS(CAST(${transactions.amount} AS numeric)) AS numeric))`));
 
     const topCategories = category.slice(0, 3);
     const otherCategories = category.slice(3);
@@ -130,14 +132,12 @@ const app = new Hono().get(
     const activeDays = await db
       .select({
         date: transactions.date,
-        income:
-          sql`SUM(CASE WHEN ${transactions.amount} >= 0 THEN ${transactions.amount} ELSE 0 END)`.mapWith(
-            Number
-          ),
-        expenses:
-          sql`SUM(CASE WHEN ${transactions.amount} < 0 THEN ABS(${transactions.amount}) ELSE 0 END)`.mapWith(
-            Number
-          ),
+        income: sql`
+          SUM(CAST(CASE WHEN ${transactions.amount} >= '0' THEN ${transactions.amount} ELSE '0' END AS numeric))
+        `.mapWith(Number),
+        expenses: sql`
+          SUM(CAST(CASE WHEN ${transactions.amount} < '0' THEN ABS(CAST(${transactions.amount} AS numeric)) ELSE '0' END AS numeric))
+        `.mapWith(Number),
       })
       .from(transactions)
       .innerJoin(accounts, eq(transactions.accountId, accounts.id))
