@@ -125,7 +125,6 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
       if (!accountId) {
         // Skip transaction if account is not in the database
-        console.log(`Skipping transaction for Plaid account ${transaction.account_id} as it is not in the database.`);
         return null;
       }
 
