@@ -28,15 +28,9 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: "Access token not found" }, 404);
   }
 
-  // Fetch Plaid accounts and transactions
-  const plaidAccountsResponse = await plaidClient.accountsGet({
-    access_token: accessToken,
-  });
-  const plaidAccounts = plaidAccountsResponse.data.accounts;
-
+  // Fetch Plaid transactions only (no need to fetch accounts here)
   const startDate = new Date();
   const endDate = new Date();
-  
   startDate.setFullYear(endDate.getFullYear() - 10);
 
   const formattedEndDate = endDate.toISOString().split('T')[0];
@@ -49,7 +43,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
   });
   const plaidTransactions = plaidTransactionsResponse.data.transactions;
 
-  // Fetch all database accounts for the user
+  // Fetch all accounts from the database for the user
   const dbAccounts = await db
     .select({ id: accounts.id, plaidAccountId: accounts.plaidAccountId })
     .from(accounts)
@@ -57,33 +51,6 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
   // Create a map of Plaid account IDs to database account IDs
   const accountIdMap = dbAccounts.reduce((map, account) => {
-    if (account.plaidAccountId) {
-      map[account.plaidAccountId] = account.id; // Map Plaid account ID to database account ID
-    }
-    return map;
-  }, {} as Record<string, string>);
-
-  // Determine which Plaid accounts are missing in the database
-  const accountsToInsert = plaidAccounts.filter(pAccount => !accountIdMap[pAccount.account_id]);
-
-  // Insert missing accounts
-  for (const plaidAccount of accountsToInsert) {
-    await db.insert(accounts).values({
-      id: createId(),
-      userId,
-      plaidAccountId: plaidAccount.account_id,
-      name: plaidAccount.name,
-      isFromPlaid: true,
-    }).returning();
-  }
-
-  // Refresh account map after insertion
-  const updatedDbAccounts = await db
-    .select({ id: accounts.id, plaidAccountId: accounts.plaidAccountId })
-    .from(accounts)
-    .where(eq(accounts.userId, userId));
-
-  const updatedAccountIdMap = updatedDbAccounts.reduce((map, account) => {
     if (account.plaidAccountId) {
       map[account.plaidAccountId] = account.id; // Map Plaid account ID to database account ID
     }
@@ -149,31 +116,36 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     return map;
   }, {} as Record<string, string>);
 
+  // Insert transactions for accounts that are already in the database
   const insertedTransactions = await Promise.all(
     plaidTransactions.map(async (transaction) => {
       const plaidCategoryId = transaction.personal_finance_category?.detailed || transaction.personal_finance_category?.primary || null;
       const categoryId = plaidCategoryId ? updatedCategoryIdMap[plaidCategoryId] : null;
-      const accountId = updatedAccountIdMap[transaction.account_id];
+      const accountId = accountIdMap[transaction.account_id];
+
+      if (!accountId) {
+        // Skip transaction if account is not in the database
+        console.log(`Skipping transaction for Plaid account ${transaction.account_id} as it is not in the database.`);
+        return null;
+      }
 
       // Convert amount to string
-      const amount = transaction.amount
+      const amount = transaction.amount.toString();
 
-      // Ensure values are of expected types and handle nulls appropriately
       return db.insert(transactions).values({
         id: createId(),
         userId: userId,
-        amount: amount.toString(),
+        amount: amount,
         payee: transaction.name,
         date: new Date(transaction.date),
-        accountId: accountId, 
+        accountId: accountId,
         categoryId: categoryId,
         isFromPlaid: true,
       }).returning();
     })
   );
 
-
-  return ctx.json({ transactions: insertedTransactions });
+  return ctx.json({ transactions: insertedTransactions.filter(Boolean) });
 });
 
 export default app;

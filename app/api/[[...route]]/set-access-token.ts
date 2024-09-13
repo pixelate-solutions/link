@@ -17,7 +17,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     const access_token = response.data.access_token;
     const item_id = response.data.item_id;
 
-    // Check if a record already exists for this userId and itemId
+    // Check if this item_id already exists for the user
     const existingToken = await db
       .select()
       .from(userTokens)
@@ -25,10 +25,11 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       .limit(1);
 
     if (existingToken.length > 0) {
-      // If the token exists, delete the existing record
-      await db
-        .delete(userTokens) // Specify the table
-        .where(and(eq(userTokens.userId, userId), eq(userTokens.itemId, item_id)))
+      // Item is already linked, skip further processing
+      return ctx.json({
+        success: false,
+        message: 'This account has already been linked.'
+      });
     }
 
     // Insert the new access token
