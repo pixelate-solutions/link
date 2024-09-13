@@ -1,6 +1,8 @@
 "use client";
 
 import { Loader2, Plus } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
@@ -13,7 +15,24 @@ import { useNewAccount } from "@/features/accounts/hooks/use-new-account";
 // Import columns
 import { columns } from "./columns";
 
+const fetchAccountTotals = async (from: string, to: string, accountIds: string[]) => {
+  const responses = await Promise.all(
+    accountIds.map((id) =>
+      fetch(`/api/plaid/account-totals?from=${from}&to=${to}&accountId=${id}`)
+    )
+  );
+  const results = await Promise.all(responses.map((res) => res.json()));
+  return accountIds.map((id, index) => ({
+    id,
+    ...results[index],
+  }));
+};
+
 const AccountsPage = () => {
+  const searchParams = useSearchParams();
+  const from = searchParams.get("from") || "";
+  const to = searchParams.get("to") || "";
+
   const newAccount = useNewAccount();
   const deleteAccounts = useBulkDeleteAccounts();
 
@@ -25,9 +44,17 @@ const AccountsPage = () => {
   const plaidAccountsQuery = useGetAccounts(true);
   const plaidAccounts = plaidAccountsQuery.data || [];
 
-  const isDisabled = manualAccountsQuery.isLoading || plaidAccountsQuery.isLoading || deleteAccounts.isPending;
+  const accountIds = [...new Set([...manualAccounts.map(acc => acc.id), ...plaidAccounts.map(acc => acc.id)])];
 
-  if (manualAccountsQuery.isLoading || plaidAccountsQuery.isLoading) {
+  const totalsQuery = useQuery({
+    queryKey: ["accountTotals", { from, to, accountIds }],
+    queryFn: () => fetchAccountTotals(from, to, accountIds),
+    enabled: accountIds.length > 0, // Ensures the query runs only if there are account IDs
+  });
+
+  const isDisabled = manualAccountsQuery.isLoading || plaidAccountsQuery.isLoading || deleteAccounts.isPending || totalsQuery.isLoading;
+
+  if (manualAccountsQuery.isLoading || plaidAccountsQuery.isLoading || totalsQuery.isLoading) {
     return (
       <div className="mx-auto -mt-6 w-full max-w-screen-2xl pb-10">
         <Card className="border-none drop-shadow-sm">
@@ -56,6 +83,16 @@ const AccountsPage = () => {
     );
   }
 
+  const manualAccountsWithTotals = manualAccounts.map(account => ({
+    ...account,
+    ...totalsQuery.data?.find(total => total.id === account.id) || {},
+  }));
+
+  const plaidAccountsWithTotals = plaidAccounts.map(account => ({
+    ...account,
+    ...totalsQuery.data?.find(total => total.id === account.id) || {},
+  }));
+
   return (
     <div className="mx-auto -mt-6 w-full max-w-screen-2xl pb-10">
       {/* Manual Accounts */}
@@ -68,9 +105,9 @@ const AccountsPage = () => {
         </CardHeader>
         <CardContent>
           <DataTable
-            data={manualAccounts}
-            columns={columns} // Pass the columns here
-            filterKey="name"  // Optionally, set a filter key if needed
+            data={manualAccountsWithTotals}
+            columns={columns}
+            filterKey="name" 
             disabled={isDisabled}
             onDelete={(row) => deleteAccounts.mutate({ ids: row.map((r) => r.original.id) })}
           />
@@ -84,7 +121,7 @@ const AccountsPage = () => {
         </CardHeader>
         <CardContent>
           <DataTable
-            data={plaidAccounts}
+            data={plaidAccountsWithTotals}
             columns={columns}  // Pass the columns here
             filterKey="name"  // Optionally, set a filter key if needed
             disabled={isDisabled}

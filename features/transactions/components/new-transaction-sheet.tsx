@@ -34,11 +34,34 @@ export const NewTransactionSheet = () => {
   }));
 
   const accountMutation = useCreateAccount();
-  const accountQuery = useGetAccounts(true); // Pass the required argument here
-  const accountOptions = (accountQuery.data ?? []).map((account) => ({
+
+  const plaidAccountQuery = useGetAccounts(true);
+  const manualAccountQuery = useGetAccounts(false);
+
+  // Wait until both queries have loaded
+  const isDataLoaded = plaidAccountQuery.isSuccess && manualAccountQuery.isSuccess;
+
+  // Combine the two arrays if both queries are loaded
+  const joinedAccounts = isDataLoaded
+    ? [
+        ...(plaidAccountQuery.data ?? []),
+        ...(manualAccountQuery.data ?? []),
+      ]
+    : [];
+
+  // Map the combined array to create account options
+  const accountOptions = joinedAccounts.map((account) => ({
     label: account.name ?? "Unnamed Account", // Provide a default value if name is null or undefined
     value: account.id,
   }));
+
+  // Return the data as per the expected type
+  const combinedAccounts = {
+    data: joinedAccounts,
+    isSuccess: isDataLoaded,
+    isLoading: plaidAccountQuery.isLoading || manualAccountQuery.isLoading,
+    isError: plaidAccountQuery.isError || manualAccountQuery.isError,
+  };
 
   const onCreateAccount = (name: string) => accountMutation.mutate({ name });
   const onCreateCategory = (name: string) => categoryMutation.mutate({ name });
@@ -47,7 +70,7 @@ export const NewTransactionSheet = () => {
     createMutation.isPending ||
     categoryMutation.isPending ||
     accountMutation.isPending;
-  const isLoading = categoryQuery.isLoading || accountQuery.isLoading;
+  const isLoading = categoryQuery.isLoading || combinedAccounts.isLoading;
 
   const onSubmit = (values: FormValues) => {
     createMutation.mutate(values, {

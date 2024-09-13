@@ -24,7 +24,13 @@ export const NewAccountSheet = () => {
   const mutation = useCreateAccount();
 
   const onSubmit = (values: FormValues) => {
-    mutation.mutate(values, {
+    // Default isFromPlaid to false
+    const accountData = {
+      ...values,
+      isFromPlaid: false,
+    };
+
+    mutation.mutate(accountData, {
       onSuccess: () => {
         onClose();
       },

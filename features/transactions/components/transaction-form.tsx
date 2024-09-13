@@ -18,7 +18,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { insertTransactionSchema } from "@/db/schema";
-import { convertAmountToMilliunits } from "@/lib/utils";
 
 import { useUser } from "@clerk/nextjs";
 
@@ -70,12 +69,11 @@ export const TransactionForm = ({
 
   const handleSubmit = (values: FormValues) => {
     const amount = values.amount;
-    const amountInMilliunits = convertAmountToMilliunits(parseFloat(amount));
 
     onSubmit({
       ...values,
       userId: user?.id || "-",
-      amount: amountInMilliunits.toString(),
+      amount: amount,
     });
   };
 

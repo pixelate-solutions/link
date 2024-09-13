@@ -14,23 +14,24 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
     // Exchange the public_token for an access_token and item_id
     const response = await plaidClient.itemPublicTokenExchange({ public_token });
-    const { access_token, item_id } = response.data;
+    const access_token = response.data.access_token;
+    const item_id = response.data.item_id;
 
     // Check if a record already exists for this userId and itemId
     const existingToken = await db
       .select()
       .from(userTokens)
-      .where(and((eq(userTokens.userId, userId)), (eq(userTokens.accessToken, access_token))))
+      .where(and(eq(userTokens.userId, userId), eq(userTokens.itemId, item_id)))
       .limit(1);
 
     if (existingToken.length > 0) {
-      return ctx.json({
-        success: true,
-        message: 'Access token already exists for this user and item.',
-      });
+      // If the token exists, delete the existing record
+      await db
+        .delete(userTokens) // Specify the table
+        .where(and(eq(userTokens.userId, userId), eq(userTokens.itemId, item_id)))
     }
 
-    // Store the access_token and item_id securely in your database
+    // Insert the new access token
     await db.insert(userTokens).values({
       id: createId(),
       userId,

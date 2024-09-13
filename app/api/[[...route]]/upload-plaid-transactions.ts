@@ -22,7 +22,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     .from(userTokens)
     .where(eq(userTokens.userId, userId));
 
-  const accessToken = result[0]?.accessToken;
+  const accessToken = result[result.length - 1]?.accessToken;
 
   if (!accessToken) {
     return ctx.json({ error: "Access token not found" }, 404);
@@ -106,7 +106,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
   // Insert missing categories
   const categoriesToInsert = plaidTransactions.reduce((set, transaction) => {
-    const plaidCategoryId = transaction.personal_finance_category?.primary || null;
+    const plaidCategoryId = transaction.personal_finance_category?.detailed || transaction.personal_finance_category?.primary || null;
     if (plaidCategoryId && !categoryIdMap[plaidCategoryId]) {
       set.add(plaidCategoryId);
     }

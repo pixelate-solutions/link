@@ -45,7 +45,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
         await db.insert(accounts).values({
           id: createId(),
           userId: userId,
-          plaidAccountId: account.account_id, // Use plaidAccountId
+          plaidAccountId: account.account_id,
           name: account.name,
           isFromPlaid: true,
         }).returning();
