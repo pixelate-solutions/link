@@ -17,6 +17,13 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     const access_token = response.data.access_token;
     const item_id = response.data.item_id;
 
+    const webhookRequest = {
+      access_token: access_token,
+      webhook: `${process.env.NEXT_PUBLIC_APP_URL}/api/plaid/webhook`,
+    };
+
+    const webhookResponse = await plaidClient.itemWebhookUpdate(webhookRequest);
+
     // Check if this item_id already exists for the user
     const existingToken = await db
       .select()

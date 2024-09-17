@@ -15,6 +15,7 @@ import uploadPlaidTransactions from './upload-plaid-transactions';
 import deletePlaidData from './delete-plaid';
 import accountTotals from './get-account-totals';
 import categoryTotals from './get-category-totals';
+import plaidWebhook from './plaid-webhook';
 
 const app = new Hono().basePath('/api');
 
@@ -33,6 +34,7 @@ const routes = app
   .route('/plaid/delete-data', deletePlaidData)
   .route('/plaid/account-totals', accountTotals)
   .route('/plaid/category-totals', categoryTotals)
+  .route('/plaid/webhook', plaidWebhook)
   
 export const GET = handle(app);
 export const POST = handle(app);
