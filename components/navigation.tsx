@@ -28,6 +28,10 @@ const routes = [
     label: "Categories",
   },
   {
+    href: "/chat",
+    label: "Chat",
+  },
+  {
     href: "/settings",
     label: "Settings",
   },

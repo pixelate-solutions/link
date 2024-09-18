@@ -1,0 +1,298 @@
+.scale-on-hover {
+  transition: transform 0.15s ease-in-out;
+}
+
+.scale-on-hover:hover {
+  transform: scale(1.05); /* Adjust the scale value as needed */
+}
+
+.gradient-border {
+  position: relative;
+  border-radius: 16px; /* Adjust based on your preference */
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  top: -2px; /* Adjust the border size */
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #9E59F9 0%, #575CFC 100%);
+  border-radius: 16px; /* Ensure this matches the border-radius of the element */
+  z-index: -1;
+}
+
+@keyframes gradient-move {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.gradient-text {
+  font-weight: bold;
+  background: linear-gradient(45deg, #bdb9db 0%, #575CFC 50%, #383ca5 100%);
+  background-size: 200% 100%; /* Increase the background size for a smooth transition */
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-move 3s linear infinite; /* Apply the animation */
+}
+
+.gradient-custom {
+  background-image: linear-gradient(45deg, #9E59F9 0%, #575CFC 100%);
+}
+
+.gradient-custom-50 {
+  background-image: linear-gradient(45deg, #9E59F9 0%, #575CFC 100%);
+  opacity: 0.5;
+}
+
+.chat-message ul {
+  list-style-type: disc;
+  padding-left: 20px;
+}
+
+.chat-message ol {
+  list-style-type: decimal;
+  padding-left: 20px;
+}
+
+/* Headings */
+.chat-message h1 {
+  font-size: 2em;
+  margin-bottom: 0.5em;
+}
+
+.chat-message h2 {
+  font-size: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+.chat-message h3 {
+  font-size: 1.17em;
+  margin-bottom: 0.5em;
+}
+
+/* Bold and Italic */
+.chat-message strong {
+  font-weight: bold;
+}
+
+.chat-message .chat-message em {
+  font-style: italic;
+}
+
+/* Blockquotes */
+blockquote {
+  border-left: 4px solid #ccc;
+  margin-left: 0;
+  padding-left: 16px;
+  font-style: italic;
+  color: #555;
+}
+
+/* Lists */
+.chat-message ol {
+  list-style-position: inside;
+  margin-left: 1em;
+}
+
+.chat-message ul {
+  list-style-position: inside;
+  margin-left: 1em;
+}
+
+/* Horizontal Rule */
+.chat-message hr {
+  border: 0;
+  height: 1px;
+  background: #333;
+  margin: 1em 0;
+}
+
+/* Links */
+.chat-message a {
+  color: #0366d6;
+  text-decoration: none;
+}
+
+.chat-message a:hover {
+  text-decoration: underline;
+}
+
+/* Images */
+.chat-message img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Tables */
+.chat-message table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.chat-message th, td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.chat-message th {
+  background-color: #f2f2f2;
+}
+
+/* Footnotes */
+.chat-message a.footnote-ref {
+  text-decoration: none;
+  vertical-align: super;
+  font-size: smaller;
+}
+
+.footnotes {
+  border-top: 1px solid #eee;
+  padding-top: 1em;
+}
+
+.footnotes ol {
+  padding-left: 0;
+}
+
+.footnotes li {
+  list-style: none;
+}
+
+/* Definition List */
+.chat-message dl {
+  margin-bottom: 1em;
+}
+
+.chat-message dt {
+  font-weight: bold;
+}
+
+.chat-message dd {
+  margin-bottom: 0.5em;
+  margin-left: 1em;
+}
+
+/* Strikethrough */
+.chat-message del {
+  text-decoration: line-through;
+}
+
+/* Task List */
+.chat-message ul.task-list {
+  list-style: none;
+}
+
+.chat-message ul.task-list li {
+  position: relative;
+}
+
+.chat-message ul.task-list li input {
+  margin-right: 0.5em;
+}
+
+/* Highlight */
+.chat-message mark {
+  background-color: #ff0;
+  padding: 0.2em;
+}
+
+/* Subscript and Superscript */
+.chat-message sub {
+  vertical-align: sub;
+  font-size: smaller;
+}
+
+.chat-message sup {
+  vertical-align: super;
+  font-size: smaller;
+}
+
+.table-cell-center {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.cell-overflow {
+   text-align: center;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
+}
+
+.cell-width {
+  max-width: 200px;
+}
+
+.sidebar {
+    position: relative;
+    z-index: 100;
+}
+
+.gradient-button {
+  border: none;
+  color: white;
+  outline: none;
+  cursor: pointer;
+  background-size: 100% 200%;  /* Maintain for vertical gradient */
+  background-image: linear-gradient(to bottom, #a197d4 0%, #7B5BFB 50%, #575CFC 100%); /* Gradient repeats to ensure seamless transition */
+  border-radius: 5px;
+  position: relative;
+  overflow: hidden;
+  animation: moveBackground 3s linear infinite; /* Changed to linear for a steady scroll */
+}
+
+.gradient-button:hover {
+  color: white;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  background-size: 100% 200%;  /* Maintain for vertical gradient */
+  background-image: linear-gradient(to bottom, #b7b0df 0%, #7B5BFB 50%, #575CFC 100%); /* Gradient repeats to ensure seamless transition */
+  border-radius: 5px;
+  position: relative;
+  overflow: hidden;
+  animation: moveBackground 3s linear infinite; /* Changed to linear for a steady scroll */
+}
+
+@keyframes moveBackground {
+  0% {
+    background-position: 0% 0%;  /* Start with the gradient at the top */
+  }
+  50% {
+    background-position: 0% 100%; /* Slide the gradient up until it restarts */
+  }
+  100% {
+    background-position: 0% 0%; /* Slide the gradient up until it restarts */
+  }
+}
+
+.gradient-button-outline {
+  border: none;
+  color: black;
+  outline: none;
+  cursor: pointer;
+  border-radius: 5px;
+  position: relative;
+  overflow: hidden;
+  background-color: transparent; /* Ensures the button background is transparent */
+  padding: 10px 20px; /* Button padding */
+}
+
+@media (max-width: 1024px) {
+    .full-width-minus {
+    width: calc(100% - 1.5rem);
+    }
+}
+
+@media (min-width: 1024px) { /* Adjust the breakpoint if needed */
+  .full-width-minus {
+    width: calc(100% - 7rem);
+  }
+}
