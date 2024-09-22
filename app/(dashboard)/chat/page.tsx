@@ -144,7 +144,7 @@ const Chatbot = () => {
 
     
   return (
-    <div className="flex flex-col h-full w-full -mt-5 lg:-mt-20">
+    <div className="flex flex-col h-full w-full lg:w-[80%] lg:ml-[10%] -mt-5 lg:-mt-20 pb-[100px]">
       <div className="flex flex-col flex-grow p-4 rounded-2xl bg-white overflow-y-auto">
         <div className="w-full h-[75px] p-2 border-b-2 border-x-2 rounded-xl lg:rounded-b-xl">
           <h1 className="md:w-auto w-full text-center text-xl font-semibold">Ask Me Anything</h1>
@@ -208,7 +208,7 @@ const Chatbot = () => {
         </div>
       </div>
 
-      <div className="p-4 fixed bottom-5 full-width-minus rounded-xl bg-gray-100 border-t border-gray-300">
+      <div className="p-4 pb-10 fixed bottom-0 rounded-t-2xl full-width-minus bg-white border-t border-gray-300">
         <div className="flex">
           <textarea
             ref={textAreaRef}
