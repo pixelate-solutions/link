@@ -13,8 +13,10 @@ import { useNewCategory } from "@/features/categories/hooks/use-new-category";
 
 import { CategoryForm } from "./category-form";
 
+// Update form schema to include budgetAmount
 const formSchema = insertCategorySchema.pick({
   name: true,
+  budgetAmount: true, // Include budgetAmount here
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -26,12 +28,14 @@ export const NewCategorySheet = () => {
   const onSubmit = (values: FormValues) => {
     // Ensure 'name' is a valid string
     const name = values.name?.trim();
+    const budgetAmount = values.budgetAmount?.trim(); // Ensure budgetAmount is passed
+
     if (!name) {
       console.error("Name is required and cannot be empty.");
       return;
     }
 
-    mutation.mutate({ name }, {
+    mutation.mutate({ name, budgetAmount }, { // Pass budgetAmount as well
       onSuccess: () => {
         onClose();
       },
@@ -43,7 +47,6 @@ export const NewCategorySheet = () => {
       <SheetContent className="space-y-4">
         <SheetHeader>
           <SheetTitle>New Category</SheetTitle>
-
           <SheetDescription>
             Create a new category to organize your transactions.
           </SheetDescription>
@@ -51,7 +54,8 @@ export const NewCategorySheet = () => {
 
         <CategoryForm
           defaultValues={{
-            name: "", // Ensure this is valid as per FormValues type
+            name: "", // Default empty name
+            budgetAmount: "", // Default empty budgetAmount
           }}
           onSubmit={onSubmit}
           disabled={mutation.isPending}

@@ -17,6 +17,7 @@ import { insertCategorySchema } from "@/db/schema";
 
 const formSchema = insertCategorySchema.pick({
   name: true,
+  budgetAmount: true, // Ensure we pick the budgetAmount directly from schema
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -38,7 +39,9 @@ export const CategoryForm = ({
 }: CategoryFormProps) => {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues,
+    defaultValues: {
+      ...defaultValues,
+    },
   });
 
   const handleSubmit = (values: FormValues) => {
@@ -64,7 +67,6 @@ export const CategoryForm = ({
           render={({ field }) => (
             <FormItem>
               <FormLabel>Name</FormLabel>
-
               <FormControl>
                 <Input
                   placeholder="e.g. Food, Travel, etc."
@@ -76,7 +78,32 @@ export const CategoryForm = ({
                   disabled={disabled}
                 />
               </FormControl>
-
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          name="budgetAmount"
+          control={form.control}
+          disabled={disabled}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Budgeted Amount</FormLabel>
+              <FormControl>
+                <Input
+                  type="number" // Use type "text" to allow for string storage
+                  placeholder="$200"
+                  value={field.value ?? ''} // Ensure value is handled as a string
+                  onChange={(e) => {
+                    const value = e.target.value; // Keep the value as a string
+                    field.onChange(value); // Directly pass the string to onChange
+                  }}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                  ref={field.ref}
+                  disabled={disabled}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}

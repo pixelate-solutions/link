@@ -48,12 +48,15 @@ export const EditCategorySheet = () => {
   };
 
   const defaultValues = categoryQuery.data
-    ? {
-        name: categoryQuery.data.name,
-      }
-    : {
-        name: "",
-      };
+  ? {
+      name: categoryQuery.data.name,
+      budgetAmount: categoryQuery.data.budgetAmount ?? '',
+    }
+  : {
+      name: "",
+      budgetAmount: '',
+    };
+
 
   const onDelete = async () => {
     const ok = await confirm();

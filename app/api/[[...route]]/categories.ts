@@ -20,9 +20,12 @@ const app = new Hono()
       .select({
         id: categories.id,
         name: categories.name,
+        budgetAmount: categories.budgetAmount, // Ensure this is being selected
       })
       .from(categories)
       .where(eq(categories.userId, auth.userId));
+
+    console.log(JSON.stringify(data, null, 2));
 
     return ctx.json({ data });
   })
@@ -51,6 +54,7 @@ const app = new Hono()
         .select({
           id: categories.id,
           name: categories.name,
+          budgetAmount: categories.budgetAmount,
         })
         .from(categories)
         .where(and(eq(categories.userId, auth.userId), eq(categories.id, id)));
@@ -70,19 +74,16 @@ const app = new Hono()
       z.object({
         name: z.string(),
         plaidCategoryId: z.string().optional(),
+        budgetAmount: z.string().optional(), // Ensure budgetAmount is passed
       })
     ),
     async (ctx) => {
       const auth = getAuth(ctx);
-      const { name, plaidCategoryId } = ctx.req.valid("json");
+      const { name, plaidCategoryId, budgetAmount } = ctx.req.valid("json");
       const userId = auth?.userId;
 
       if (!userId) {
         return ctx.json({ error: "Unauthorized." }, 401);
-      }
-
-      if (!name) {
-        return ctx.json({ error: "Category name is required." }, 400);
       }
 
       const newCategory = await db
@@ -93,6 +94,7 @@ const app = new Hono()
           name,
           plaidCategoryId: plaidCategoryId || null,
           isFromPlaid: !!plaidCategoryId,
+          budgetAmount: budgetAmount || null, // Save budgetAmount in the database
         })
         .returning();
 
@@ -144,6 +146,7 @@ const app = new Hono()
       "json",
       insertCategorySchema.pick({
         name: true,
+        budgetAmount: true, // Add budgetAmount here to be handled by the API
       })
     ),
     async (ctx) => {

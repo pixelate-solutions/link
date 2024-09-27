@@ -16,18 +16,28 @@ import { useNewCategory } from "@/features/categories/hooks/use-new-category";
 import { columns } from "./columns";
 
 // Define the type for the category totals
-interface CategoryTotal {
-  categoryId: string;
-  categoryName: string;
-  totalCost: number;
-  totalIncome: number;
-}
-
 const fetchCategoryTotals = async (from: string, to: string): Promise<CategoryTotal[]> => {
   const response = await fetch(`/api/plaid/category-totals?from=${from}&to=${to}`);
   if (!response.ok) throw new Error("Failed to fetch category totals.");
   return response.json();
 };
+
+// Update the Category type to include budget_amount
+interface Category {
+  id: string;
+  name: string | null;
+  budgetAmount: string | null; // Include this field
+}
+
+// Define the type for category totals
+interface CategoryTotal {
+  categoryId: string;
+  categoryName: string;
+  totalCost: number;
+  totalIncome: number;
+  budgetAmount: string | null; // Optional
+  amountLeftToSpend: string | null; // Optional, computed based on the budget
+}
 
 const CategoriesPage = () => {
   const searchParams = useSearchParams();
@@ -78,11 +88,15 @@ const CategoriesPage = () => {
       name: category.name,
       totalIncome: total.totalIncome.toFixed(2), // Convert to string with 2 decimal places
       totalCost: total.totalCost.toFixed(2), // Convert to string with 2 decimal places
+      budgetAmount: category.budgetAmount,
+      amountLeftToSpend: (parseFloat(category.budgetAmount || "0") + total.totalCost).toFixed(2), // Ensure this is a number and convert to string
     };
   });
 
-  // Debugging: Log the transformed data
-  console.log('Categories With Totals:', categoriesWithTotals);
+  const transformedData = categoriesWithTotals.map((category) => ({
+    ...category,
+    budgetAmount: category.budgetAmount ?? "0", // Ensure budgetAmount is included
+  }));
 
   return (
     <div className="mx-auto -mt-6 w-full max-w-screen-2xl pb-10">
@@ -101,7 +115,7 @@ const CategoriesPage = () => {
           <DataTable
             filterKey="name"
             columns={columns}
-            data={categoriesWithTotals}
+            data={transformedData}
             onDelete={(row) => {
               const ids = row.map((r) => r.original.id);
               deleteCategories.mutate({ ids });

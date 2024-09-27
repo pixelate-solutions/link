@@ -246,6 +246,34 @@
       "when": 1726113736870,
       "tag": "0034_numerous_the_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1727401976478,
+      "tag": "0035_cloudy_peter_parker",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "6",
+      "when": 1727405043200,
+      "tag": "0036_daily_victor_mancha",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "6",
+      "when": 1727405121384,
+      "tag": "0037_zippy_shatterstar",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1727405162217,
+      "tag": "0038_chubby_toro",
+      "breakpoints": true
     }
   ]
 }

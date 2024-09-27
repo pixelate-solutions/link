@@ -16,16 +16,16 @@ const routes = [
     label: "Overview",
   },
   {
+    href: "/categories",
+    label: "Categories",
+  },
+  {
     href: "/transactions",
     label: "Transactions",
   },
   {
     href: "/accounts",
     label: "Accounts",
-  },
-  {
-    href: "/categories",
-    label: "Categories",
   },
   {
     href: "/chat",

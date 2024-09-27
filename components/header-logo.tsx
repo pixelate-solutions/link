@@ -11,7 +11,7 @@ export const HeaderLogo = () => {
   const { user } = useUser();
 
   useEffect(() => {
-    setLogoRoute(user ? "/overview" : "/");
+    setLogoRoute(user ? "/" : "/");
   }, [user]);
 
   return (
