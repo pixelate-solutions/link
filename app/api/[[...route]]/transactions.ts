@@ -14,6 +14,8 @@ import {
   transactions,
 } from "@/db/schema";
 
+const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
+
 const app = new Hono()
   .get(
     "/",
@@ -130,6 +132,7 @@ const app = new Hono()
         return ctx.json({ error: "Unauthorized." }, 401);
       }
 
+      // Insert the transaction into the database
       const [data] = await db
         .insert(transactions)
         .values({
@@ -137,6 +140,36 @@ const app = new Hono()
           ...values,
         })
         .returning();
+
+      // Format the transaction for upserting to AI
+      const formattedTransaction = `
+        A transaction was made in the amount of $${data.amount} by the user to the person or group named ${data.payee} on ${data.date.toLocaleDateString()}. 
+        ${data.notes ? `Some notes regarding this transaction to ${data.payee} on ${data.date.toLocaleDateString()} are: ${data.notes}.` : "No additional notes were provided for this transaction."}
+      `;
+
+      try {
+        const aiResponse = await fetch(
+          `${AI_URL}/resource/upsert_text?user_id=${auth.userId}&name=Transactions from ${data.accountId} for ${auth.userId}&account=${data.accountId}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'text/plain',
+            },
+            body: formattedTransaction.trim(),
+          }
+        );
+
+        if (!aiResponse.ok) {
+          const errorText = await aiResponse.text();
+          throw new Error(`Upsert failed: ${errorText}`);
+        }
+
+        const responseData = await aiResponse.json();
+        console.log("AI Response:", responseData);
+      } catch (error) {
+        console.error('Error upserting transaction to AI:', error);
+        return ctx.json({ error: 'Failed to upsert transaction to AI' }, 500);
+      }
 
       return ctx.json({ data });
     }
@@ -153,6 +186,7 @@ const app = new Hono()
         return ctx.json({ error: "Unauthorized." }, 401);
       }
 
+      // Insert the transactions into the database
       const data = await db
         .insert(transactions)
         .values(
@@ -162,6 +196,39 @@ const app = new Hono()
           }))
         )
         .returning();
+
+      // Format transactions for upserting to AI
+      const formattedTransactions = data.map((transaction: any) => {
+        return `
+          A transaction was made in the amount of $${transaction.amount} by the user to the person or group named ${transaction.payee} on ${new Date(transaction.date).toLocaleDateString()}. 
+          ${transaction.notes ? `Some notes regarding this transaction to ${transaction.payee} on ${new Date(transaction.date).toLocaleDateString()} are: ${transaction.notes}.` : "No additional notes were provided for this transaction."}
+        `;
+      }).join("\n");
+
+      // Upsert the formatted transactions to AI API
+      try {
+        const aiResponse = await fetch(
+          `${AI_URL}/resource/upsert_text?user_id=${auth.userId}&name=Transactions from ${data[0].accountId} for ${auth.userId}&account=${data[0].accountId}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'text/plain',
+            },
+            body: formattedTransactions.trim(), // Ensure it's a properly formatted plain string
+          }
+        );
+
+        if (!aiResponse.ok) {
+          const errorText = await aiResponse.text();
+          throw new Error(`Upsert failed: ${errorText}`);
+        }
+
+        const responseData = await aiResponse.json();
+        console.log("AI Response:", responseData);
+      } catch (error) {
+        console.error('Error upserting transactions to AI:', error);
+        return ctx.json({ error: 'Failed to upsert transactions to AI' }, 500);
+      }
 
       return ctx.json({ data });
     }

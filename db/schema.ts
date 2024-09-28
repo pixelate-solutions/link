@@ -83,3 +83,8 @@ export const userTokens = pgTable('user_tokens', {
 });
 
 export const insertUserTokensSchema = createInsertSchema(userTokens);
+
+export const chatAccess = pgTable("chat_access", {
+  customerId: text("customer_id").notNull(),
+  allowAccess: boolean("allow_access").notNull().default(false),
+});

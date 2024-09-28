@@ -294,6 +294,6 @@ blockquote {
 @media (min-width: 1024px) { /* Adjust the breakpoint if needed */
   .full-width-minus {
     width: calc(80% - 7rem);
-    margin-left: 1%;
+    margin-left: 11px;
   }
 }

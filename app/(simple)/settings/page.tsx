@@ -54,7 +54,6 @@ const SettingsPage = () => {
       await fetch('/api/plaid/upload-accounts', { method: 'POST' });
       await fetch('/api/plaid/upload-transactions', { method: 'POST' });
 
-      console.log("Accounts and transactions uploaded");
       setPlaidIsOpen(false);
     } catch (error) {
       console.error("Error exchanging public token and uploading data:", error);
@@ -92,15 +91,6 @@ const SettingsPage = () => {
           setSubscriptionStatus(label);
           if (label === "Free") {
             setSubscriptionButton("Upgrade");
-
-            // Call the API to delete all Plaid-related data
-            await fetch(`/api/d`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ userId: user.id }),
-            });
           } else if (label === "Monthly" || label === "Annual") {
             setSubscriptionButton("Update");
           } else if (label === "Lifetime") {
@@ -114,8 +104,8 @@ const SettingsPage = () => {
   return (
     <div className={`relative ${plaidIsOpen ? 'blur-md' : ''}`}>
       <UpgradePopup open={openUpgradeDialog} onOpenChange={setOpenUpgradeDialog} />
-      <div className={`mx-auto -mt-6 w-full max-w-screen-2xl pb-10 ${plaidIsOpen ? 'opacity-75' : ''}`}>
-        <Card className="border-none drop-shadow-sm">
+        <div className={`relative mx-auto -mt-12 w-full max-w-screen-2xl pb-10 ${plaidIsOpen ? 'opacity-75' : ''} z-50`}>
+        <Card className="border-none drop-shadow-sm relative z-50">
           <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between align-middle">
             <CardTitle className="line-clamp-1 text-xl">Settings</CardTitle>
           </CardHeader>

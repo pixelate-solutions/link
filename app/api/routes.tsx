@@ -24,7 +24,6 @@ export async function clearChatHistory(userId:string) {
 
         // Optionally, handle the response data if needed.
         const data = await response.json();
-        console.log(data.message); // Log the success message.
     } catch (error) {
         console.error(error);
         // Handle errors, such as network issues or JSON parsing errors.
@@ -46,7 +45,6 @@ export const chat = async (userId: string, query: string, allow_access: boolean 
     },
     body: JSON.stringify(data),
   });
-  console.log(data)
 
   if (response.body) {
     const reader = response.body.getReader();

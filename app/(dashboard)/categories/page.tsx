@@ -77,9 +77,6 @@ const CategoriesPage = () => {
     );
   }
 
-  // Debugging: Log the API data to ensure it's coming in correctly
-  console.log('Totals Data:', totalsQuery.data);
-
   const categoriesWithTotals = categories.map(category => {
     // Find the total based on categoryId
     const total = totalsQuery.data?.find(total => total.categoryId === category.id) || { totalIncome: 0, totalCost: 0 };

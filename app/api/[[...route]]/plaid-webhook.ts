@@ -1,11 +1,14 @@
 import { Hono } from "hono";
 import { db } from "@/db/drizzle";
-import { accounts, transactions, categories, userTokens } from "@/db/schema";
+import { accounts, transactions, userTokens } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import plaidClient from "./plaid";
 import { createId } from "@paralleldrive/cuid2";
 import { Transaction } from "plaid";
 import { getAuth } from "@hono/clerk-auth";
+
+// Fetch the AI URL from environment variables
+const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
 
 const app = new Hono();
 
@@ -67,23 +70,61 @@ const syncTransactions = async (plaidTransactions: Transaction[], itemId: string
   }, {} as Record<string, string>);
 
   // Insert new transactions into the database
-  const transactionInsertions = plaidTransactions.map(async (transaction) => {
-    const accountId = accountIdMap[transaction.account_id];
-    if (!accountId) return;
+  const insertedTransactions = await Promise.all(
+    plaidTransactions.map(async (transaction) => {
+      const accountId = accountIdMap[transaction.account_id];
+      if (!accountId) return null;
 
-    await db.insert(transactions).values({
-      id: createId(),
-      accountId,
-      userId,
-      date: new Date(transaction.date),
-      amount: transaction.amount.toString(),
-      categoryId: transaction.personal_finance_category?.detailed,
-      payee: transaction.merchant_name || transaction.name,
-      notes: transaction.pending ? "Pending" : null,
-    });
-  });
+      return db.insert(transactions).values({
+        id: createId(),
+        accountId,
+        userId,
+        date: new Date(transaction.date),
+        amount: transaction.amount.toString(),
+        categoryId: transaction.personal_finance_category?.detailed,
+        payee: transaction.merchant_name || transaction.name,
+        notes: transaction.pending ? "Pending" : null,
+      }).returning();
+    })
+  );
 
-  await Promise.all(transactionInsertions);
+  // Filter null values from inserted transactions
+  const validTransactions = insertedTransactions.filter(Boolean);
+
+  // Upsert transactions to AI API
+  if (validTransactions.length > 0) {
+    const formattedTransactions = validTransactions.map((transaction: any) => {
+      return `
+        A transaction was made in the amount of $${transaction.amount} by the user to the person or group named ${transaction.payee} on ${transaction.date.toLocaleDateString()}. 
+        ${transaction.notes ? `Some notes regarding this transaction to ${transaction.payee} on ${transaction.date.toLocaleDateString()} are: ${transaction.notes}.` : "No additional notes were provided for this transaction."}
+      `;
+    }).join("\n");
+
+    try {
+      // Pass the account ID in the `account` query parameter
+      const accountId = accountIdMap[plaidTransactions[0].account_id];
+      const aiResponse = await fetch(
+        `${AI_URL}/resource/upsert_text?user_id=${userId}&name=Transactions from ${accountId} for ${userId}&account=${accountId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+          },
+          body: formattedTransactions.trim(),
+        }
+      );
+
+      if (!aiResponse.ok) {
+        const errorText = await aiResponse.text();
+        throw new Error(`Upsert failed: ${errorText}`);
+      }
+
+      const responseData = await aiResponse.json();
+      console.log("AI Response:", responseData);
+    } catch (error) {
+      console.error('Error upserting transactions to AI:', error);
+    }
+  }
 };
 
 export default app;

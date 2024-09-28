@@ -6,6 +6,9 @@ import { createId } from "@paralleldrive/cuid2";
 import plaidClient from "./plaid";
 import { eq } from "drizzle-orm";
 
+// Fetch the AI URL from environment variables
+const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
+
 const app = new Hono();
 
 app.post('/', clerkMiddleware(), async (ctx) => {
@@ -28,7 +31,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: "Access token not found" }, 404);
   }
 
-  // Fetch Plaid transactions only (no need to fetch accounts here)
+  // Fetch Plaid transactions
   const startDate = new Date();
   const endDate = new Date();
   startDate.setFullYear(endDate.getFullYear() - 10);
@@ -143,6 +146,42 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       }).returning();
     })
   );
+
+  // Format transactions for upserting to AI
+  const formattedTransactions = insertedTransactions
+    .filter(Boolean)
+    .map((transaction: any) => {
+      return `
+        A transaction was made in the amount of $${transaction.amount} by the user to the person or group named ${transaction.payee} on ${new Date(transaction.date).toLocaleDateString()}. 
+        ${transaction.notes ? `Some notes regarding this transaction to ${transaction.payee} on ${new Date(transaction.date).toLocaleDateString()} are: ${transaction.notes}.` : "No additional notes were provided for this transaction."}
+      `;
+    }).join("\n");
+
+  // Upsert all transactions to the AI endpoint
+  try {
+    const aiResponse = await fetch(
+      `${AI_URL}/resource/upsert_text?user_id=${userId}&name=Transactions from ${accountIdMap[plaidTransactions[0].account_id]} for ${userId}&account=${accountIdMap[plaidTransactions[0].account_id]}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain',
+        },
+        body: formattedTransactions.trim(), // Ensure it is a properly formatted plain string
+      }
+    );
+
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      throw new Error(`Upsert failed: ${errorText}`);
+    }
+
+    const responseData = await aiResponse.json();
+    console.log("AI Response:", responseData);
+
+  } catch (error) {
+    console.error('Error upserting transactions:', error);
+    return ctx.json({ error: 'Failed to upsert transactions' }, 500);
+  }
 
   return ctx.json({ transactions: insertedTransactions.filter(Boolean) });
 });

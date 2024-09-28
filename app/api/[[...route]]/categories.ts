@@ -25,8 +25,6 @@ const app = new Hono()
       .from(categories)
       .where(eq(categories.userId, auth.userId));
 
-    console.log(JSON.stringify(data, null, 2));
-
     return ctx.json({ data });
   })
   .get(

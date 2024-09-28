@@ -4,19 +4,27 @@ import { db } from '@/db/drizzle'; // Adjust path as necessary
 import { categories, transactions, accounts, stripeCustomers, userTokens } from '@/db/schema'; // Adjust paths
 import { eq, and } from 'drizzle-orm';
 
+const AI_URL = process.env.NEXT_PUBLIC_AI_URL; // Ensure the AI backend URL is set in environment variables
+
 const app = new Hono();
 
 app.post('/', clerkMiddleware(), async (ctx) => {
   const { userId } = await ctx.req.json();
 
   try {
+    // Fetch all accounts for the user that are from Plaid
+    const plaidAccounts = await db
+      .select({ accountId: accounts.id })
+      .from(accounts)
+      .where(and(eq(accounts.userId, userId), eq(accounts.isFromPlaid, true)));
+
     // Delete from categories where isFromPlaid is TRUE and userId matches
     await db.delete(categories)
       .where(and(eq(categories.userId, userId), eq(categories.isFromPlaid, true)));
 
     // Delete from transactions where isFromPlaid is TRUE and userId matches
     await db.delete(transactions)
-      .where(and(eq(transactions.id, userId), eq(transactions.isFromPlaid, true)));
+      .where(and(eq(transactions.userId, userId), eq(transactions.isFromPlaid, true)));
 
     // Delete from accounts where isFromPlaid is TRUE and userId matches
     await db.delete(accounts)
@@ -29,6 +37,25 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     // Delete from user_tokens where userId matches
     await db.delete(userTokens)
       .where(eq(userTokens.userId, userId));
+
+    // Make requests to delete resources from AI backend
+    for (const account of plaidAccounts) {
+      const accountId = account.accountId;
+      const name = `Transactions from ${accountId} for ${userId}`;
+
+      try {
+        const aiResponse = await fetch(`${AI_URL}/resources/delete/${encodeURIComponent(name)}`, {
+          method: 'DELETE',
+        });
+
+        if (!aiResponse.ok) {
+          const errorText = await aiResponse.text();
+          console.error(`Failed to delete from AI backend: ${errorText}`);
+        }
+      } catch (error) {
+        console.error(`Error deleting from AI backend for account ${accountId}:`, error);
+      }
+    }
 
     return ctx.json({ message: 'Plaid-related data and customer info deleted successfully.' }, 200);
   } catch (error) {

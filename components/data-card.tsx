@@ -65,7 +65,7 @@ export const DataCard = ({
     <Card className="border-none drop-shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between gap-x-4">
         <div className="space-y-2">
-          <CardTitle className="line-clamp-1 text-2xl">{title}</CardTitle>
+          <CardTitle className={`line-clamp-1 text-2xl`}>{title}</CardTitle>
 
           <CardDescription className="line-clamp-1">
             {dateRange}
@@ -78,7 +78,7 @@ export const DataCard = ({
       </CardHeader>
 
       <CardContent>
-        <h1 className="mb-2 line-clamp-1 break-all text-2xl font-bold">
+        <h1 className={`mb-2 line-clamp-1 break-all text-2xl font-bold ${value > 0 ? "text-green-600" : ""} ${value < 0 ? "text-red-600" : ""}`}>
           <CountUp
             preserveValue
             start={0}
@@ -129,7 +129,7 @@ export const ExpensesDataCard = ({
       </CardHeader>
 
       <CardContent>
-        <h1 className="mb-2 line-clamp-1 break-all text-2xl font-bold">
+        <h1 className={`mb-2 line-clamp-1 break-all text-2xl font-bold ${value < 0 ? "text-red-600" : ""}`}>
           <CountUp
             preserveValue
             start={0}

@@ -4,7 +4,8 @@ import Stripe from 'stripe';
 import { db } from '@/db/drizzle';
 import { stripeCustomers } from '@/db/schema';
 import { config } from 'dotenv';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
+import { accounts, transactions } from '@/db/schema';
 
 config({ path: '.env.local' });
 
@@ -50,11 +51,16 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
     // Cancel the subscription immediately and apply proration
     await stripe.subscriptions.cancel(subscription.id, {
-      prorate: true,  // Apply proration for the remaining period
+      prorate: true,
     });
 
-    // Optionally clean up or update records
-    // await db.delete(stripeCustomers).where(eq(stripeCustomers.userId, auth.userId));
+    // Delete all accounts for the user where isFromPlaid is True
+    await db.delete(accounts)
+      .where(and(eq(accounts.userId, auth.userId), eq(accounts.isFromPlaid, true)))
+
+    // Delete all transactions for the user where isFromPlaid is True
+    await db.delete(transactions)
+      .where(and(eq(transactions.userId, auth.userId), eq(transactions.isFromPlaid, true)))
 
     // Respond with a redirect URL
     return ctx.json({ message: 'Subscription canceled successfully.', redirectUrl: '/overview' });

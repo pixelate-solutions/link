@@ -1,6 +1,6 @@
 const LandingPage = () => {
   return (
-    <div className="mx-auto -mt-6 w-full max-w-screen-2xl pb-10">
+    <div className="mx-auto w-full max-w-screen-2xl pb-10">
       Landing Page
     </div>
   );

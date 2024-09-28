@@ -16,7 +16,7 @@ import deletePlaidData from './delete-plaid';
 import accountTotals from './get-account-totals';
 import categoryTotals from './get-category-totals';
 import plaidWebhook from './plaid-webhook';
-
+import chatAccess from './chat-access-status';
 const app = new Hono().basePath('/api');
 
 const routes = app
@@ -35,6 +35,7 @@ const routes = app
   .route('/plaid/account-totals', accountTotals)
   .route('/plaid/category-totals', categoryTotals)
   .route('/plaid/webhook', plaidWebhook)
+  .route('/chat-access', chatAccess)
   
 export const GET = handle(app);
 export const POST = handle(app);

@@ -8,6 +8,8 @@ import { z } from "zod";
 import { db } from "@/db/drizzle";
 import { accounts, insertAccountSchema } from "@/db/schema";
 
+const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
+
 const app = new Hono()
   .get("/", clerkMiddleware(), async (ctx) => {
     const auth = getAuth(ctx);
@@ -122,6 +124,17 @@ const app = new Hono()
         return ctx.json({ error: "Unauthorized." }, 401);
       }
 
+      // Fetch the account IDs to be deleted
+      const accountsToDelete = await db
+        .select({ id: accounts.id })
+        .from(accounts)
+        .where(
+          and(
+            eq(accounts.userId, auth.userId),
+            inArray(accounts.id, values.ids)
+          )
+        );
+
       const data = await db
         .delete(accounts)
         .where(
@@ -133,6 +146,23 @@ const app = new Hono()
         .returning({
           id: accounts.id,
         });
+
+      // Make requests to delete resources from AI backend
+      for (const account of accountsToDelete) {
+        const name = `Transactions from ${account.id} for ${auth.userId}`;
+        try {
+          const aiResponse = await fetch(`${AI_URL}/resources/delete/${encodeURIComponent(name)}`, {
+            method: 'DELETE',
+          });
+
+          if (!aiResponse.ok) {
+            const errorText = await aiResponse.text();
+            console.error(`Failed to delete from AI backend: ${errorText}`);
+          }
+        } catch (error) {
+          console.error(`Error deleting from AI backend for account ${account.id}:`, error);
+        }
+      }
 
       return ctx.json({ data });
     }
@@ -200,18 +230,40 @@ const app = new Hono()
         return ctx.json({ error: "Unauthorized." }, 401);
       }
 
-      const [data] = await db
+      // Fetch the account to be deleted
+      const [account] = await db
+        .select({ id: accounts.id })
+        .from(accounts)
+        .where(and(eq(accounts.userId, auth.userId), eq(accounts.id, id)));
+
+      if (!account) {
+        return ctx.json({ error: "Not found." }, 404);
+      }
+
+      // Delete the account from the database
+      const [deletedAccount] = await db
         .delete(accounts)
         .where(and(eq(accounts.userId, auth.userId), eq(accounts.id, id)))
         .returning({
           id: accounts.id,
         });
 
-      if (!data) {
-        return ctx.json({ error: "Not found." }, 404);
+      // Make request to AI backend to delete the corresponding resource
+      const name = `Transactions from ${account.id} for ${auth.userId}`;
+      try {
+        const aiResponse = await fetch(`${AI_URL}/resources/delete/${encodeURIComponent(name)}`, {
+          method: 'DELETE',
+        });
+
+        if (!aiResponse.ok) {
+          const errorText = await aiResponse.text();
+          console.error(`Failed to delete from AI backend: ${errorText}`);
+        }
+      } catch (error) {
+        console.error(`Error deleting from AI backend for account ${account.id}:`, error);
       }
 
-      return ctx.json({ data });
+      return ctx.json({ data: deletedAccount });
     }
   );
 
