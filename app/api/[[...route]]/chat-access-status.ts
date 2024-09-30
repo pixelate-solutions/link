@@ -9,9 +9,9 @@ const app = new Hono();
 // GET request to retrieve the chat access status
 app.get('/status', clerkMiddleware(), async (ctx) => {
   const auth = getAuth(ctx);
-  const userId = ctx.req.query('userId');
+  const userId = auth?.userId;
 
-  if (!auth?.userId || auth.userId !== userId) {
+  if (!userId) {
     return ctx.json({ error: 'Unauthorized.' }, 401);
   }
 

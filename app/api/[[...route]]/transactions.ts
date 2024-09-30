@@ -142,8 +142,14 @@ const app = new Hono()
         .returning();
 
       // Format the transaction for upserting to AI
+      let formatString = ""
+      if (parseFloat(data.amount) < 0) {
+        formatString = `-$${Math.abs(parseFloat(data.amount)).toFixed(2)}`
+      } else {
+        formatString = `$${parseFloat(data.amount).toFixed(2)}`
+      }
       const formattedTransaction = `
-        A transaction was made in the amount of $${data.amount} by the user to the person or group named ${data.payee} on ${data.date.toLocaleDateString()}. 
+        A transaction was made in the amount of ${formatString} by the user to the person or group named ${data.payee} on ${data.date.toLocaleDateString()}. 
         ${data.notes ? `Some notes regarding this transaction to ${data.payee} on ${data.date.toLocaleDateString()} are: ${data.notes}.` : "No additional notes were provided for this transaction."}
       `;
 
@@ -199,8 +205,12 @@ const app = new Hono()
 
       // Format transactions for upserting to AI
       const formattedTransactions = data.map((transaction: any) => {
+        const amountNumber = parseFloat(transaction.amount);
+        const formattedAmount = amountNumber < 0 
+        ? `-$${Math.abs(amountNumber).toFixed(2)}`
+        : `$${amountNumber.toFixed(2)}`;
         return `
-          A transaction was made in the amount of $${transaction.amount} by the user to the person or group named ${transaction.payee} on ${new Date(transaction.date).toLocaleDateString()}. 
+          A transaction was made in the amount of ${formattedAmount} by the user to the person or group named ${transaction.payee} on ${new Date(transaction.date).toLocaleDateString()}. 
           ${transaction.notes ? `Some notes regarding this transaction to ${transaction.payee} on ${new Date(transaction.date).toLocaleDateString()} are: ${transaction.notes}.` : "No additional notes were provided for this transaction."}
         `;
       }).join("\n");

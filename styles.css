@@ -297,3 +297,34 @@ blockquote {
     margin-left: 11px;
   }
 }
+
+/* Apply double spacing between paragraphs, but not after the last one */
+.chat-message p:not(:last-child) {
+  margin-bottom: 1em; /* Adjust this value for the desired spacing */
+}
+
+.chat-message ul {
+  list-style-type: disc;
+  padding-left: 20px;
+}
+
+.chat-message ol {
+  list-style-type: decimal;
+  padding-left: 20px;
+}
+
+.chat-message ul, .chat-message ol {
+  list-style-position: inside; /* Ensure that bullets/numbers appear inline with the text */
+  margin-left: 0; /* Reset margin */
+  padding-left: 1.5em; /* Apply proper padding */
+}
+
+.chat-message li {
+  margin-bottom: 0.5em; /* Reduce space between list items */
+  padding-left: 0; /* Reset padding for list items */
+  display: list-item; /* Ensure proper list item behavior */
+}
+
+table {
+  margin-bottom: 1em;
+}

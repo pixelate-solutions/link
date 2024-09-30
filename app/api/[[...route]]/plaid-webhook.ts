@@ -94,8 +94,12 @@ const syncTransactions = async (plaidTransactions: Transaction[], itemId: string
   // Upsert transactions to AI API
   if (validTransactions.length > 0) {
     const formattedTransactions = validTransactions.map((transaction: any) => {
+      const amountNumber = parseFloat(transaction.amount);
+      const formattedAmount = amountNumber < 0 
+        ? `-$${Math.abs(amountNumber).toFixed(2)}`
+        : `$${amountNumber.toFixed(2)}`;
       return `
-        A transaction was made in the amount of $${transaction.amount} by the user to the person or group named ${transaction.payee} on ${transaction.date.toLocaleDateString()}. 
+        A transaction was made in the amount of ${formattedAmount} by the user to the person or group named ${transaction.payee} on ${transaction.date.toLocaleDateString()}. 
         ${transaction.notes ? `Some notes regarding this transaction to ${transaction.payee} on ${transaction.date.toLocaleDateString()} are: ${transaction.notes}.` : "No additional notes were provided for this transaction."}
       `;
     }).join("\n");

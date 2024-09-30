@@ -5,7 +5,6 @@ import { Montserrat } from "next/font/google";
 import { chat as chatAPI, history as historyAPI, clearChatHistory as clearChatHistoryAPI } from "@/app/api/routes";
 import { useUser } from "@clerk/nextjs";
 import ReactMarkdown from 'react-markdown';
-import { Message } from "@/app/types/message";
 import gfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { BeatLoader } from "react-spinners";
@@ -28,7 +27,7 @@ const Chatbot = () => {
   const [inputMessage, setInputMessage] = useState("");
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>("Loading...");
   const [openUpgradeDialog, setOpenUpgradeDialog] = useState<boolean>(false);
-  const [chatHistory, setChatHistory] = useState<Message[]>([
+  const [chatHistory, setChatHistory] = useState([
     {
       content: "Hi, how can I help you? I am a virtual assistant here to help you with any financial or budgeting questions you have.",
       role: "assistant",
@@ -41,7 +40,7 @@ const Chatbot = () => {
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
   const [allowAccess, setAllowAccess] = useState(false);
-  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const [streamingText, setStreamingText] = useState("");
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -56,14 +55,18 @@ const Chatbot = () => {
       body: JSON.stringify({ userId, allowAccess: !allowAccess }),
     });
     setAllowAccess(!allowAccess);
-  }
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chatHistory, streamingText]);
 
   useEffect(() => {
     const fetchSubscriptionStatus = async () => {
       if (userId) {
         try {
           const response = await fetch(`/api/subscription-status?userId=${userId}`)
-          .then(response => response.json())
+            .then(response => response.json())
             .then(async (data) => {
               setSubscriptionStatus(data.plan);
               setOpenUpgradeDialog(data.plan === "Free");
@@ -74,8 +77,22 @@ const Chatbot = () => {
         }
       }
     };
-
     fetchSubscriptionStatus();
+
+    const fetchAllowAccessStatus = async () => {
+      if (userId) {
+        try {
+          const response = await fetch(`/api/chat-access/status`)
+            .then(response => response.json())
+            .then(async (data) => {
+              setAllowAccess(data.status);
+            });
+        } catch (error) {
+          console.error("Error fetching chat access status:", error);
+        }
+      }
+    };
+    fetchAllowAccessStatus();
   }, [userId]);
 
   const fetchChatHistory = useCallback(async (userId: string) => {
@@ -99,11 +116,6 @@ const Chatbot = () => {
     }
   }, [isLoaded, isSignedIn, userId, fetchChatHistory]);
 
-  useEffect(() => {
-    scrollToBottom();
-    console.log(subscriptionStatus);
-  }, [chatHistory]);
-
   const handleSendMessage = async () => {
     if (inputMessage.trim() !== "") {
       setInputMessage("");
@@ -112,28 +124,28 @@ const Chatbot = () => {
         ...prevHistory,
         { content: inputMessage, role: "user" },
       ]);
+
       if (userId) {
         try {
-          const response = await fetch(`/api/chat-access/status?userId=${userId}`)
-          .then(response => response.json())
-            .then(async (data) => {
-              setAllowAccess(data.status);
-            });
-          const responseStream = await chatAPI(userId, inputMessage, allowAccess);
-          if (responseStream instanceof ReadableStream) {
+          const response = await chatAPI(userId, inputMessage, allowAccess, true);
+          if (response instanceof ReadableStream) {
             let accumulatedText = "";
-            const reader = responseStream.getReader();
+            const reader = response.getReader();
             reader.read().then(function processText({ done, value }) {
               if (done) {
+                // Full response processed, update chat history
                 setChatHistory((prevHistory) => [
                   ...prevHistory,
                   { content: accumulatedText, role: "assistant" },
                 ]);
+                setStreamingText(""); // Reset streaming text
                 setIsLoading(false);
                 return;
               }
+
               const textChunk = new TextDecoder().decode(value, { stream: true });
               accumulatedText += textChunk;
+              setStreamingText((prevText) => prevText + textChunk); // Live update
               reader.read().then(processText);
             });
           } else {
@@ -179,120 +191,116 @@ const Chatbot = () => {
         console.error("Error clearing chat history:", error);
       } finally {
         setIsClearLoading(false);
+        window.location.reload();
       }
     }
   };
-    
+
   return (
-      <div className="relative flex flex-col h-full w-full lg:w-[80%] lg:ml-[10%] -mt-5 lg:-mt-20 pb-[100px]">
-  {/* Chat Content */}
-  <div className="flex flex-col flex-grow rounded-2xl bg-gradient-to-b from-gray-50 to-white">
-    <div className="sticky top-[92px] bg-gray-50 p-4 rounded-2xl z-50">
-      <div className="sticky bg-white w-full h-[110px] p-4 border-b-2 border-x-2 rounded-xl lg:rounded-b-xl">
-        <h1 className="md:w-auto w-full text-center text-xl font-semibold">Ask Me Anything</h1>
-        <div className="w-full flex flex-col lg:flex-row justify-center items-center lg:space-x-4 -space-y-4 text-xs lg:text-inherit lg:space-y-0 lg:mt-2">
-          <Button disabled={(subscriptionStatus === "Free" || subscriptionStatus === "Loading...")} onClick={() => {changeAccessValue()}} className="text-blue-600 hover:bg-transparent hover:text-blue-400" variant="ghost">
-            {allowAccess ? "Remove Transaction Knowledge" : "Allow Transaction Knowledge"}
-          </Button>
-          <Button disabled={(subscriptionStatus === "Free" || subscriptionStatus === "Loading...")} onClick={() => setIsAlertDialogOpen(true)} className="bg-transparent text-red-500 rounded-md hover:text-red-300 hover:bg-transparent">
-            Clear History
-          </Button>
-        </div>
-      </div>
-
-      <AlertDialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently clear your chat history from our servers.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <div className="w-full flex justify-between lg:mx-[20%]">
-              <AlertDialogCancel asChild>
-                <Button variant="outline">Cancel</Button>
-              </AlertDialogCancel>
-              <AlertDialogAction asChild onClick={handleClearHistoryConfirmed}>
-                <Button className="text-white bg-red-500 hover:bg-red-500 hover:opacity-90" variant="destructive">Clear History</Button>
-              </AlertDialogAction>
+    <div className="relative flex flex-col h-full w-full lg:w-[80%] lg:ml-[10%] -mt-5 lg:-mt-20 pb-[100px]">
+      <div className="flex flex-col flex-grow rounded-2xl bg-gradient-to-b from-gray-50 to-white">
+        <div className="sticky top-[92px] bg-gray-50 p-4 rounded-2xl z-50">
+          <div className="sticky bg-white w-full h-[110px] p-4 border-b-2 border-x-2 rounded-xl lg:rounded-b-xl">
+            <h1 className="md:w-auto w-full text-center text-xl font-semibold">Ask Me Anything</h1>
+            <div className="w-full flex flex-col lg:flex-row justify-center items-center lg:space-x-4 -space-y-4 text-xs lg:text-inherit lg:space-y-0 lg:mt-2">
+              <Button disabled={subscriptionStatus === "Free" || subscriptionStatus === "Loading..."} onClick={changeAccessValue} className="text-blue-600 hover:bg-transparent hover:text-blue-400" variant="ghost">
+                {allowAccess ? "Remove Transaction Knowledge" : "Allow Transaction Knowledge"}
+              </Button>
+              <Button disabled={subscriptionStatus === "Free" || subscriptionStatus === "Loading..."} onClick={() => setIsAlertDialogOpen(true)} className="bg-transparent text-red-500 rounded-md hover:text-red-300 hover:bg-transparent">
+                Clear History
+              </Button>
             </div>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-    <div className="flex flex-col flex-grow overflow-y-auto p-4">
-      <div className="chat-messages-container">
-        {chatHistory.map((item, index) => {
-          const isAssistant = item.role === "assistant";
+          </div>
 
-          return (
-            <div key={`message-${index}`} className={`mb-4 flex text-sm lg:text-[16px] ${isAssistant ? "justify-start" : "justify-end"}`}>
-              <div className={`chat-message p-2 shadow-md rounded-lg ${isAssistant ? "bg-gray-200 text-gray-800" : "bg-blue-500 text-white"} max-w-[65%]`}>
-                <ReactMarkdown
-                  remarkPlugins={[gfm]}
-                  rehypePlugins={[rehypeRaw as unknown as any]}
-                >
-                  {item.content}
+          <AlertDialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently clear your chat history from our servers.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <div className="w-full flex justify-between lg:mx-[20%]">
+                  <AlertDialogCancel asChild>
+                    <Button variant="outline">Cancel</Button>
+                  </AlertDialogCancel>
+                  <AlertDialogAction asChild onClick={handleClearHistoryConfirmed}>
+                    <Button className="text-white bg-red-500 hover:bg-red-500 hover:opacity-90" variant="destructive">Clear History</Button>
+                  </AlertDialogAction>
+                </div>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+        <div className="flex flex-col flex-grow overflow-y-auto p-4">
+          <div className="chat-messages-container">
+            {chatHistory.map((item, index) => {
+              const isAssistant = item.role === "assistant";
+              return (
+                <div key={`message-${index}`} className={`mb-4 flex ${isAssistant ? "justify-start" : "justify-end"}`}>
+                  <div className={`chat-message p-2 shadow-md rounded-lg ${isAssistant ? "bg-gray-200 text-gray-800" : "bg-blue-500 text-white"} max-w-[65%]`}>
+                    <ReactMarkdown
+                      remarkPlugins={[gfm]}
+                      rehypePlugins={[rehypeRaw as unknown as any]}
+                    >
+                      {item.content.replace(/^"|"$/g, '').replace(/\\n/g, '\n')}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+              );
+            })}
+            {streamingText && (
+              <div className="message assistant">
+                <ReactMarkdown remarkPlugins={[gfm]} rehypePlugins={[rehypeRaw]}>
+                  {streamingText}
                 </ReactMarkdown>
               </div>
+            )}
+          </div>
+          {isLoading && (
+            <div className="flex p-2 rounded-lg">
+              <BeatLoader color="#2196f3" margin={3} size={25} speedMultiplier={0.75} />
             </div>
-          );
-        })}
+          )}
+          {isClearLoading && (
+            <div className="flex p-2 rounded-lg">
+              <ReactMarkdown>Clearing chat history...</ReactMarkdown>
+            </div>
+          )}
+          <div ref={chatEndRef} />
+        </div>
       </div>
-      {isLoading && (
-        <div className="flex p-2 rounded-lg">
-          <BeatLoader color="#2196f3" margin={3} size={25} speedMultiplier={0.75} />
+
+      <div className="p-4 pb-10 fixed bottom-0 rounded-t-2xl full-width-minus bg-white border-t border-gray-300">
+        <div className="flex">
+          <textarea
+            className="flex-grow border border-gray-300 rounded-md p-2 mr-2 resize-none focus:border-blue-500 focus:outline-none text-sm lg:text-[16px]"
+            placeholder="Type your message here..."
+            rows={1}
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            onKeyDown={handleKeyPress}
+          />
+          <Button onClick={handleSendMessage} className="bg-blue-500 text-white rounded-r-md p-2 lg:w-[100px] text-sm lg:text-[16px] hover:bg-blue-400">
+            Send
+          </Button>
+        </div>
+      </div>
+      {(subscriptionStatus === "Free" || subscriptionStatus === "Loading..." || !isLoaded || isClearLoading) && (
+        <div className="absolute inset-0 backdrop-blur-sm bg-white/70 z-20 flex min-h-[600px] lg:min-h-[700px] items-center justify-center">
+          {(subscriptionStatus !== "Loading..." && !isClearLoading) && (
+            <Button onClick={() => setOpenUpgradeDialog(true)} className="bg-blue-500 hover:bg-blue-400 z-30 shadow-sm hover:shadow-md shadow-gray-500">
+              Upgrade to Link Premium
+            </Button>
+          )}
         </div>
       )}
-      {isClearLoading && (
-        <div className="flex p-2 rounded-lg">
-          <ReactMarkdown>Clearing chat history...</ReactMarkdown>
-        </div>
-      )}
-      <div ref={chatEndRef} />
-    </div>
-  </div>
 
-  <div className="p-4 pb-10 fixed bottom-0 rounded-t-2xl full-width-minus bg-white border-t border-gray-300">
-    <div className="flex">
-      <textarea
-        ref={textAreaRef}
-        className="flex-grow border border-gray-300 rounded-md p-2 mr-2 resize-none focus:border-blue-500 focus:outline-none text-sm lg:text-[16px]"
-        placeholder="Type your message here..."
-        rows={1}
-        value={inputMessage}
-        onChange={(e) => setInputMessage(e.target.value)}
-        onKeyDown={handleKeyPress}
-        disabled={(subscriptionStatus === "Free" || subscriptionStatus === "Loading...")}
-      />
-      <Button
-        disabled={(subscriptionStatus === "Free" || subscriptionStatus === "Loading...")}
-        onClick={handleSendMessage}
-        className="bg-blue-500 text-white rounded-r-md p-2 lg:w-[100px] text-sm lg:text-[16px] hover:bg-blue-400"
-      >
-        Send
-      </Button>
-    </div>
-  </div>
-
-
-  {/* Blur overlay if subscription is Free */}
-  {(subscriptionStatus === "Free" || subscriptionStatus === "Loading..." || !isLoaded) && (
-    <div className="absolute inset-0 backdrop-blur-sm bg-white/70 z-20 flex min-h-[600px] lg:min-h-[700px] items-center justify-center">
-      {subscriptionStatus !== "Loading..." && (
-        <Button onClick={() => setOpenUpgradeDialog(true)} className="bg-blue-500 hover:bg-blue-400 z-30 shadow-sm hover:shadow-md shadow-gray-500">
-          Upgrade to Link Premium
-        </Button>
+      {(subscriptionStatus === "Free" && isLoaded) && (
+        <UpgradePopup open={openUpgradeDialog} onOpenChange={setOpenUpgradeDialog} />
       )}
     </div>
-  )}
-
-  {/* Upgrade popup */}
-  {(subscriptionStatus === "Free" && isLoaded) && (
-    <UpgradePopup open={openUpgradeDialog} onOpenChange={setOpenUpgradeDialog} />
-  )}
-</div>
   );
 };
 
