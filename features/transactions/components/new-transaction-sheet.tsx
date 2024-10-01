@@ -81,7 +81,14 @@ export const NewTransactionSheet = () => {
   };
 
   return (
-    <Sheet open={isOpen || isPending} onOpenChange={onClose}>
+    <Sheet open={isOpen || isPending} onOpenChange={(open) => {
+        onClose();
+        setTimeout(() => {
+          if (!open) {
+            document.body.style.pointerEvents = ''
+          }
+        }, 100)
+      }}>
       <SheetContent className="space-y-4">
         <SheetHeader>
           <SheetTitle>New Transaction</SheetTitle>

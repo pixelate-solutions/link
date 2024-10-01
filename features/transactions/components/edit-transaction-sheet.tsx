@@ -125,7 +125,14 @@ export const EditTransactionSheet = () => {
   return (
     <>
       <ConfirmDialog />
-      <Sheet open={isOpen || isPending} onOpenChange={onClose}>
+      <Sheet open={isOpen} onOpenChange={(open) => {
+        onClose();
+        setTimeout(() => {
+          if (!open) {
+            document.body.style.pointerEvents = ''
+          }
+        }, 100)
+      }}>
         <SheetContent className="space-y-4">
           <SheetHeader>
             <SheetTitle>Edit Transaction</SheetTitle>

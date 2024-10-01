@@ -281,6 +281,13 @@
       "when": 1727544089874,
       "tag": "0039_fat_speed",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1727793318532,
+      "tag": "0040_real_the_stranger",
+      "breakpoints": true
     }
   ]
 }

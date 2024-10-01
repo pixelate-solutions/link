@@ -1,7 +1,7 @@
 "use client";
 
+import { useState } from "react";
 import { Edit, MoreHorizontal, Trash } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,21 +9,24 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useDeleteTransaction } from "@/features/transactions/api/use-delete-transaction";
-import { useOpenTransaction } from "@/features/transactions/hooks/use-open-transaction";
+import { useDeleteRecurringTransaction } from "@/features/transactions/api/use-delete-recurring-transaction";
 import { useConfirm } from "@/hooks/use-confirm";
+import { EditRecurringTransactionSheet } from "@/features/transactions/components/edit-recurring-transaction-sheet";
 
-type ActionsProps = {
+type RecurringActionsProps = {
   id: string;
 };
 
-export const Actions = ({ id }: ActionsProps) => {
-  const deleteMutation = useDeleteTransaction(id);
-  const { onOpen } = useOpenTransaction();
+export const RecurringActions = ({ id }: RecurringActionsProps) => {
+  const deleteMutation = useDeleteRecurringTransaction(id);
+
+  // State to manage opening the sheet and passing the selected id
+  const [openSheet, setOpenSheet] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const [ConfirmDialog, confirm] = useConfirm(
     "Are you sure?",
-    "You are about to delete this transaction."
+    "You are about to delete this recurring transaction."
   );
 
   const handleDelete = async () => {
@@ -32,6 +35,11 @@ export const Actions = ({ id }: ActionsProps) => {
     if (ok) {
       deleteMutation.mutate();
     }
+  };
+
+  const handleEditClick = (id: string) => {
+    setSelectedId(id);
+    setOpenSheet(true);
   };
 
   return (
@@ -49,7 +57,7 @@ export const Actions = ({ id }: ActionsProps) => {
             disabled={deleteMutation.isPending}
             onClick={(event) => {
               event.preventDefault();
-              onOpen(id);
+              handleEditClick(id);
             }}
           >
             <Edit className="mr-2 size-4" />
@@ -65,6 +73,14 @@ export const Actions = ({ id }: ActionsProps) => {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {/* Include the Edit Recurring Transaction Sheet */}
+      {openSheet && selectedId && (
+        <EditRecurringTransactionSheet
+          id={selectedId}
+          onClose={() => setOpenSheet(false)}
+        />
+      )}
     </>
   );
 };

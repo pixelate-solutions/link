@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -88,3 +88,29 @@ export const chatAccess = pgTable("chat_access", {
   customerId: text("customer_id").notNull(),
   allowAccess: boolean("allow_access").notNull().default(false),
 });
+
+// Define the recurring transactions table
+export const recurringTransactions = pgTable("recurring_transactions", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  name: text("name").notNull(), // Name of the recurring transaction
+  accountId: text("account_id").notNull(), // Account associated with the transaction
+  merchantName: text("merchant_name").notNull(), // Merchant for the transaction
+  categoryName: text("category_name").notNull(), // Category name for the transaction
+  frequency: text("frequency").notNull(), // Frequency (e.g., daily, weekly, monthly)
+  averageAmount: text("average_amount").notNull(), // Average amount (stored as text)
+  lastAmount: text("last_amount").notNull(), // Last transaction amount (stored as text)
+  isActive: text("is_active").notNull(), // Is the transaction currently active? (text to match the type)
+});
+
+// Define the relationships, assuming this will relate to the accounts and categories tables
+export const recurringTransactionsRelations = relations(recurringTransactions, ({ one }) => ({
+  account: one(accounts, {
+    fields: [recurringTransactions.accountId],
+    references: [accounts.id],
+  }),
+  // Add relationships for categories if required
+}));
+
+// Create the insert schema
+export const insertRecurringTransactionSchema = createInsertSchema(recurringTransactions);

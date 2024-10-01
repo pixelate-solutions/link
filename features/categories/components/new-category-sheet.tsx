@@ -43,7 +43,14 @@ export const NewCategorySheet = () => {
   };
 
   return (
-    <Sheet open={isOpen || mutation.isPending} onOpenChange={onClose}>
+    <Sheet open={isOpen || mutation.isPending} onOpenChange={(open) => {
+        onClose();
+        setTimeout(() => {
+          if (!open) {
+            document.body.style.pointerEvents = ''
+          }
+        }, 100)
+      }}>
       <SheetContent className="space-y-4">
         <SheetHeader>
           <SheetTitle>New Category</SheetTitle>

@@ -53,6 +53,7 @@ const SettingsPage = () => {
       // After successfully setting the access token, upload accounts and transactions
       await fetch('/api/plaid/upload-accounts', { method: 'POST' });
       await fetch('/api/plaid/upload-transactions', { method: 'POST' });
+      await fetch('/api/plaid/recurring', { method: 'POST' });
 
       setPlaidIsOpen(false);
     } catch (error) {

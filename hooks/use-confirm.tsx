@@ -36,7 +36,14 @@ export const useConfirm = (
   };
 
   const ConfirmationDialog = () => (
-    <Dialog open={promise !== null} onOpenChange={handleCancel}>
+    <Dialog open={promise !== null} onOpenChange={(open) => {
+        handleCancel();
+        setTimeout(() => {
+          if (!open) {
+            document.body.style.pointerEvents = ''
+          }
+        }, 100)
+      }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>

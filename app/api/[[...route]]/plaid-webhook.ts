@@ -1,10 +1,9 @@
 import { Hono } from "hono";
 import { db } from "@/db/drizzle";
-import { accounts, transactions, userTokens } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { accounts, recurringTransactions, userTokens } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
 import plaidClient from "./plaid";
 import { createId } from "@paralleldrive/cuid2";
-import { Transaction } from "plaid";
 import { getAuth } from "@hono/clerk-auth";
 
 // Fetch the AI URL from environment variables
@@ -32,35 +31,29 @@ app.post('/', async (ctx) => {
       return ctx.json({ error: "Access token not found" }, 404);
     }
 
-    // Fetch the latest transactions for the item
-    const startDate = new Date();
-    const endDate = new Date();
-    startDate.setFullYear(endDate.getFullYear() - 10);
-
-    const formattedEndDate = endDate.toISOString().split('T')[0];
-    const formattedStartDate = startDate.toISOString().split('T')[0];
-
-    const plaidTransactionsResponse = await plaidClient.transactionsGet({
+    // Fetch the latest recurring transactions from Plaid
+    const plaidRecurringResponse = await plaidClient.transactionsRecurringGet({
       access_token: accessToken,
-      start_date: formattedStartDate,
-      end_date: formattedEndDate,
     });
 
-    const plaidTransactions = plaidTransactionsResponse.data.transactions;
+    const inflowStreams = plaidRecurringResponse.data.inflow_streams;
+    const outflowStreams = plaidRecurringResponse.data.outflow_streams;
 
-    // Sync the transactions in your database
-    await syncTransactions(plaidTransactions, item_id, userId);
+    const allStreams = [...inflowStreams, ...outflowStreams];
+
+    // Sync the recurring transactions in your database
+    await syncRecurringTransactions(allStreams, item_id, userId);
   }
 
   return ctx.json({ success: true });
 });
 
-const syncTransactions = async (plaidTransactions: Transaction[], itemId: string, userId: string) => {
+const syncRecurringTransactions = async (streams: any[], itemId: string, userId: string) => {
   // Fetch userId and account details from your database
   const dbAccounts = await db
-    .select({ id: accounts.id, plaidAccountId: accounts.plaidAccountId, userId: accounts.userId })
+    .select({ id: accounts.id, plaidAccountId: accounts.plaidAccountId })
     .from(accounts)
-    .where(eq(accounts.plaidAccountId, itemId));
+    .where(eq(accounts.userId, userId));
 
   const accountIdMap = dbAccounts.reduce((map, account) => {
     if (account.plaidAccountId) {
@@ -69,65 +62,53 @@ const syncTransactions = async (plaidTransactions: Transaction[], itemId: string
     return map;
   }, {} as Record<string, string>);
 
-  // Insert new transactions into the database
-  const insertedTransactions = await Promise.all(
-    plaidTransactions.map(async (transaction) => {
-      const accountId = accountIdMap[transaction.account_id];
+  // Insert or update recurring transactions
+  const insertedRecurringTransactions = await Promise.all(
+    streams.map(async (stream) => {
+      const accountId = accountIdMap[stream.account_id];
       if (!accountId) return null;
 
-      return db.insert(transactions).values({
+      // Check if the recurring transaction already exists based on accountId and stream_id (unique to Plaid)
+      const existingTransaction = await db
+        .select()
+        .from(recurringTransactions)
+        .where(and(eq(recurringTransactions.accountId, accountId), eq(recurringTransactions.name, stream.description)));
+
+      if (existingTransaction.length > 0) {
+        // Skip inserting if the recurring transaction already exists
+        return null;
+      }
+
+      // Convert amounts to string, using "0" as fallback if undefined
+      const averageAmount = stream.average_amount?.amount
+        ? stream.average_amount.amount.toString()
+        : "0"; // Fallback to "0" if undefined
+      const lastAmount = stream.last_amount?.amount
+        ? stream.last_amount.amount.toString()
+        : "0"; // Fallback to "0" if undefined
+
+      // Insert new recurring transaction
+      return db.insert(recurringTransactions).values({
         id: createId(),
-        accountId,
-        userId,
-        date: new Date(transaction.date),
-        amount: transaction.amount.toString(),
-        categoryId: transaction.personal_finance_category?.detailed,
-        payee: transaction.merchant_name || transaction.name,
-        notes: transaction.pending ? "Pending" : null,
+          userId: userId,
+          name: stream.description,
+          accountId: accountId,
+          merchantName: stream.merchant_name?.split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ') || "Unknown",
+          categoryName: stream.personal_finance_category?.detailed?.split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ') || "Uncategorized",
+          frequency: stream.frequency.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' '),
+          averageAmount: averageAmount,
+          lastAmount: lastAmount,
+          isActive: stream.is_active.toString(),
       }).returning();
     })
   );
 
-  // Filter null values from inserted transactions
-  const validTransactions = insertedTransactions.filter(Boolean);
+  // Filter null values from inserted recurring transactions
+  const validRecurringTransactions = insertedRecurringTransactions.filter(Boolean);
 
-  // Upsert transactions to AI API
-  if (validTransactions.length > 0) {
-    const formattedTransactions = validTransactions.map((transaction: any) => {
-      const amountNumber = parseFloat(transaction.amount);
-      const formattedAmount = amountNumber < 0 
-        ? `-$${Math.abs(amountNumber).toFixed(2)}`
-        : `$${amountNumber.toFixed(2)}`;
-      return `
-        A transaction was made in the amount of ${formattedAmount} by the user to the person or group named ${transaction.payee} on ${transaction.date.toLocaleDateString()}. 
-        ${transaction.notes ? `Some notes regarding this transaction to ${transaction.payee} on ${transaction.date.toLocaleDateString()} are: ${transaction.notes}.` : "No additional notes were provided for this transaction."}
-      `;
-    }).join("\n");
-
-    try {
-      // Pass the account ID in the `account` query parameter
-      const accountId = accountIdMap[plaidTransactions[0].account_id];
-      const aiResponse = await fetch(
-        `${AI_URL}/resource/upsert_text?user_id=${userId}&name=Transactions from ${accountId} for ${userId}&account=${accountId}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'text/plain',
-          },
-          body: formattedTransactions.trim(),
-        }
-      );
-
-      if (!aiResponse.ok) {
-        const errorText = await aiResponse.text();
-        throw new Error(`Upsert failed: ${errorText}`);
-      }
-
-      const responseData = await aiResponse.json();
-      console.log("AI Response:", responseData);
-    } catch (error) {
-      console.error('Error upserting transactions to AI:', error);
-    }
+  // Optionally handle AI-related tasks here if needed
+  if (validRecurringTransactions.length > 0) {
+    console.log("New recurring transactions added:", validRecurringTransactions);
   }
 };
 

@@ -1,83 +1,63 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { format } from "date-fns";
-import { InferResponseType } from "hono";
 import { ArrowUpDown } from "lucide-react";
-
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { client } from "@/lib/hono";
+import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
+import { Actions } from "./actions"; // Import the Actions component
+import { AccountColumn } from "./account-column"; // Import AccountColumn for clickable accounts
+import { RecurringActions } from "./recurring-actions";
 
-import { AccountColumn } from "./account-column";
-import { Actions } from "./actions";
-import { CategoryColumn } from "./category-column";
+export type RecurringTransaction = {
+  id: string;
+  name: string;
+  accountId: string;
+  accountName: string;
+  categoryName: string;
+  frequency: string;
+  averageAmount: string;
+  lastAmount: string;
+  isActive: string;
+};
 
-export type ResponseType = InferResponseType<
-  typeof client.api.transactions.$get,
-  200
->["data"][0];
-
-export const columns: ColumnDef<ResponseType>[] = [
+export const recurringColumns: ColumnDef<RecurringTransaction>[] = [
   {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "date",
+    accessorKey: "name",
     header: ({ column }) => {
       return (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Date
+          Name
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      );
+    },
+  },
+  {
+    accessorKey: "accountName",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Account
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       );
     },
     cell: ({ row }) => {
-      const date = row.getValue("date") as Date;
-
-      return <span>{format(date, "MMMM d, yyyy")}</span>;
+      const accountName = row.getValue("accountName") as string;
+      const accountId = row.getValue("accountId") as string;
+      
+      return accountName;
     },
   },
   {
-    accessorKey: "payee",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Payee
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-  },
-  {
-    accessorKey: "category",
+    accessorKey: "categoryName",
     header: ({ column }) => {
       return (
         <Button
@@ -89,32 +69,36 @@ export const columns: ColumnDef<ResponseType>[] = [
         </Button>
       );
     },
-    cell: ({ row }) => {
-      return (
-        <CategoryColumn
-          id={row.original.id}
-          category={row.original.category}
-          categoryId={row.original.categoryId}
-        />
-      );
-    },
   },
   {
-    accessorKey: "amount",
+    accessorKey: "frequency",
     header: ({ column }) => {
       return (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Amount
+          Frequency
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      );
+    },
+  },
+  {
+    accessorKey: "averageAmount",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Average Amount
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       );
     },
     cell: ({ row }) => {
-      const amount = (row.getValue("amount") || "0").toString();
-
+      const amount = (row.getValue("averageAmount") || "0").toString();
       return (
         <Badge
           variant={parseFloat(amount) < 0 ? "destructive" : "primary"}
@@ -131,29 +115,29 @@ export const columns: ColumnDef<ResponseType>[] = [
     },
   },
   {
-    accessorKey: "account",
+    accessorKey: "isActive",
     header: ({ column }) => {
       return (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Account
+          Status
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       );
     },
-    cell: ({ row }) => {
-      return (
-        <AccountColumn
-          account={row.original.account}
-          accountId={row.original.accountId}
-        />
-      );
-    },
+    cell: ({ row }) => (
+      <Badge
+        variant={row.getValue("isActive") === "true" ? "primary" : "secondary"}
+        className="px-2.5 py-2.5 text-xs font-medium"
+      >
+        {row.getValue("isActive") === "true" ? "Active" : "Inactive"}
+      </Badge>
+    ),
   },
   {
     id: "actions",
-    cell: ({ row }) => <Actions id={row.original.id} />,
+    cell: ({ row }) => <RecurringActions id={row.original.id} />,
   },
 ];

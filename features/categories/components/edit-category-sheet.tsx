@@ -73,7 +73,14 @@ export const EditCategorySheet = () => {
   return (
     <>
       <ConfirmDialog />
-      <Sheet open={isOpen || isPending} onOpenChange={onClose}>
+      <Sheet open={isOpen || isPending} onOpenChange={(open) => {
+        onClose();
+        setTimeout(() => {
+          if (!open) {
+            document.body.style.pointerEvents = ''
+          }
+        }, 100)
+      }}>
         <SheetContent className="space-y-4">
           <SheetHeader>
             <SheetTitle>Edit Category</SheetTitle>

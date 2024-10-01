@@ -1,25 +1,24 @@
 "use client";
 
 import { Loader2, Plus } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
-
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { transactions as transactionSchema } from "@/db/schema";
 import { useSelectAccount } from "@/features/accounts/hooks/use-select-account";
 import { useBulkCreateTransactions } from "@/features/transactions/api/use-bulk-create-transactions";
 import { useBulkDeleteTransactions } from "@/features/transactions/api/use-bulk-delete-transactions";
 import { useGetTransactions } from "@/features/transactions/api/use-get-transactions";
-import { useGetRecurringTransactions } from "@/features/transactions/api/use-get-recurring-transactions";
 import { useNewTransaction } from "@/features/transactions/hooks/use-new-transaction";
+import { useEffect, useState } from "react";
 
 import { columns } from "./columns";
-import { ImportCard } from "./import-card";
+import { recurringColumns, RecurringTransaction } from "./recurring-columns";
 import { UploadButton } from "./upload-button";
+import { ImportCard } from "./import-card";
+import { useNewRecurringTransaction } from "@/features/transactions/hooks/use-new-recurring-transaction";
 
 enum VARIANTS {
   LIST = "LIST",
@@ -39,13 +38,56 @@ const TransactionsPage = () => {
 
   const [AccountDialog, confirm] = useSelectAccount();
   const newTransaction = useNewTransaction();
+  const newRecurringTransaction = useNewRecurringTransaction();
   const createTransactions = useBulkCreateTransactions();
   const deleteTransactions = useBulkDeleteTransactions();
   const transactionsQuery = useGetTransactions();
-  const recurringTransactionsQuery = useGetRecurringTransactions(); // Example hook for fetching recurring transactions
+  const [recurringTransactions, setRecurringTransactions] = useState<RecurringTransaction[]>([]);
+  const [loadingRecurring, setLoadingRecurring] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const transactions = transactionsQuery.data || [];
-  const recurringTransactions = recurringTransactionsQuery.data || [];
+
+  console.log("Transactions Query Data: ", transactionsQuery.data);
+  console.log("Transactions Query Loading: ", transactionsQuery.isLoading);
+
+  console.log("Recurring Transactions: ", recurringTransactions);
+  console.log("Loading Recurring Transactions: ", loadingRecurring);
+
+  // Fetch recurring transactions when the tab changes to "recurring"
+  useEffect(() => {
+    const fetchRecurringTransactions = async () => {
+      setLoadingRecurring(true);
+      try {
+        const response = await fetch("/api/plaid/recurring/get", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch recurring transactions");
+        }
+
+        const data = await response.json();
+        setRecurringTransactions(data.recurringTransactions as RecurringTransaction[]);
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("An unknown error occurred");
+        }
+      } finally {
+        setLoadingRecurring(false);
+      }
+    };
+
+    // Only fetch if the user switches to the "recurring" tab and data hasn't been fetched yet
+    if (currentTab !== "recurring" && recurringTransactions.length === 0) {
+      fetchRecurringTransactions();
+    }
+  }, [currentTab, recurringTransactions.length]);
 
   const onUpload = (results: typeof INITIAL_IMPORT_RESULTS) => {
     setImportResults(results);
@@ -57,9 +99,7 @@ const TransactionsPage = () => {
     setVariant(VARIANTS.LIST);
   };
 
-  const onSubmitImport = async (
-    values: (typeof transactionSchema.$inferInsert)[]
-  ) => {
+  const onSubmitImport = async (values: any[]) => {
     const accountId = await confirm();
 
     if (!accountId) {
@@ -79,11 +119,9 @@ const TransactionsPage = () => {
   };
 
   const isDisabled =
-    transactionsQuery.isLoading ||
-    recurringTransactionsQuery.isLoading || // Disable if recurring transactions are loading
-    deleteTransactions.isPending;
+    transactionsQuery.isLoading || (currentTab === "recurring" && loadingRecurring) || deleteTransactions.isPending;
 
-  if (transactionsQuery.isLoading || recurringTransactionsQuery.isLoading) {
+  if (transactionsQuery.isLoading || (currentTab === "recurring" && loadingRecurring)) {
     return (
       <div className="mx-auto -mt-6 w-full max-w-screen-2xl pb-10">
         <Card className="border-none drop-shadow-sm">
@@ -119,8 +157,18 @@ const TransactionsPage = () => {
     <div className="mx-auto -mt-6 lg:-mt-12 w-full max-w-screen-2xl pb-10 bg-white rounded-2xl p-2">
       <Tabs defaultValue="transactions" onValueChange={setCurrentTab}>
         <TabsList className="mb-6 grid w-full grid-cols-2 lg:h-[50px]">
-          <TabsTrigger className="lg:h-[40px] lg:text-md" value="transactions">All Transactions</TabsTrigger>
-          <TabsTrigger className="lg:h-[40px] lg:text-md" value="recurring">Recurring Transactions</TabsTrigger>
+          <TabsTrigger
+            className="text-xs md:text-sm lg:text-md lg:h-[40px]"
+            value="transactions"
+          >
+            All Transactions
+          </TabsTrigger>
+          <TabsTrigger
+            className="lg:h-[40px] text-xs md:text-sm lg:text-md"
+            value="recurring"
+          >
+            Recurring Transactions
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="transactions">
@@ -170,7 +218,7 @@ const TransactionsPage = () => {
               <div className="flex flex-col items-center gap-x-2 gap-y-2 lg:flex-row">
                 <Button
                   size="sm"
-                  onClick={newTransaction.onOpen}
+                  onClick={newRecurringTransaction.onOpen}
                   className="w-full lg:w-auto"
                 >
                   <Plus className="mr-2 size-4" /> Add new
@@ -180,11 +228,11 @@ const TransactionsPage = () => {
 
             <CardContent>
               <DataTable
-                filterKey="payee"
-                columns={columns}
+                filterKey="name"
+                columns={recurringColumns}
                 data={recurringTransactions.map((transaction) => ({
                   ...transaction,
-                  amount: transaction.amount.toString(),
+                  amount: transaction.averageAmount.toString(),
                 }))}
                 onDelete={(row) => {
                   const ids = row.map((r) => r.original.id);
