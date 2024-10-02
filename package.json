@@ -62,6 +62,7 @@
     "react-plaid-link": "^3.6.0",
     "react-responsive": "^10.0.0",
     "react-select": "^5.8.0",
+    "react-simple-typewriter": "^5.0.1",
     "react-spinners": "^0.14.1",
     "react-syntax-highlighter": "^15.5.0",
     "react-use": "^17.5.0",
@@ -72,6 +73,7 @@
     "stripe": "^16.9.0",
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
+    "typewriter-effect": "^2.21.0",
     "zod": "^3.23.8",
     "zustand": "^4.5.2"
   },

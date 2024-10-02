@@ -6,6 +6,7 @@ import { useUser } from '@clerk/clerk-react';
 import { useEffect, useState } from "react";
 import { usePlaidLink } from 'react-plaid-link';
 import { UpgradePopup } from "@/components/upgrade-popup";
+import { Typewriter } from 'react-simple-typewriter';
 
 const SettingsPage = () => {
   const { user, isLoaded } = useUser();
@@ -78,12 +79,6 @@ const SettingsPage = () => {
   }, [ready, open]);
 
   useEffect(() => {
-    if (ready) {
-      setOpenPlaid(() => open);
-    }
-  }, [ready, open]);
-
-  useEffect(() => {
     if (user?.id) {
       fetch(`/api/subscription-status?userId=${user.id}`)
         .then(response => response.json())
@@ -103,10 +98,39 @@ const SettingsPage = () => {
   }, [user]);
 
   return (
-    <div className={`relative ${plaidIsOpen ? 'blur-md' : ''}`}>
+    <div className="relative">
+      {/* Overlay background when plaidIsOpen is true */}
+      {plaidIsOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 min-h-screen z-50"></div>
+      )}
+
+      {/* Plaid Popup */}
+      {plaidIsOpen && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded shadow-lg">
+            <h2 className="text-xl mb-4 text-center">Connecting Data</h2>
+            <p className="text-lg text-center">
+              <Typewriter
+                words={['Fetching your financial data...', 'Categorizing your transactions...', 'Creating your accounts...', 'Organizing your dashboard...']}
+                loop={true}
+                cursor
+                cursorStyle="|"
+                typeSpeed={70}
+                deleteSpeed={50}
+                delaySpeed={1000}
+              />
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Main content */}
       <UpgradePopup open={openUpgradeDialog} onOpenChange={setOpenUpgradeDialog} />
-        <div className={`relative mx-auto -mt-12 w-full max-w-screen-2xl pb-10 ${plaidIsOpen ? 'opacity-75' : ''} z-50`}>
-        <Card className="border-none drop-shadow-sm relative z-50">
+      <div className="relative mx-auto -mt-12 w-full max-w-screen-2xl pb-10 z-50">
+        <Card className="border-none drop-shadow-sm">
+          {plaidIsOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 rounded-lg"></div>
+          )}
           <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between align-middle">
             <CardTitle className="line-clamp-1 text-xl">Settings</CardTitle>
           </CardHeader>
@@ -133,9 +157,6 @@ const SettingsPage = () => {
               <p className="hidden md:inline w-[35%] md:w-[20%] lg:w-[35%] pl-[10%] text-center md:text-left text-sm md:text-normal text-gray-500 pt-2">
                 Link accounts to populate transactions automatically.
               </p>
-              <p className="md:hidden w-[35%] md:w-[20%] lg:w-[35%] pl-[10%] text-center md:text-left text-sm md:text-normal text-gray-500 pt-2">
-                Link accounts to populate transactions automatically.
-              </p>
               <Button
                 disabled={subscriptionStatus === "Loading..."}
                 className="hidden md:inline ml-[10%] md:ml-[20%] w-1/4 border"
@@ -149,20 +170,6 @@ const SettingsPage = () => {
                   }
                 }}>
                 {subscriptionStatus === "Loading..." ? "Loading..." : "Link Account"}
-              </Button>
-              <Button
-                disabled={subscriptionStatus === "Loading..."}
-                className="md:hidden ml-[10%] md:ml-[20%] w-1/4 border"
-                variant="ghost"
-                onClick={() => {
-                  if (subscriptionStatus !== "Free") {
-                    openPlaid();
-                    setPlaidIsOpen(true);
-                  } else {
-                    setOpenUpgradeDialog(true);
-                  }
-                }}>
-                {subscriptionStatus === "Loading..." ? "Loading..." : "Link"}
               </Button>
             </div>
           </CardContent>
