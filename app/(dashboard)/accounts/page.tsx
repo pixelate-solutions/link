@@ -121,7 +121,7 @@ const AccountsPage = () => {
     <div className="mx-auto -mt-6 w-full max-w-screen-2xl pb-10">
       {/* Plaid Accounts */}
       {isPremiumUser && (
-        <Card className="mt-10">
+        <Card>
           <CardHeader>
             <CardTitle className="line-clamp-1 text-2xl">Connected Accounts</CardTitle>
           </CardHeader>
@@ -137,7 +137,7 @@ const AccountsPage = () => {
         </Card>
       )}
       {/* Manual Accounts */}
-      <Card className="border-none drop-shadow-sm">
+      <Card className={`border-none drop-shadow-sm ${isPremiumUser ? "mt-10" : ""}`}>
         <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between">
           <CardTitle className="line-clamp-1 text-2xl">{isPremiumUser ? "Manual Accounts" : "Accounts"}</CardTitle>
           <Button size="sm" onClick={newAccount.onOpen}>
