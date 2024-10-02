@@ -53,6 +53,7 @@ const TransactionsPage = () => {
 
   const [isSheetOpen, setIsSheetOpen] = useState(false); // Local state for sheet management
   const [loadingRecurring, setLoadingRecurring] = useState(false);
+  const [loadedRecurringTransactions, setLoadedRecurringTransactions] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [AccountDialog, confirm] = useSelectAccount();
@@ -96,8 +97,9 @@ const TransactionsPage = () => {
       }
     };
 
-    if (currentTab !== "recurring" && recurringTransactions.length === 0) {
+    if (currentTab !== "recurring" && recurringTransactions.length === 0 && !loadedRecurringTransactions) {
       fetchRecurringTransactions();
+      setLoadedRecurringTransactions(true);
     }
   }, [currentTab, recurringTransactions.length]);
 
