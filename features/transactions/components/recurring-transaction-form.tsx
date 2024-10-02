@@ -17,17 +17,26 @@ import {
 import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/components/date-picker";
 
+// Define the schema with Zod
 const formSchema = z.object({
   name: z.string().min(1, "Transaction name is required"), // Recurring transaction name
   frequency: z.string().min(1, "Frequency is required"), // Frequency of transaction (e.g., monthly, weekly)
   averageAmount: z.string().min(1, "Average amount is required"), // Average transaction amount
   accountId: z.string().nullable().optional(), // Account selection (dropdown)
   categoryId: z.string().nullable().optional(), // Category selection (dropdown)
-  date: z.coerce.date().optional(), // Updated to coerce date strings into Date objects
+  date: z.coerce.date().optional(), // Coerce date strings into Date objects
   isActive: z.string(), // Status (active/inactive)
 });
 
-type FormValues = z.input<typeof formSchema>;
+type FormValues = {
+  name: string;
+  frequency: string;
+  averageAmount: string;
+  accountId: string | null;
+  categoryId: string | null;
+  date: Date;
+  isActive: string;
+};
 
 type RecurringTransactionFormProps = {
   id?: string;
@@ -37,8 +46,8 @@ type RecurringTransactionFormProps = {
   disabled?: boolean;
   accountOptions: { label: string; value: string }[];
   categoryOptions: { label: string; value: string }[];
-  onCreateCategory: (name: string) => void; // Added prop
-  onCreateAccount: (name: string) => void; // Added prop
+  onCreateCategory: (name: string) => void;
+  onCreateAccount: (name: string) => void;
 };
 
 export const RecurringTransactionForm = ({
@@ -49,17 +58,17 @@ export const RecurringTransactionForm = ({
   disabled,
   accountOptions,
   categoryOptions,
-  onCreateCategory, // Added prop
-  onCreateAccount, // Added prop
+  onCreateCategory,
+  onCreateAccount,
 }: RecurringTransactionFormProps) => {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues,
   });
 
-  const handleSubmit = (values: FormValues) => {
+  const handleSubmit = form.handleSubmit((values) => {
     onSubmit(values);
-  };
+  });
 
   const handleDelete = () => {
     onDelete?.();
@@ -68,7 +77,7 @@ export const RecurringTransactionForm = ({
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(handleSubmit)}
+        onSubmit={handleSubmit} // Use handleSubmit from react-hook-form
         autoCapitalize="off"
         autoComplete="off"
         className="space-y-4 pt-4"

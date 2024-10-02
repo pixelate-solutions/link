@@ -401,6 +401,41 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     console.error("Error deleting recurring transactions:", error);
     return ctx.json({ error: "Failed to delete recurring transactions" }, 500);
   }
+}).post('/new', clerkMiddleware(), async (ctx) => {
+  const auth = getAuth(ctx);
+  const userId = auth?.userId;
+
+  if (!userId) {
+    return ctx.json({ error: "Unauthorized" }, 401);
+  }
+
+  const { accountId, name, payee, categoryId, frequency, averageAmount, lastAmount } = await ctx.req.json();
+
+  try {
+    // Ensure averageAmount and lastAmount are defined and convert them to strings
+    const avgAmountString = averageAmount !== undefined ? averageAmount.toString() : "0";
+    const lastAmountString = lastAmount !== undefined ? lastAmount.toString() : "0";
+
+    // Insert new recurring transaction into the database
+    const newRecurringTransaction = await db.insert(recurringTransactions).values({
+      id: createId(),
+      userId: userId,
+      accountId: accountId,
+      name: name,
+      payee: payee || "Unknown",
+      categoryId: categoryId,
+      frequency: frequency,
+      averageAmount: avgAmountString,
+      lastAmount: lastAmountString,
+      date: new Date(),  // Add the current date
+      isActive: "true",  // Set active by default
+    }).returning();
+
+    return ctx.json({ success: true, recurringTransaction: newRecurringTransaction });
+  } catch (error) {
+    console.error("Error adding new recurring transaction:", error);
+    return ctx.json({ error: "Failed to add recurring transaction" }, 500);
+  }
 });
 
 export default app;

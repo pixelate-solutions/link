@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { DataTable } from "@/components/data-table";
@@ -11,17 +12,16 @@ import { useSelectAccount } from "@/features/accounts/hooks/use-select-account";
 import { useBulkCreateTransactions } from "@/features/transactions/api/use-bulk-create-transactions";
 import { useBulkDeleteTransactions } from "@/features/transactions/api/use-bulk-delete-transactions";
 import { useGetTransactions } from "@/features/transactions/api/use-get-transactions";
-import { useNewTransaction } from "@/features/transactions/hooks/use-new-transaction";
-import { RecurringTransaction } from "@/app/(dashboard)/transactions/recurring-columns"
-import { useEffect, useState } from "react";
-
-import { columns } from "./columns";
-import { recurringColumns } from "./recurring-columns";
+import { RecurringTransaction } from "@/app/(dashboard)/transactions/recurring-columns";
+import { useQuery } from "@tanstack/react-query";
 import { UploadButton } from "./upload-button";
 import { ImportCard } from "./import-card";
-import { useNewRecurringTransaction } from "@/features/transactions/hooks/use-new-recurring-transaction";
-import { useQuery } from "@tanstack/react-query";
 import { useBulkDeleteRecurringTransactions } from "@/features/transactions/api/use-bulk-delete-recurring-transactions";
+import { NewRecurringTransactionSheet } from "@/features/transactions/components/new-recurring-transaction-sheet"; // Import the sheet
+import { recurringColumns } from "./recurring-columns";
+import { columns } from "./columns";
+import { useOpenTransaction } from "@/features/transactions/hooks/use-open-transaction";
+import { useNewTransaction } from "@/features/transactions/hooks/use-new-transaction";
 
 const useGetRecurringTransactions = () => {
   return useQuery({
@@ -52,19 +52,20 @@ const TransactionsPage = () => {
   const [importResults, setImportResults] = useState(INITIAL_IMPORT_RESULTS);
   const [currentTab, setCurrentTab] = useState("transactions");
 
+  const [isSheetOpen, setIsSheetOpen] = useState(false); // Local state for sheet management
+  const [loadingRecurring, setLoadingRecurring] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const [AccountDialog, confirm] = useSelectAccount();
-  const newTransaction = useNewTransaction();
-  const newRecurringTransaction = useNewRecurringTransaction();
   const createTransactions = useBulkCreateTransactions();
   const deleteTransactions = useBulkDeleteTransactions();
   const deleteRecurringTransactions = useBulkDeleteRecurringTransactions();
   const transactionsQuery = useGetTransactions();
-  const [loadingRecurring, setLoadingRecurring] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const newTransaction = useNewTransaction();
 
   const { data: recurringTransactionsData } = useGetRecurringTransactions();
   let recurringTransactions = recurringTransactionsData?.recurringTransactions || [];
-  
+
   const transactions = transactionsQuery.data || [];
 
   // Fetch recurring transactions when the tab changes to "recurring"
@@ -84,7 +85,7 @@ const TransactionsPage = () => {
         }
 
         const data = await response.json();
-        recurringTransactions = (data.recurringTransactions as RecurringTransaction[]);
+        recurringTransactions = data.recurringTransactions as RecurringTransaction[];
       } catch (err) {
         if (err instanceof Error) {
           setError(err.message);
@@ -96,7 +97,6 @@ const TransactionsPage = () => {
       }
     };
 
-    // Only fetch if the user switches to the "recurring" tab and data hasn't been fetched yet
     if (currentTab !== "recurring" && recurringTransactions.length === 0) {
       fetchRecurringTransactions();
     }
@@ -132,9 +132,11 @@ const TransactionsPage = () => {
   };
 
   const isDisabled =
-    transactionsQuery.isLoading || (currentTab === "recurring" && loadingRecurring) || deleteTransactions.isPending;
+    transactionsQuery.isLoading ||
+    (currentTab === "recurring" && loadingRecurring) ||
+    deleteTransactions.isPending;
 
-  if (transactionsQuery.isLoading || (currentTab === "recurring" && loadingRecurring)) {
+  if (transactionsQuery.isLoading || (currentTab !== "recurring" && loadingRecurring)) {
     return (
       <div className="mx-auto -mt-6 w-full max-w-screen-2xl pb-10">
         <Card className="border-none drop-shadow-sm">
@@ -231,7 +233,7 @@ const TransactionsPage = () => {
               <div className="flex flex-col items-center gap-x-2 gap-y-2 lg:flex-row">
                 <Button
                   size="sm"
-                  onClick={newRecurringTransaction.onOpen}
+                  onClick={() => setIsSheetOpen(true)} // Open the recurring transaction sheet on click
                   className="w-full lg:w-auto"
                 >
                   <Plus className="mr-2 size-4" /> Add new
@@ -258,6 +260,12 @@ const TransactionsPage = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Render the NewRecurringTransactionSheet component and pass in state */}
+      <NewRecurringTransactionSheet
+        isOpen={isSheetOpen} // Control open/close state via props
+        onClose={() => setIsSheetOpen(false)} // Handle closing the sheet
+      />
     </div>
   );
 };
