@@ -87,18 +87,19 @@ const syncRecurringTransactions = async (streams: any[], itemId: string, userId:
         ? stream.last_amount.amount.toString()
         : "0"; // Fallback to "0" if undefined
 
-      // Insert new recurring transaction
+      // Insert new recurring transaction (ensure fields match schema)
       return db.insert(recurringTransactions).values({
         id: createId(),
-          userId: userId,
-          name: stream.description,
-          accountId: accountId,
-          merchantName: stream.merchant_name?.split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ') || "Unknown",
-          categoryName: stream.personal_finance_category?.detailed?.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ') || "Uncategorized",
-          frequency: stream.frequency.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' '),
-          averageAmount: averageAmount,
-          lastAmount: lastAmount,
-          isActive: stream.is_active.toString(),
+        userId: userId,
+        name: stream.description,
+        accountId: accountId,
+        payee: stream.merchant_name?.split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ') || "Unknown",
+        categoryId: null, // Set this as null or fetch the actual categoryId if needed
+        frequency: stream.frequency.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' '),
+        averageAmount: averageAmount,
+        lastAmount: lastAmount,
+        date: new Date(),  // Add the current date
+        isActive: stream.is_active.toString(),
       }).returning();
     })
   );
