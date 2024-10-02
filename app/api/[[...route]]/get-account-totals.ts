@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 import { zValidator } from "@hono/zod-validator";
 import { subDays, startOfDay, endOfDay, parse } from "date-fns";
-import { and, eq, gte, lte, sql, sum } from "drizzle-orm";
+import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db/drizzle";

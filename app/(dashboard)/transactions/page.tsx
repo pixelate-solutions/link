@@ -20,7 +20,6 @@ import { useBulkDeleteRecurringTransactions } from "@/features/transactions/api/
 import { NewRecurringTransactionSheet } from "@/features/transactions/components/new-recurring-transaction-sheet"; // Import the sheet
 import { recurringColumns } from "./recurring-columns";
 import { columns } from "./columns";
-import { useOpenTransaction } from "@/features/transactions/hooks/use-open-transaction";
 import { useNewTransaction } from "@/features/transactions/hooks/use-new-transaction";
 
 const useGetRecurringTransactions = () => {
