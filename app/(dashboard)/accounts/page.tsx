@@ -14,6 +14,8 @@ import { useNewAccount } from "@/features/accounts/hooks/use-new-account";
 
 // Import columns
 import { columns } from "./columns";
+import { useEffect, useState } from "react";
+import { useUser } from "@clerk/nextjs";
 
 const fetchAccountTotals = async (from: string, to: string, accountIds: string[]) => {
   const responses = await Promise.all(
@@ -51,6 +53,8 @@ const AccountsPage = () => {
     queryFn: () => fetchAccountTotals(from, to, accountIds),
     enabled: accountIds.length > 0, // Ensures the query runs only if there are account IDs
   });
+
+  const [isPremiumUser, setIsPremiumUser] = useState(false);
 
   const isDisabled = manualAccountsQuery.isLoading || plaidAccountsQuery.isLoading || deleteAccounts.isPending || totalsQuery.isLoading;
 
@@ -93,6 +97,27 @@ const AccountsPage = () => {
     ...totalsQuery.data?.find(total => total.id === account.id) || {},
   }));
 
+  const { user } = useUser();
+  const userId = user?.id || "";
+
+  useEffect(() => {
+    const fetchSubscriptionStatus = async () => {
+      if (userId) {
+        try {
+          const response = await fetch(`/api/subscription-status?userId=${userId}`)
+            .then(response => response.json())
+            .then(async (data) => {
+              setIsPremiumUser(data.plan !== "Free");
+            });
+        } catch (error) {
+          console.error("Error fetching subscription status:", error);
+          setIsPremiumUser(false);
+        }
+      }
+    };
+    fetchSubscriptionStatus();
+  }, [userId]);
+
   return (
     <div className="mx-auto -mt-6 w-full max-w-screen-2xl pb-10">
       {/* Manual Accounts */}
@@ -115,6 +140,7 @@ const AccountsPage = () => {
       </Card>
 
       {/* Plaid Accounts */}
+      {isPremiumUser && (
       <Card className="mt-10">
         <CardHeader>
           <CardTitle className="line-clamp-1 text-2xl">Connected Accounts</CardTitle>
@@ -128,7 +154,7 @@ const AccountsPage = () => {
             onDelete={(row) => deleteAccounts.mutate({ ids: row.map((r) => r.original.id) })}
           />
         </CardContent>
-      </Card>
+      </Card>)}
     </div>
   );
 };
