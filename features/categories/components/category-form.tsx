@@ -88,7 +88,7 @@ export const CategoryForm = ({
           disabled={disabled}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Budgeted Amount</FormLabel>
+              <FormLabel>Monthly Budget</FormLabel>
               <FormControl>
                 <Input
                   type="number" // Use type "text" to allow for string storage

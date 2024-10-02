@@ -20,7 +20,7 @@ const app = new Hono()
       .select({
         id: categories.id,
         name: categories.name,
-        budgetAmount: categories.budgetAmount, // Ensure this is being selected
+        budgetAmount: categories.budgetAmount,
       })
       .from(categories)
       .where(eq(categories.userId, auth.userId));

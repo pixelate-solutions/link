@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useBulkDeleteCategories } from "@/features/categories/api/use-bulk-delete-categories";
 import { useGetCategories } from "@/features/categories/api/use-get-categories";
 import { useNewCategory } from "@/features/categories/hooks/use-new-category";
+import { differenceInDays, parseISO, isFirstDayOfMonth, lastDayOfMonth, isSameDay, subDays } from 'date-fns';
 
 // Import columns
 import { columns } from "./columns";
@@ -78,15 +79,28 @@ const CategoriesPage = () => {
   }
 
   const categoriesWithTotals = categories.map(category => {
+    // Parse the from and to dates
+    const fromDate = subDays(parseISO(from), 1);
+    const toDate = subDays(parseISO(to), 1); // Subtract one day from toDate
+
+    // Check if fromDate is the first day and toDate is the last day of the same month
+    const isFullMonth = (isFirstDayOfMonth(fromDate) && isSameDay(toDate, lastDayOfMonth(toDate)) || fromDate.getDate() === toDate.getDate());
+
+    // If it's a full month, don't adjust the budgetAmount, just show the monthly value
+    const adjustedBudgetAmount = isFullMonth
+      ? parseFloat(category.budgetAmount || "0")
+      : (parseFloat(category.budgetAmount || "0") * (differenceInDays(toDate, fromDate) + 1) / 30.44);
+
     // Find the total based on categoryId
     const total = totalsQuery.data?.find(total => total.categoryId === category.id) || { totalIncome: 0, totalCost: 0 };
+
     return {
       id: category.id,
       name: category.name,
       totalIncome: total.totalIncome.toFixed(2), // Convert to string with 2 decimal places
       totalCost: total.totalCost.toFixed(2), // Convert to string with 2 decimal places
-      budgetAmount: category.budgetAmount,
-      amountLeftToSpend: (parseFloat(category.budgetAmount || "0") + total.totalCost).toFixed(2), // Ensure this is a number and convert to string
+      budgetAmount: adjustedBudgetAmount.toFixed(2), // Adjusted budget per the precise number of months
+      amountLeftToSpend: (adjustedBudgetAmount + total.totalCost).toFixed(2), // Ensure this is a number and convert to string
     };
   });
 
