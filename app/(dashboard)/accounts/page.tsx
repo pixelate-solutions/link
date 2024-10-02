@@ -3,6 +3,8 @@
 import { Loader2, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useUser } from "@clerk/nextjs";
 
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
@@ -11,11 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useBulkDeleteAccounts } from "@/features/accounts/api/use-bulk-delete-accounts";
 import { useGetAccounts } from "@/features/accounts/api/use-get-accounts";
 import { useNewAccount } from "@/features/accounts/hooks/use-new-account";
-
-// Import columns
 import { columns } from "./columns";
-import { useEffect, useState } from "react";
-import { useUser } from "@clerk/nextjs";
 
 const fetchAccountTotals = async (from: string, to: string, accountIds: string[]) => {
   const responses = await Promise.all(
@@ -58,6 +56,28 @@ const AccountsPage = () => {
 
   const isDisabled = manualAccountsQuery.isLoading || plaidAccountsQuery.isLoading || deleteAccounts.isPending || totalsQuery.isLoading;
 
+  const { user } = useUser(); // Always call useUser
+  const userId = user?.id || "";
+
+  // Always call useEffect, even if userId might not be set yet
+  useEffect(() => {
+    const fetchSubscriptionStatus = async () => {
+      if (userId) {
+        try {
+          const response = await fetch(`/api/subscription-status?userId=${userId}`)
+            .then(response => response.json())
+            .then(async (data) => {
+              setIsPremiumUser(data.plan !== "Free");
+            });
+        } catch (error) {
+          console.error("Error fetching subscription status:", error);
+          setIsPremiumUser(false);
+        }
+      }
+    };
+    fetchSubscriptionStatus();
+  }, [userId]);
+
   if (manualAccountsQuery.isLoading || plaidAccountsQuery.isLoading || totalsQuery.isLoading) {
     return (
       <div className="mx-auto -mt-6 w-full max-w-screen-2xl pb-10">
@@ -97,27 +117,6 @@ const AccountsPage = () => {
     ...totalsQuery.data?.find(total => total.id === account.id) || {},
   }));
 
-  const { user } = useUser();
-  const userId = user?.id || "";
-
-  useEffect(() => {
-    const fetchSubscriptionStatus = async () => {
-      if (userId) {
-        try {
-          const response = await fetch(`/api/subscription-status?userId=${userId}`)
-            .then(response => response.json())
-            .then(async (data) => {
-              setIsPremiumUser(data.plan !== "Free");
-            });
-        } catch (error) {
-          console.error("Error fetching subscription status:", error);
-          setIsPremiumUser(false);
-        }
-      }
-    };
-    fetchSubscriptionStatus();
-  }, [userId]);
-
   return (
     <div className="mx-auto -mt-6 w-full max-w-screen-2xl pb-10">
       {/* Manual Accounts */}
@@ -132,7 +131,7 @@ const AccountsPage = () => {
           <DataTable
             data={manualAccountsWithTotals}
             columns={columns}
-            filterKey="name" 
+            filterKey="name"
             disabled={isDisabled}
             onDelete={(row) => deleteAccounts.mutate({ ids: row.map((r) => r.original.id) })}
           />
@@ -141,20 +140,21 @@ const AccountsPage = () => {
 
       {/* Plaid Accounts */}
       {isPremiumUser && (
-      <Card className="mt-10">
-        <CardHeader>
-          <CardTitle className="line-clamp-1 text-2xl">Connected Accounts</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DataTable
-            data={plaidAccountsWithTotals}
-            columns={columns}  // Pass the columns here
-            filterKey="name"  // Optionally, set a filter key if needed
-            disabled={isDisabled}
-            onDelete={(row) => deleteAccounts.mutate({ ids: row.map((r) => r.original.id) })}
-          />
-        </CardContent>
-      </Card>)}
+        <Card className="mt-10">
+          <CardHeader>
+            <CardTitle className="line-clamp-1 text-2xl">Connected Accounts</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DataTable
+              data={plaidAccountsWithTotals}
+              columns={columns}
+              filterKey="name"
+              disabled={isDisabled}
+              onDelete={(row) => deleteAccounts.mutate({ ids: row.map((r) => r.original.id) })}
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
