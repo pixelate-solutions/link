@@ -1,6 +1,7 @@
 "use client";
 
 import { Edit, MoreHorizontal, Trash } from "lucide-react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +21,7 @@ type ActionsProps = {
 export const Actions = ({ id }: ActionsProps) => {
   const deleteMutation = useDeleteTransaction(id);
   const { onOpen } = useOpenTransaction();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false); // State to manage dropdown
 
   const [ConfirmDialog, confirm] = useConfirm(
     "Are you sure?",
@@ -31,13 +33,20 @@ export const Actions = ({ id }: ActionsProps) => {
 
     if (ok) {
       deleteMutation.mutate();
+      setIsDropdownOpen(false); // Close the dropdown after deletion
     }
+  };
+
+  const handleEdit = (event: React.MouseEvent) => {
+    event.preventDefault();
+    onOpen(id);
+    setIsDropdownOpen(false); // Close the dropdown after clicking edit
   };
 
   return (
     <>
       <ConfirmDialog />
-      <DropdownMenu>
+      <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="size-8 p-0">
             <MoreHorizontal className="size-4" />
@@ -47,10 +56,7 @@ export const Actions = ({ id }: ActionsProps) => {
         <DropdownMenuContent align="end">
           <DropdownMenuItem
             disabled={deleteMutation.isPending}
-            onClick={(event) => {
-              event.preventDefault();
-              onOpen(id);
-            }}
+            onClick={handleEdit}
           >
             <Edit className="mr-2 size-4" />
             Edit

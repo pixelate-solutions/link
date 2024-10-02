@@ -6,7 +6,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 
 import { db } from "@/db/drizzle";
-import { accounts, insertAccountSchema } from "@/db/schema";
+import { accounts, insertAccountSchema, recurringTransactions } from "@/db/schema";
 
 const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
 
@@ -239,6 +239,11 @@ const app = new Hono()
       if (!account) {
         return ctx.json({ error: "Not found." }, 404);
       }
+
+      // Delete associated recurring transactions
+      await db
+        .delete(recurringTransactions)
+        .where(eq(recurringTransactions.accountId, account.id));
 
       // Delete the account from the database
       const [deletedAccount] = await db

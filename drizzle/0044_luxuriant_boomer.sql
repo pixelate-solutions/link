@@ -1,0 +1,1 @@
+ALTER TABLE "recurring_transactions" ALTER COLUMN "last_amount" DROP NOT NULL;

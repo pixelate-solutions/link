@@ -24,6 +24,9 @@ export const RecurringActions = ({ id }: RecurringActionsProps) => {
   const [openSheet, setOpenSheet] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  // State to manage the dropdown open/close behavior
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
   const [ConfirmDialog, confirm] = useConfirm(
     "Are you sure?",
     "You are about to delete this recurring transaction."
@@ -34,18 +37,20 @@ export const RecurringActions = ({ id }: RecurringActionsProps) => {
 
     if (ok) {
       deleteMutation.mutate();
+      setIsDropdownOpen(false); // Close the dropdown after deletion
     }
   };
 
   const handleEditClick = (id: string) => {
     setSelectedId(id);
     setOpenSheet(true);
+    setIsDropdownOpen(false); // Close the dropdown after clicking edit
   };
 
   return (
     <>
       <ConfirmDialog />
-      <DropdownMenu>
+      <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="size-8 p-0">
             <MoreHorizontal className="size-4" />

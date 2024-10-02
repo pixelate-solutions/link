@@ -16,7 +16,7 @@ export const useDeleteRecurringTransaction = (id?: string) => {
     },
     onSuccess: () => {
       toast.success("Recurring transaction deleted.");
-      queryClient.invalidateQueries({ queryKey: ["recurringTransaction", { id }] });
+      // Invalidate the recurring transactions query to ensure refetching
       queryClient.invalidateQueries({ queryKey: ["recurringTransactions"] });
       queryClient.invalidateQueries({ queryKey: ["summary"] });
     },

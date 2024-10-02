@@ -94,7 +94,7 @@ const syncRecurringTransactions = async (streams: any[], itemId: string, userId:
           name: stream.description,
           accountId: accountId,
           merchantName: stream.merchant_name?.split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ') || "Unknown",
-          categoryName: stream.personal_finance_category?.detailed?.split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ') || "Uncategorized",
+          categoryName: stream.personal_finance_category?.detailed?.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ') || "Uncategorized",
           frequency: stream.frequency.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' '),
           averageAmount: averageAmount,
           lastAmount: lastAmount,

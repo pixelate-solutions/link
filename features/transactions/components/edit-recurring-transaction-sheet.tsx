@@ -17,20 +17,14 @@ import { useGetRecurringTransaction } from "@/features/transactions/api/use-get-
 import { useConfirm } from "@/hooks/use-confirm";
 import { RecurringTransactionForm } from "./recurring-transaction-form";
 
-// Schema for form validation
 const formSchema = z.object({
-  date: z.coerce.date(),
-  userId: z.string(),
-  accountId: z.string().nullable().optional(),
-  categoryName: z.string().nullable(),
-  categoryId: z.string().nullable().optional(),
-  name: z.string(),
-  merchantName: z.string().nullable().optional(),
-  frequency: z.string(),
-  averageAmount: z.string(),
-  lastAmount: z.string().nullable().optional(),
-  isActive: z.string(),
-  notes: z.string().nullable().optional(),
+  name: z.string().min(1, "Transaction name is required"), // Recurring transaction name
+  frequency: z.string().min(1, "Frequency is required"), // Frequency of transaction (e.g., monthly, weekly)
+  averageAmount: z.string().min(1, "Average amount is required"), // Average transaction amount
+  accountId: z.string().nullable().optional(), // Account selection (dropdown)
+  categoryId: z.string().nullable().optional(), // Category selection (dropdown)
+  date: z.coerce.date().optional(), // Updated to coerce date strings into Date objects
+  isActive: z.string(), // Status (active/inactive)
 });
 
 type FormValues = z.input<typeof formSchema>;
@@ -46,9 +40,9 @@ export const EditRecurringTransactionSheet = ({ id, onClose }: EditRecurringTran
     "You are about to delete this recurring transaction."
   );
 
-  const recurringTransactionQuery = useGetRecurringTransaction(id); // Fetch the recurring transaction
-  const editMutation = useEditRecurringTransaction(id); // Edit recurring mutation
-  const deleteMutation = useDeleteRecurringTransaction(id); // Delete recurring mutation
+  const recurringTransactionQuery = useGetRecurringTransaction(id);
+  const editMutation = useEditRecurringTransaction(id);
+  const deleteMutation = useDeleteRecurringTransaction(id);
 
   const categoryMutation = useCreateCategory();
   const categoryQuery = useGetCategories();
@@ -56,27 +50,27 @@ export const EditRecurringTransactionSheet = ({ id, onClose }: EditRecurringTran
   const plaidAccountsQuery = useGetAccounts(true);
   const nonPlaidAccountsQuery = useGetAccounts(false);
 
+  // Combine account options from Plaid and non-Plaid accounts
   const accountOptions = [
     ...(plaidAccountsQuery.data ?? []),
     ...(nonPlaidAccountsQuery.data ?? []),
-  ].map(account => ({
+  ].map((account) => ({
     label: account.name ?? "Unnamed Account",
     value: account.id,
   }));
 
-  const categoryOptions = (categoryQuery.data ?? []).map(category => ({
+  // Map category data to category options
+  const categoryOptions = (categoryQuery.data ?? []).map((category) => ({
     label: category.name ?? "",
-    value: category.id,
+    value: category.id, // Use categoryId here
   }));
 
+  // Handle form submission
   const onSubmit = (values: FormValues) => {
     editMutation.mutate(
       {
         ...values,
         userId: recurringTransactionQuery.data?.userId || "",
-        categoryName: recurringTransactionQuery.data?.categoryName || "",
-        merchantName: recurringTransactionQuery.data?.merchantName || "",
-        lastAmount: recurringTransactionQuery.data?.lastAmount || "0",
       },
       {
         onSuccess: () => onClose(),
@@ -84,48 +78,28 @@ export const EditRecurringTransactionSheet = ({ id, onClose }: EditRecurringTran
     );
   };
 
-  const handleSubmit = (values: FormValues) => {
-    onSubmit({
-      ...values,
-      userId: values.userId || recurringTransactionQuery.data?.userId || "",
-      categoryName: values.categoryName || "Uncategorized",
-      merchantName: values.merchantName || "Unknown",
-      lastAmount: values.lastAmount || "0",
-      accountId: values.accountId || "",
-    });
-    window.location.reload()
-  };
-
+  // Default form values
   const defaultValues = recurringTransactionQuery.data
     ? {
         accountId: recurringTransactionQuery.data.accountId || "",
-        categoryId: recurringTransactionQuery.data.categoryId || "",
-        averageAmount: recurringTransactionQuery.data.averageAmount.toString(),
-        lastAmount: recurringTransactionQuery.data.lastAmount?.toString() || "",
-        date: new Date(),
+        categoryId: recurringTransactionQuery.data.categoryId || "", // Use categoryId here
+        averageAmount: recurringTransactionQuery.data.averageAmount?.toString() || "",
         name: recurringTransactionQuery.data.name || "",
-        merchantName: recurringTransactionQuery.data.merchantName || "",
         frequency: recurringTransactionQuery.data.frequency || "",
+        date: recurringTransactionQuery.data.date ? new Date(recurringTransactionQuery.data.date) : new Date(), // Convert string to Date
         isActive: recurringTransactionQuery.data.isActive.toString(),
-        notes: recurringTransactionQuery.data.notes || "",
-        userId: recurringTransactionQuery.data.userId || "",
-        categoryName: recurringTransactionQuery.data.categoryName || "",
       }
     : {
         accountId: "",
         categoryId: "",
         averageAmount: "",
-        lastAmount: "",
-        date: new Date(),
         name: "",
-        merchantName: "",
         frequency: "",
+        date: new Date(), // Default to current date
         isActive: "true",
-        notes: "",
-        userId: "",
-        categoryName: "",
       };
 
+  // Handle deletion of the recurring transaction
   const onDelete = async () => {
     const ok = await confirm();
     if (ok) {
@@ -136,18 +110,21 @@ export const EditRecurringTransactionSheet = ({ id, onClose }: EditRecurringTran
   return (
     <>
       <ConfirmDialog />
-      <Sheet open={true} onOpenChange={(open) => {
-        onClose();
-        setTimeout(() => {
-          if (!open) {
-            document.body.style.pointerEvents = ''
-          }
-        }, 100)
-      }}>
+      <Sheet
+        open={true}
+        onOpenChange={(open) => {
+          onClose();
+          setTimeout(() => {
+            if (!open) {
+              document.body.style.pointerEvents = "";
+            }
+          }, 100);
+        }}
+      >
         <SheetContent className="space-y-4">
           <SheetHeader>
             <SheetTitle>Edit Recurring Transaction</SheetTitle>
-            <SheetDescription>Edit an existing recurring transaction.</SheetDescription>
+            <SheetDescription>Edit the details of this recurring transaction.</SheetDescription>
           </SheetHeader>
 
           {recurringTransactionQuery.isLoading ? (
@@ -158,12 +135,12 @@ export const EditRecurringTransactionSheet = ({ id, onClose }: EditRecurringTran
             <RecurringTransactionForm
               id={id}
               defaultValues={defaultValues}
-              onSubmit={handleSubmit}
+              onSubmit={onSubmit}
               disabled={editMutation.isPending || recurringTransactionQuery.isLoading}
               categoryOptions={categoryOptions}
               accountOptions={accountOptions}
-              onCreateCategory={name => categoryMutation.mutate({ name })}
-              onCreateAccount={name => accountMutation.mutate({ name })}
+              onCreateCategory={(name) => categoryMutation.mutate({ name })}
+              onCreateAccount={(name) => accountMutation.mutate({ name })}
               onDelete={onDelete}
             />
           )}

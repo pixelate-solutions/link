@@ -89,28 +89,34 @@ export const chatAccess = pgTable("chat_access", {
   allowAccess: boolean("allow_access").notNull().default(false),
 });
 
-// Define the recurring transactions table
 export const recurringTransactions = pgTable("recurring_transactions", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull(),
   name: text("name").notNull(), // Name of the recurring transaction
+  payee: text("payee"),
   accountId: text("account_id").notNull(), // Account associated with the transaction
-  merchantName: text("merchant_name").notNull(), // Merchant for the transaction
-  categoryName: text("category_name").notNull(), // Category name for the transaction
+  categoryId: text("category_id").references(() => categories.id, { // Store categoryId instead of categoryName
+    onDelete: "set null",
+  }),
   frequency: text("frequency").notNull(), // Frequency (e.g., daily, weekly, monthly)
   averageAmount: text("average_amount").notNull(), // Average amount (stored as text)
-  lastAmount: text("last_amount").notNull(), // Last transaction amount (stored as text)
+  lastAmount: text("last_amount"), // Last transaction amount (stored as text)
+  date: timestamp("date", { mode: "date" }).notNull(), // New date column for recurring transactions
   isActive: text("is_active").notNull(), // Is the transaction currently active? (text to match the type)
 });
 
-// Define the relationships, assuming this will relate to the accounts and categories tables
 export const recurringTransactionsRelations = relations(recurringTransactions, ({ one }) => ({
   account: one(accounts, {
     fields: [recurringTransactions.accountId],
     references: [accounts.id],
   }),
-  // Add relationships for categories if required
+  category: one(categories, { // Updated relation to reference categories
+    fields: [recurringTransactions.categoryId],
+    references: [categories.id],
+  }),
 }));
 
 // Create the insert schema
-export const insertRecurringTransactionSchema = createInsertSchema(recurringTransactions);
+export const insertRecurringTransactionSchema = createInsertSchema(recurringTransactions, {
+  date: z.coerce.date(), // Include the new date field in the insert schema
+});

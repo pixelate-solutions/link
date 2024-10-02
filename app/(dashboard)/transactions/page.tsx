@@ -12,13 +12,29 @@ import { useBulkCreateTransactions } from "@/features/transactions/api/use-bulk-
 import { useBulkDeleteTransactions } from "@/features/transactions/api/use-bulk-delete-transactions";
 import { useGetTransactions } from "@/features/transactions/api/use-get-transactions";
 import { useNewTransaction } from "@/features/transactions/hooks/use-new-transaction";
+import { RecurringTransaction } from "@/app/(dashboard)/transactions/recurring-columns"
 import { useEffect, useState } from "react";
 
 import { columns } from "./columns";
-import { recurringColumns, RecurringTransaction } from "./recurring-columns";
+import { recurringColumns } from "./recurring-columns";
 import { UploadButton } from "./upload-button";
 import { ImportCard } from "./import-card";
 import { useNewRecurringTransaction } from "@/features/transactions/hooks/use-new-recurring-transaction";
+import { useQuery } from "@tanstack/react-query";
+import { useBulkDeleteRecurringTransactions } from "@/features/transactions/api/use-bulk-delete-recurring-transactions";
+
+const useGetRecurringTransactions = () => {
+  return useQuery({
+    queryKey: ["recurringTransactions"],
+    queryFn: async () => {
+      const response = await fetch("/api/plaid/recurring/get");
+      if (!response.ok) {
+        throw new Error("Failed to fetch recurring transactions");
+      }
+      return response.json();
+    },
+  });
+};
 
 enum VARIANTS {
   LIST = "LIST",
@@ -41,18 +57,15 @@ const TransactionsPage = () => {
   const newRecurringTransaction = useNewRecurringTransaction();
   const createTransactions = useBulkCreateTransactions();
   const deleteTransactions = useBulkDeleteTransactions();
+  const deleteRecurringTransactions = useBulkDeleteRecurringTransactions();
   const transactionsQuery = useGetTransactions();
-  const [recurringTransactions, setRecurringTransactions] = useState<RecurringTransaction[]>([]);
   const [loadingRecurring, setLoadingRecurring] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { data: recurringTransactionsData } = useGetRecurringTransactions();
+  let recurringTransactions = recurringTransactionsData?.recurringTransactions || [];
+  
   const transactions = transactionsQuery.data || [];
-
-  console.log("Transactions Query Data: ", transactionsQuery.data);
-  console.log("Transactions Query Loading: ", transactionsQuery.isLoading);
-
-  console.log("Recurring Transactions: ", recurringTransactions);
-  console.log("Loading Recurring Transactions: ", loadingRecurring);
 
   // Fetch recurring transactions when the tab changes to "recurring"
   useEffect(() => {
@@ -71,7 +84,7 @@ const TransactionsPage = () => {
         }
 
         const data = await response.json();
-        setRecurringTransactions(data.recurringTransactions as RecurringTransaction[]);
+        recurringTransactions = (data.recurringTransactions as RecurringTransaction[]);
       } catch (err) {
         if (err instanceof Error) {
           setError(err.message);
@@ -230,13 +243,14 @@ const TransactionsPage = () => {
               <DataTable
                 filterKey="name"
                 columns={recurringColumns}
-                data={recurringTransactions.map((transaction) => ({
+                data={recurringTransactions.map((transaction: RecurringTransaction) => ({
                   ...transaction,
                   amount: transaction.averageAmount.toString(),
+                  category: transaction.categoryName, // Include category name in the displayed data
                 }))}
                 onDelete={(row) => {
                   const ids = row.map((r) => r.original.id);
-                  deleteTransactions.mutate({ ids });
+                  deleteRecurringTransactions.mutate({ ids });
                 }}
                 disabled={isDisabled}
               />

@@ -1,12 +1,15 @@
 import { Hono } from "hono";
 import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 import { db } from "@/db/drizzle";
-import { accounts, recurringTransactions, userTokens } from "@/db/schema";
+import { accounts, recurringTransactions, userTokens, categories } from "@/db/schema";
 import { createId } from "@paralleldrive/cuid2";
 import plaidClient from "./plaid";
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
+
+// Fetch the AI URL from environment variables
+const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
 
 const app = new Hono();
 
@@ -56,6 +59,62 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       return map;
     }, {} as Record<string, string>);
 
+    // Fetch all categories for the user
+    const dbCategories = await db
+      .select({ id: categories.id, plaidCategoryId: categories.plaidCategoryId })
+      .from(categories)
+      .where(eq(categories.userId, userId));
+
+    // Create a map of Plaid category IDs to database category IDs
+    const categoryIdMap = dbCategories.reduce((map, category) => {
+      if (category.plaidCategoryId) {
+        map[category.plaidCategoryId] = category.id;
+      }
+      return map;
+    }, {} as Record<string, string>);
+
+    // Insert missing categories
+    const categoriesToInsert = allStreams.reduce((set, stream) => {
+      const plaidCategoryId = stream.personal_finance_category?.detailed || stream.personal_finance_category?.primary || null;
+      if (plaidCategoryId && !categoryIdMap[plaidCategoryId]) {
+        set.add(plaidCategoryId);
+      }
+      return set;
+    }, new Set<string>());
+
+    function formatCategory(input: string) {
+      let result = input.replace(/_/g, ' ');
+      result = result
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+
+      return result;
+    }
+
+    for (const plaidCategoryId of categoriesToInsert) {
+      await db.insert(categories).values({
+        id: createId(),
+        userId,
+        name: formatCategory(plaidCategoryId),
+        plaidCategoryId,
+        isFromPlaid: true,
+      }).returning();
+    }
+
+    // Refresh category map after insertion
+    const updatedDbCategories = await db
+      .select({ id: categories.id, plaidCategoryId: categories.plaidCategoryId })
+      .from(categories)
+      .where(eq(categories.userId, userId));
+
+    const updatedCategoryIdMap = updatedDbCategories.reduce((map, category) => {
+      if (category.plaidCategoryId) {
+        map[category.plaidCategoryId] = category.id;
+      }
+      return map;
+    }, {} as Record<string, string>);
+
     // Insert recurring transactions into the database
     const insertedRecurringTransactions = await Promise.all(
       allStreams.map(async (stream) => {
@@ -65,24 +124,28 @@ app.post('/', clerkMiddleware(), async (ctx) => {
           return null;
         }
 
+        const plaidCategoryId = stream.personal_finance_category?.detailed || stream.personal_finance_category?.primary || null;
+        const categoryId = plaidCategoryId ? updatedCategoryIdMap[plaidCategoryId] : null;
+
         // Convert amounts to string, using "0" as fallback if undefined
         const averageAmount = stream.average_amount?.amount
           ? stream.average_amount.amount.toString()
-          : "0"; // Fallback to "0" if undefined
+          : "0";
         const lastAmount = stream.last_amount?.amount
           ? stream.last_amount.amount.toString()
-          : "0"; // Fallback to "0" if undefined
+          : "0";
 
         return db.insert(recurringTransactions).values({
           id: createId(),
           userId: userId,
           name: stream.description,
           accountId: accountId,
-          merchantName: stream.merchant_name?.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ') || "Unknown",
-          categoryName: stream.personal_finance_category?.detailed?.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ') || "Uncategorized",
+          payee: stream.merchant_name?.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ') || "Unknown",
+          categoryId,
           frequency: stream.frequency.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' '),
           averageAmount: averageAmount,
           lastAmount: lastAmount,
+          date: new Date(),  // Add the current date
           isActive: stream.is_active.toString(),
         }).returning();
       })
@@ -91,16 +154,49 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     // Filter out null results
     const validTransactions = insertedRecurringTransactions.filter(Boolean);
 
+    // Upsert recurring transactions to AI (same logic as before)
+    const formattedRecurringTransactions = validTransactions.map((transaction: any) => {
+      const amountNumber = parseFloat(transaction.averageAmount);
+      const formattedAmount = amountNumber < 0 
+        ? `-$${Math.abs(amountNumber).toFixed(2)}`
+        : `$${amountNumber.toFixed(2)}`;
+      return `
+        A recurring transaction of ${formattedAmount} for ${transaction.name}, happening ${transaction.frequency}, was recorded.
+      `;
+    }).join("\n");
+
+    try {
+      const aiResponse = await fetch(
+        `${AI_URL}/resource/upsert_text?user_id=${userId}&name=Recurring Transactions for ${userId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+          },
+          body: formattedRecurringTransactions.trim(),
+        }
+      );
+
+      if (!aiResponse.ok) {
+        const errorText = await aiResponse.text();
+        throw new Error(`Upsert failed: ${errorText}`);
+      }
+
+      const responseData = await aiResponse.json();
+      console.log("AI Response:", responseData);
+
+    } catch (error) {
+      console.error('Error upserting recurring transactions:', error);
+      return ctx.json({ error: 'Failed to upsert recurring transactions' }, 500);
+    }
+
     return ctx.json({ recurringTransactions: validTransactions });
 
   } catch (err) {
     console.error("Error fetching recurring transactions from Plaid:", err);
     return ctx.json({ error: "Failed to fetch recurring transactions from Plaid" }, 500);
   }
-});
-
-// Fetch recurring transactions for the user
-app.get('/get', clerkMiddleware(), async (ctx) => {
+}).get('/get', clerkMiddleware(), async (ctx) => {
   const auth = getAuth(ctx);
   const userId = auth?.userId;
 
@@ -114,15 +210,19 @@ app.get('/get', clerkMiddleware(), async (ctx) => {
       .select({
         id: recurringTransactions.id,
         name: recurringTransactions.name,
+        accountId: recurringTransactions.accountId,
         accountName: accounts.name, // Select the account name
-        categoryName: recurringTransactions.categoryName,
+        categoryId: recurringTransactions.categoryId,
+        categoryName: categories.name, // Join with categories table to get category name
         frequency: recurringTransactions.frequency,
         averageAmount: recurringTransactions.averageAmount,
         lastAmount: recurringTransactions.lastAmount,
+        date: recurringTransactions.date, // Fetch the date field
         isActive: recurringTransactions.isActive,
       })
       .from(recurringTransactions)
       .innerJoin(accounts, eq(recurringTransactions.accountId, accounts.id))
+      .leftJoin(categories, eq(recurringTransactions.categoryId, categories.id)) // Join with categories
       .where(eq(recurringTransactions.userId, userId));
 
     return ctx.json({ recurringTransactions: recurringTransactionsData });
@@ -130,10 +230,7 @@ app.get('/get', clerkMiddleware(), async (ctx) => {
     console.error('Error fetching recurring transactions:', error);
     return ctx.json({ error: 'Failed to fetch recurring transactions' }, 500);
   }
-});
-
-// Update recurring transaction
-app.patch(
+}).patch(
   "/:id",
   clerkMiddleware(),
   zValidator(
@@ -146,11 +243,12 @@ app.patch(
     "json",
     z.object({
       name: z.string().optional(),
-      categoryName: z.string().optional(),
+      categoryId: z.string().optional(), // Update categoryId instead of categoryName
       frequency: z.string().optional(),
       averageAmount: z.string().optional(),
       lastAmount: z.string().optional(),
       isActive: z.string().optional(),
+      date: z.coerce.date().optional(),  // Ensure date is coerced into a Date object
     })
   ),
   async (ctx) => {
@@ -192,10 +290,7 @@ app.patch(
 
     return ctx.json({ data });
   }
-);
-
-// Delete recurring transaction
-app.delete('/:id', clerkMiddleware(), async (ctx) => {
+).delete('/:id', clerkMiddleware(), async (ctx) => {
   const auth = getAuth(ctx);
   const userId = auth?.userId;
   const transactionId = ctx.req.param("id");
@@ -225,10 +320,7 @@ app.delete('/:id', clerkMiddleware(), async (ctx) => {
     console.error("Error deleting recurring transaction:", error);
     return ctx.json({ error: "Failed to delete recurring transaction" }, 500);
   }
-});
-
-// Get a single recurring transaction by ID
-app.get(
+}).get(
   "/:id",
   zValidator(
     "param",
@@ -257,14 +349,17 @@ app.get(
           name: recurringTransactions.name,
           accountId: recurringTransactions.accountId,
           accountName: accounts.name,
-          categoryName: recurringTransactions.categoryName,
+          categoryId: recurringTransactions.categoryId,
+          categoryName: categories.name,
           frequency: recurringTransactions.frequency,
           averageAmount: recurringTransactions.averageAmount,
           lastAmount: recurringTransactions.lastAmount,
+          date: recurringTransactions.date,  // Include the date field
           isActive: recurringTransactions.isActive,
         })
         .from(recurringTransactions)
         .innerJoin(accounts, eq(recurringTransactions.accountId, accounts.id))
+        .leftJoin(categories, eq(recurringTransactions.categoryId, categories.id))
         .where(and(eq(recurringTransactions.id, id), eq(accounts.userId, auth.userId)));
 
       if (!data) {
@@ -277,6 +372,35 @@ app.get(
       return ctx.json({ error: "Failed to fetch recurring transaction." }, 500);
     }
   }
-);
+).post('/bulk-delete', clerkMiddleware(), zValidator(
+  "json",
+  z.object({
+    ids: z.array(z.string()), // Array of transaction IDs to delete
+  })
+), async (ctx) => {
+  const auth = getAuth(ctx);
+  const { ids } = ctx.req.valid("json");
+
+  if (!auth?.userId) {
+    return ctx.json({ error: "Unauthorized" }, 401);
+  }
+
+  try {
+    // Perform bulk delete of recurring transactions
+    await db
+      .delete(recurringTransactions)
+      .where(
+        and(
+          eq(recurringTransactions.userId, auth.userId),
+          inArray(recurringTransactions.id, ids)
+        )
+      );
+
+    return ctx.json({ success: true, message: "Recurring transactions deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting recurring transactions:", error);
+    return ctx.json({ error: "Failed to delete recurring transactions" }, 500);
+  }
+});
 
 export default app;

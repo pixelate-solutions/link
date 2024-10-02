@@ -4,7 +4,6 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { AmountInput } from "@/components/amount-input";
-import { DatePicker } from "@/components/date-picker";
 import { Select } from "@/components/select";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,21 +15,16 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { DatePicker } from "@/components/date-picker";
 
 const formSchema = z.object({
-  date: z.coerce.date(),
-  userId: z.string(),
-  accountId: z.string().nullable().optional(),
-  categoryName: z.string().nullable(),
-  categoryId: z.string().nullable().optional(),
-  name: z.string(), // Recurring transaction name
-  merchantName: z.string().nullable().optional(), // Optional merchant name
-  frequency: z.string(), // Frequency of transaction (e.g., monthly, weekly)
-  averageAmount: z.string(), // Average transaction amount
-  lastAmount: z.string().nullable().optional(), // Optional last transaction amount
+  name: z.string().min(1, "Transaction name is required"), // Recurring transaction name
+  frequency: z.string().min(1, "Frequency is required"), // Frequency of transaction (e.g., monthly, weekly)
+  averageAmount: z.string().min(1, "Average amount is required"), // Average transaction amount
+  accountId: z.string().nullable().optional(), // Account selection (dropdown)
+  categoryId: z.string().nullable().optional(), // Category selection (dropdown)
+  date: z.coerce.date().optional(), // Updated to coerce date strings into Date objects
   isActive: z.string(), // Status (active/inactive)
-  notes: z.string().nullable().optional(), // Optional notes
 });
 
 type FormValues = z.input<typeof formSchema>;
@@ -43,8 +37,8 @@ type RecurringTransactionFormProps = {
   disabled?: boolean;
   accountOptions: { label: string; value: string }[];
   categoryOptions: { label: string; value: string }[];
-  onCreateAccount: (name: string) => void;
-  onCreateCategory: (name: string) => void;
+  onCreateCategory: (name: string) => void; // Added prop
+  onCreateAccount: (name: string) => void; // Added prop
 };
 
 export const RecurringTransactionForm = ({
@@ -55,8 +49,8 @@ export const RecurringTransactionForm = ({
   disabled,
   accountOptions,
   categoryOptions,
-  onCreateAccount,
-  onCreateCategory,
+  onCreateCategory, // Added prop
+  onCreateAccount, // Added prop
 }: RecurringTransactionFormProps) => {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -89,47 +83,8 @@ export const RecurringTransactionForm = ({
               <FormControl>
                 <Input
                   disabled={disabled}
-                  placeholder="Enter the name of the transaction"
+                  placeholder="Enter the transaction name"
                   {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Merchant Name */}
-        <FormField
-          name="merchantName"
-          control={form.control}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Merchant Name</FormLabel>
-              <FormControl>
-                <Input
-                  disabled={disabled}
-                  placeholder="Enter the merchant name"
-                  value={field.value || ""} // Ensure string
-                  onChange={field.onChange}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Date */}
-        <FormField
-          name="date"
-          control={form.control}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Date</FormLabel>
-              <FormControl>
-                <DatePicker
-                  value={field.value}
-                  onChange={(date) => field.onChange(date)}
-                  disabled={disabled}
                 />
               </FormControl>
               <FormMessage />
@@ -148,10 +103,10 @@ export const RecurringTransactionForm = ({
                 <Select
                   placeholder="Select an account"
                   options={accountOptions}
-                  onCreate={onCreateAccount}
                   value={field.value}
                   onChange={field.onChange}
                   disabled={disabled}
+                  onCreate={onCreateAccount} // Allow creating a new account
                 />
               </FormControl>
               <FormMessage />
@@ -170,10 +125,10 @@ export const RecurringTransactionForm = ({
                 <Select
                   placeholder="Select a category"
                   options={categoryOptions}
-                  onCreate={onCreateCategory}
                   value={field.value}
                   onChange={field.onChange}
                   disabled={disabled}
+                  onCreate={onCreateCategory} // Allow creating a new category
                 />
               </FormControl>
               <FormMessage />
@@ -221,20 +176,18 @@ export const RecurringTransactionForm = ({
           )}
         />
 
-        {/* Last Amount */}
+        {/* Date */}
         <FormField
-          name="lastAmount"
+          name="date"
           control={form.control}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Last Amount</FormLabel>
+              <FormLabel>Date</FormLabel>
               <FormControl>
-                <AmountInput
-                  {...field}
-                  disabled={disabled}
-                  placeholder="Enter the last amount"
-                  value={field.value || ""} // Ensure string
+                <DatePicker
+                  value={field.value}
                   onChange={field.onChange}
+                  disabled={disabled}
                 />
               </FormControl>
               <FormMessage />
@@ -259,26 +212,6 @@ export const RecurringTransactionForm = ({
                   value={field.value}
                   onChange={field.onChange}
                   disabled={disabled}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Notes */}
-        <FormField
-          name="notes"
-          control={form.control}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Notes</FormLabel>
-              <FormControl>
-                <Textarea
-                  {...field}
-                  value={field.value || ""}
-                  disabled={disabled}
-                  placeholder="Optional notes..."
                 />
               </FormControl>
               <FormMessage />
