@@ -119,6 +119,23 @@ const AccountsPage = () => {
 
   return (
     <div className="mx-auto -mt-6 w-full max-w-screen-2xl pb-10">
+      {/* Plaid Accounts */}
+      {isPremiumUser && (
+        <Card className="mt-10">
+          <CardHeader>
+            <CardTitle className="line-clamp-1 text-2xl">Connected Accounts</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DataTable
+              data={plaidAccountsWithTotals}
+              columns={columns}
+              filterKey="name"
+              disabled={isDisabled}
+              onDelete={(row) => deleteAccounts.mutate({ ids: row.map((r) => r.original.id) })}
+            />
+          </CardContent>
+        </Card>
+      )}
       {/* Manual Accounts */}
       <Card className="border-none drop-shadow-sm">
         <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between">
@@ -137,24 +154,6 @@ const AccountsPage = () => {
           />
         </CardContent>
       </Card>
-
-      {/* Plaid Accounts */}
-      {isPremiumUser && (
-        <Card className="mt-10">
-          <CardHeader>
-            <CardTitle className="line-clamp-1 text-2xl">Connected Accounts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DataTable
-              data={plaidAccountsWithTotals}
-              columns={columns}
-              filterKey="name"
-              disabled={isDisabled}
-              onDelete={(row) => deleteAccounts.mutate({ ids: row.map((r) => r.original.id) })}
-            />
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };
