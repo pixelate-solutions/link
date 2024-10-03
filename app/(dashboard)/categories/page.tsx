@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useBulkDeleteCategories } from "@/features/categories/api/use-bulk-delete-categories";
 import { useGetCategories } from "@/features/categories/api/use-get-categories";
 import { useNewCategory } from "@/features/categories/hooks/use-new-category";
-import { differenceInDays, parseISO, isFirstDayOfMonth, lastDayOfMonth, isSameDay, subDays } from 'date-fns';
+import { differenceInDays, parseISO, isFirstDayOfMonth, lastDayOfMonth, isSameDay, subDays, endOfToday, subMonths } from 'date-fns';
 
 // Import columns
 import { columns } from "./columns";
@@ -42,8 +42,8 @@ interface CategoryTotal {
 
 const CategoriesPage = () => {
   const searchParams = useSearchParams();
-  const from = searchParams.get("from") || "";
-  const to = searchParams.get("to") || "";
+  let from = searchParams.get("from") || "";
+  let to = searchParams.get("to") || "";
 
   const newCategory = useNewCategory();
   const deleteCategories = useBulkDeleteCategories();
@@ -79,7 +79,16 @@ const CategoriesPage = () => {
   }
 
   const categoriesWithTotals = categories.map(category => {
-    // Parse the from and to dates
+    if (to === "" || from === "") {
+      const today = endOfToday();  // Get today's date
+      const previousMonthSameDay = subMonths(today, 1);  // Get the same day in the previous month
+
+      const newFrom = previousMonthSameDay.toISOString();  // Convert to ISO format
+      const newTo = today.toISOString();  // Today's date in ISO format
+
+      from = newFrom;
+      to = newTo;
+    }
     const fromDate = subDays(parseISO(from), 1);
     const toDate = subDays(parseISO(to), 1); // Subtract one day from toDate
 
