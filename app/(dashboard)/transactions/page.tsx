@@ -1,4 +1,4 @@
-"use client";
+"use client"
 
 import { useState, useEffect } from "react";
 import { Loader2, Plus } from "lucide-react";
@@ -22,6 +22,18 @@ import { recurringColumns } from "./recurring-columns";
 import { columns } from "./columns";
 import { useNewTransaction } from "@/features/transactions/hooks/use-new-transaction";
 
+// Import Shadcn components
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import { BeatLoader } from "react-spinners";
+
 const useGetRecurringTransactions = () => {
   return useQuery({
     queryKey: ["recurringTransactions"],
@@ -35,6 +47,7 @@ const useGetRecurringTransactions = () => {
   });
 };
 
+
 enum VARIANTS {
   LIST = "LIST",
   IMPORT = "IMPORT",
@@ -46,6 +59,7 @@ const INITIAL_IMPORT_RESULTS = {
   meta: [],
 };
 
+
 const TransactionsPage = () => {
   const [variant, setVariant] = useState<VARIANTS>(VARIANTS.LIST);
   const [importResults, setImportResults] = useState(INITIAL_IMPORT_RESULTS);
@@ -54,7 +68,10 @@ const TransactionsPage = () => {
   const [isSheetOpen, setIsSheetOpen] = useState(false); // Local state for sheet management
   const [loadingRecurring, setLoadingRecurring] = useState(false);
   const [loadedRecurringTransactions, setLoadedRecurringTransactions] = useState(false);
+  const [recategorizeLoading, setRecategorizeLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [isDialogOpen, setIsDialogOpen] = useState(false); // State to manage alert dialog
 
   const [AccountDialog, confirm] = useSelectAccount();
   const createTransactions = useBulkCreateTransactions();
@@ -132,6 +149,50 @@ const TransactionsPage = () => {
     });
   };
 
+  const onRecategorize = async () => {
+    try {
+      setRecategorizeLoading(true)
+      // Call the recategorization endpoint for regular transactions
+      const recategorizeTransactionsResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/plaid/upload-transactions/recategorize`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!recategorizeTransactionsResponse.ok) {
+        throw new Error('Failed to recategorize regular transactions');
+      }
+
+      // Call the recategorization endpoint for recurring transactions
+      const recategorizeRecurringResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/plaid/recurring/recategorize`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!recategorizeRecurringResponse.ok) {
+        throw new Error('Failed to recategorize recurring transactions');
+      }
+      
+      toast.success('Transactions successfully recategorized!');
+      setRecategorizeLoading(false);
+      window.location.reload();
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(`Recategorization failed: ${error.message}`);
+      } else {
+        toast.error('An unknown error occurred during recategorization');
+      }
+    }
+  };
+
+  // Recategorize confirmation dialog state management
+  const handleRecategorizeClick = () => {
+    setIsDialogOpen(true); // Open the confirmation dialog
+  };
+
   const isDisabled =
     transactionsQuery.isLoading ||
     (currentTab === "recurring" && loadingRecurring) ||
@@ -171,6 +232,11 @@ const TransactionsPage = () => {
 
   return (
     <div className="mx-auto -mt-6 lg:-mt-12 w-full max-w-screen-2xl pb-10 bg-white rounded-2xl p-2">
+      {recategorizeLoading && (
+        <div className="fixed inset-0 flex items-center justify-center w-full bg-black bg-opacity-50 min-h-screen z-50">
+          <BeatLoader color="#2196f3" margin={3} size={25} speedMultiplier={0.75} />
+        </div>
+      )}
       <Tabs defaultValue="transactions" onValueChange={setCurrentTab}>
         <TabsList className="mb-6 grid w-full grid-cols-2 lg:h-[50px]">
           <TabsTrigger
@@ -204,6 +270,23 @@ const TransactionsPage = () => {
                 </Button>
 
                 <UploadButton onUpload={onUpload} />
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="sm" className="w-full lg:w-auto">
+                      Recategorize
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <h2 className="font-semibold">Recategorize Transactions</h2>
+                      <p>Are you sure you want to recategorize all transactions?</p>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={onRecategorize}>Yes</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </CardHeader>
 
@@ -239,6 +322,23 @@ const TransactionsPage = () => {
                 >
                   <Plus className="mr-2 size-4" /> Add new
                 </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="sm" className="w-full lg:w-auto">
+                      Recategorize
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <h2 className="font-semibold">Recategorize Transactions</h2>
+                      <p>Are you sure you want to recategorize all transactions?</p>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={onRecategorize}>Yes</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </CardHeader>
 

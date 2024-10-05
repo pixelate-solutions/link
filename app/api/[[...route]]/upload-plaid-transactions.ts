@@ -60,74 +60,80 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     return map;
   }, {} as Record<string, string>);
 
-  // Fetch all categories for the user
+  // Fetch all categories from the categories table
   const dbCategories = await db
-    .select({ id: categories.id, plaidCategoryId: categories.plaidCategoryId })
+    .select({ id: categories.id, name: categories.name })
     .from(categories)
     .where(eq(categories.userId, userId));
 
-  // Create a map of Plaid category IDs to database category IDs
-  const categoryIdMap = dbCategories.reduce((map, category) => {
-    if (category.plaidCategoryId) {
-      map[category.plaidCategoryId] = category.id; // Map Plaid category ID to database category ID
-    }
-    return map;
-  }, {} as Record<string, string>);
+  // Map category names from the categories table
+  const categoryOptions = dbCategories.map(category => category.name);
 
-  // Insert missing categories
-  const categoriesToInsert = plaidTransactions.reduce((set, transaction) => {
-    const plaidCategoryId = transaction.personal_finance_category?.detailed || transaction.personal_finance_category?.primary || null;
-    if (plaidCategoryId && !categoryIdMap[plaidCategoryId]) {
-      set.add(plaidCategoryId);
-    }
-    return set;
-  }, new Set<string>());
+  // Get the category for each transaction from Plaid
+  const transactionCategories = plaidTransactions.map(transaction => 
+    transaction.personal_finance_category?.detailed || transaction.personal_finance_category?.primary || ""
+  );
 
-  function formatCategory(input: string) {
-    // Replace underscores with spaces
-    let result = input.replace(/_/g, ' ');
+  // Construct the query for the AI API
+  const query = `
+    Here is a list of categories from transactions: [${transactionCategories}]
+    Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
+    respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
+    You MUST categorize each of these [${transactionCategories}] as one of these: [${categoryOptions.join(", ")}].
+    Every value in your list response will be one of these values: [${categoryOptions.join(", ")}]. Again, respond as a list with 
+    brackets "[]" and comma-separated values with NO other text than that list. And the only options you can use to make
+    the list are values from this list: [${categoryOptions.join(", ")}]. ONLY if this list of categories is empty, use 
+    the list instead to categorize each of these into one of the following categories: 
+    [Food & Drink, Transportation, Bills & Utilities, Fun, Other].
+  `;
 
-    // Capitalize the first letter of each word and lowercase the rest
-    result = result
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
+  const data = {
+    user_id: userId,
+    query: query,
+    allow_access: false,
+    using_user_id: true,
+  };
 
-    return result;
+  // Call AI API with the categorized transactions
+  const aiResponse = await fetch(`${AI_URL}/finance/categorize`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!aiResponse.ok) {
+    const errorText = await aiResponse.text();
+    console.error('Error from AI API:', errorText);
+    return ctx.json({ error: 'Failed to categorize transactions' }, 500);
   }
 
-  for (const plaidCategoryId of categoriesToInsert) {
-    await db.insert(categories).values({
-      id: createId(),
-      userId,
-      name: formatCategory(plaidCategoryId),
-      plaidCategoryId,
-      isFromPlaid: true,
-    }).returning();
+  function stringToList(input: string): string[] {
+    const cleanedInput = input.slice(1, -1).trim();
+    const list = cleanedInput.split(',').map(item => item.trim());
+
+    return list;
   }
 
-  // Refresh category map after insertion
-  const updatedDbCategories = await db
-    .select({ id: categories.id, plaidCategoryId: categories.plaidCategoryId })
-    .from(categories)
-    .where(eq(categories.userId, userId));
+  const aiData = await aiResponse.json();
+  const categorizedResults = stringToList(aiData);
 
-  const updatedCategoryIdMap = updatedDbCategories.reduce((map, category) => {
-    if (category.plaidCategoryId) {
-      map[category.plaidCategoryId] = category.id; // Map Plaid category ID to database category ID
-    }
-    return map;
-  }, {} as Record<string, string>);
-
-  // Insert transactions for accounts that are already in the database
+  // Insert transactions into the database with categorized results
   const insertedTransactions = await Promise.all(
-    plaidTransactions.map(async (transaction) => {
-      const plaidCategoryId = transaction.personal_finance_category?.detailed || transaction.personal_finance_category?.primary || null;
-      const categoryId = plaidCategoryId ? updatedCategoryIdMap[plaidCategoryId] : null;
+    plaidTransactions.map(async (transaction, index) => {
       const accountId = accountIdMap[transaction.account_id];
 
       if (!accountId) {
         // Skip transaction if account is not in the database
+        return null;
+      }
+
+      // Match AI result with a category in the database
+      const categoryId = dbCategories.find(category => category.name === categorizedResults[index])?.id;
+
+      if (!categoryId) {
+        // Skip transaction if the AI categorization doesn't match any known category
         return null;
       }
 
@@ -147,47 +153,120 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     })
   );
 
-  // Format transactions for upserting to AI
-  const formattedTransactions = insertedTransactions
-    .filter(Boolean)
-    .map((transaction: any) => {
-      const amountNumber = parseFloat(transaction.amount);
-        const formattedAmount = amountNumber < 0 
-        ? `-$${Math.abs(amountNumber).toFixed(2)}`
-        : `$${amountNumber.toFixed(2)}`;
-      return `
-        A transaction was made in the amount of ${formattedAmount} by the user to the person or group named ${transaction.payee} on ${new Date(transaction.date).toLocaleDateString()}. 
-        ${transaction.notes ? `Some notes regarding this transaction to ${transaction.payee} on ${new Date(transaction.date).toLocaleDateString()} are: ${transaction.notes}.` : "No additional notes were provided for this transaction."}
-      `;
-    }).join("\n");
+  return ctx.json({ transactions: insertedTransactions.filter(Boolean) });
+}).post('/recategorize', clerkMiddleware(), async (ctx) => {
+  const auth = getAuth(ctx);
+  const userId = auth?.userId;
 
-  // Upsert all transactions to the AI endpoint
-  try {
-    const aiResponse = await fetch(
-      `${AI_URL}/resource/upsert_text?user_id=${userId}&name=Transactions from ${accountIdMap[plaidTransactions[0].account_id]} for ${userId}&account=${accountIdMap[plaidTransactions[0].account_id]}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain',
-        },
-        body: formattedTransactions.trim(), // Ensure it is a properly formatted plain string
-      }
-    );
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      throw new Error(`Upsert failed: ${errorText}`);
-    }
-
-    const responseData = await aiResponse.json();
-    console.log("AI Response:", responseData);
-
-  } catch (error) {
-    console.error('Error upserting transactions:', error);
-    return ctx.json({ error: 'Failed to upsert transactions' }, 500);
+  if (!userId) {
+    return ctx.json({ error: "Unauthorized" }, 401);
   }
 
-  return ctx.json({ transactions: insertedTransactions.filter(Boolean) });
+  // Fetch all transactions from the database for the user
+  const userTransactions = await db
+    .select({
+      id: transactions.id,
+      amount: transactions.amount,
+      payee: transactions.payee,
+      date: transactions.date,
+      accountId: transactions.accountId,
+      categoryId: transactions.categoryId,
+    })
+    .from(transactions)
+    .where(eq(transactions.userId, userId));
+
+  if (userTransactions.length === 0) {
+    return ctx.json({ message: "No transactions found for recategorization" }, 404);
+  }
+
+  // Fetch all categories for the user from the database
+  const dbCategories = await db
+    .select({ id: categories.id, name: categories.name })
+    .from(categories)
+    .where(eq(categories.userId, userId));
+
+  const categoryOptions = dbCategories.map(category => category.name);
+
+  // Use the payee name for categorization instead of the existing category
+  const payeeNames = userTransactions.map(transaction => transaction.payee || "");
+
+  // Construct the query for the AI API to recategorize transactions based on payee names
+  const query = `
+    Here is a list of names from transactions: [${payeeNames}]
+    Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}].
+    ONLY if this list of categories is empty, use this list instead to categorize each of these into one
+       of the following categories: [Food & Drink, Transportation, Bills & Utilities, Fun, Other].
+    Return the result as a JavaScript dictionary (JSON object), where the key is the payee name and the value is the assigned category.
+    Use this format:
+    {
+      "payee_name_1": "Category_1",
+      "payee_name_2": "Category_2",
+      ...
+    }
+    EVERY transaction name must have a category assigned. If something cannot fit in a category, assign it as "Other".
+    ONLY return the dictionary with NO additional text or explanations.
+  `;
+
+  const data = {
+    user_id: userId,
+    query: query,
+    allow_access: false,
+    using_user_id: true,
+  };
+
+  // Call AI API to recategorize the transactions
+  const aiResponse = await fetch(`${AI_URL}/finance/categorize`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!aiResponse.ok) {
+    const errorText = await aiResponse.text();
+    console.error('Error from AI API:', errorText);
+    return ctx.json({ error: 'Failed to recategorize transactions' }, 500);
+  }
+
+  const aiData = await aiResponse.json();
+  
+  // Convert the AI response string into a JavaScript object (dictionary)
+  const categorizedResults: Record<string, string> = JSON.parse(aiData);
+
+  // Ensure every transaction has a category, assign "Other" if missing
+  const finalCategorizedResults: Record<string, string> = {};
+  payeeNames.forEach((payee) => {
+    finalCategorizedResults[payee] = categorizedResults[payee] || "Other";
+  });
+
+  // Update transactions in the database with new categories
+  const updatedTransactions = await Promise.all(
+    userTransactions.map(async (transaction) => {
+      const categoryName = finalCategorizedResults[transaction.payee || ""];
+      const categoryId = dbCategories.find(category => category.name === categoryName)?.id;
+
+      if (!categoryId) {
+        // Assign "Other" category if no matching category found
+        const otherCategoryId = dbCategories.find(category => category.name === "Other")?.id;
+        if (!otherCategoryId) return null; // Skip if "Other" category doesn't exist
+        return db
+          .update(transactions)
+          .set({ categoryId: otherCategoryId })
+          .where(eq(transactions.id, transaction.id))
+          .returning();
+      }
+
+      // Update with found category ID
+      return db
+        .update(transactions)
+        .set({ categoryId })
+        .where(eq(transactions.id, transaction.id))
+        .returning();
+    })
+  );
+
+  return ctx.json({ transactions: updatedTransactions.filter(Boolean) });
 });
 
 export default app;

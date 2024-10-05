@@ -61,71 +61,73 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
     // Fetch all categories for the user
     const dbCategories = await db
-      .select({ id: categories.id, plaidCategoryId: categories.plaidCategoryId })
+      .select({ id: categories.id, name: categories.name })
       .from(categories)
       .where(eq(categories.userId, userId));
 
-    // Create a map of Plaid category IDs to database category IDs
-    const categoryIdMap = dbCategories.reduce((map, category) => {
-      if (category.plaidCategoryId) {
-        map[category.plaidCategoryId] = category.id;
-      }
-      return map;
-    }, {} as Record<string, string>);
+    const categoryOptions = dbCategories.map(category => category.name);
 
-    // Insert missing categories
-    const categoriesToInsert = allStreams.reduce((set, stream) => {
-      const plaidCategoryId = stream.personal_finance_category?.detailed || stream.personal_finance_category?.primary || null;
-      if (plaidCategoryId && !categoryIdMap[plaidCategoryId]) {
-        set.add(plaidCategoryId);
-      }
-      return set;
-    }, new Set<string>());
+    // Extract the personal_finance_category for AI categorization
+    const transactionCategories = allStreams.map(stream =>
+      stream.personal_finance_category?.detailed || stream.personal_finance_category?.primary || ""
+    );
 
-    function formatCategory(input: string) {
-      let result = input.replace(/_/g, ' ');
-      result = result
-        .split(' ')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(' ');
+    // Construct the query for the AI API
+    const query = `
+      Here is a list of categories from recurring transactions: [${transactionCategories}]
+      Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
+      respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
+      ONLY if this list of categories is empty, use this list instead to categorize each of these into one
+       of the following categories: [Food & Drink, Transportation, Bills & Utilities, Fun, Other].
+      You MUST categorize each of these [${transactionCategories}] as one of these: [${categoryOptions.join(", ")}].
+    `;
 
-      return result;
+    const data = {
+      user_id: userId,
+      query: query,
+      allow_access: false,
+      using_user_id: true,
+    };
+
+    // Call AI API with the categorized transactions
+    const aiResponse = await fetch(`${AI_URL}/finance/categorize`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error('Error from AI API:', errorText);
+      return ctx.json({ error: 'Failed to categorize recurring transactions' }, 500);
     }
 
-    for (const plaidCategoryId of categoriesToInsert) {
-      await db.insert(categories).values({
-        id: createId(),
-        userId,
-        name: formatCategory(plaidCategoryId),
-        plaidCategoryId,
-        isFromPlaid: true,
-      }).returning();
+    function stringToList(input: string): string[] {
+      const cleanedInput = input.slice(1, -1).trim();
+      return cleanedInput.split(',').map(item => item.trim());
     }
 
-    // Refresh category map after insertion
-    const updatedDbCategories = await db
-      .select({ id: categories.id, plaidCategoryId: categories.plaidCategoryId })
-      .from(categories)
-      .where(eq(categories.userId, userId));
+    const aiData = await aiResponse.json();
+    const categorizedResults = stringToList(aiData);
 
-    const updatedCategoryIdMap = updatedDbCategories.reduce((map, category) => {
-      if (category.plaidCategoryId) {
-        map[category.plaidCategoryId] = category.id;
-      }
-      return map;
-    }, {} as Record<string, string>);
-
-    // Insert recurring transactions into the database
+    // Insert recurring transactions into the database with categorized results
     const insertedRecurringTransactions = await Promise.all(
-      allStreams.map(async (stream) => {
+      allStreams.map(async (stream, index) => {
         const accountId = accountIdMap[stream.account_id];
         if (!accountId) {
           // Skip stream if account is not in the database
           return null;
         }
 
-        const plaidCategoryId = stream.personal_finance_category?.detailed || stream.personal_finance_category?.primary || null;
-        const categoryId = plaidCategoryId ? updatedCategoryIdMap[plaidCategoryId] : null;
+        // Match AI result with a category in the database
+        const categoryId = dbCategories.find(category => category.name === categorizedResults[index])?.id;
+
+        if (!categoryId) {
+          // Skip stream if the AI categorization doesn't match any known category
+          return null;
+        }
 
         // Convert amounts to string, using "0" as fallback if undefined
         const averageAmount = stream.average_amount?.amount
@@ -153,42 +155,6 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
     // Filter out null results
     const validTransactions = insertedRecurringTransactions.filter(Boolean);
-
-    // Upsert recurring transactions to AI (same logic as before)
-    const formattedRecurringTransactions = validTransactions.map((transaction: any) => {
-      const amountNumber = parseFloat(transaction.averageAmount);
-      const formattedAmount = amountNumber < 0 
-        ? `-$${Math.abs(amountNumber).toFixed(2)}`
-        : `$${amountNumber.toFixed(2)}`;
-      return `
-        A recurring transaction of ${formattedAmount} for ${transaction.name}, happening ${transaction.frequency}, was recorded.
-      `;
-    }).join("\n");
-
-    try {
-      const aiResponse = await fetch(
-        `${AI_URL}/resource/upsert_text?user_id=${userId}&name=Recurring Transactions for ${userId}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'text/plain',
-          },
-          body: formattedRecurringTransactions.trim(),
-        }
-      );
-
-      if (!aiResponse.ok) {
-        const errorText = await aiResponse.text();
-        throw new Error(`Upsert failed: ${errorText}`);
-      }
-
-      const responseData = await aiResponse.json();
-      console.log("AI Response:", responseData);
-
-    } catch (error) {
-      console.error('Error upserting recurring transactions:', error);
-      return ctx.json({ error: 'Failed to upsert recurring transactions' }, 500);
-    }
 
     return ctx.json({ recurringTransactions: validTransactions });
 
@@ -436,6 +402,117 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     console.error("Error adding new recurring transaction:", error);
     return ctx.json({ error: "Failed to add recurring transaction" }, 500);
   }
+}).post('/recategorize', clerkMiddleware(), async (ctx) => {
+  const auth = getAuth(ctx);
+  const userId = auth?.userId;
+
+  if (!userId) {
+    return ctx.json({ error: "Unauthorized" }, 401);
+  }
+
+  // Fetch all recurring transactions from the database for the user
+  const userRecurringTransactions = await db
+    .select({
+      id: recurringTransactions.id,
+      name: recurringTransactions.name,
+      accountId: recurringTransactions.accountId,
+      categoryId: recurringTransactions.categoryId,
+    })
+    .from(recurringTransactions)
+    .where(eq(recurringTransactions.userId, userId));
+
+  if (userRecurringTransactions.length === 0) {
+    return ctx.json({ message: "No recurring transactions found for recategorization" }, 404);
+  }
+
+  // Fetch all categories for the user from the database
+  const dbCategories = await db
+    .select({ id: categories.id, name: categories.name })
+    .from(categories)
+    .where(eq(categories.userId, userId));
+
+  const categoryOptions = dbCategories.map(category => category.name);
+
+  // Use the name of the recurring transaction for categorization instead of the existing category
+  const recurringTransactionNames = userRecurringTransactions.map(transaction => transaction.name || "");
+
+  // Construct the query for the AI API to recategorize recurring transactions based on the name
+  const query = `
+    Here is a list of transaction names: [${recurringTransactionNames}]
+    Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}].
+    ONLY if this list of categories is empty, use this list instead to categorize each of these into one
+       of the following categories: [Food & Drink, Transportation, Bills & Utilities, Fun, Other].
+    Return the result as a JavaScript dictionary (JSON object), where the key is the transaction name and the value is the assigned category.
+    Use this format:
+    {
+      "transaction_name_1": "Category_1",
+      "transaction_name_2": "Category_2",
+      ...
+    }
+    EVERY transaction name must have a category assigned. If something cannot fit in a category, assign it as "Other".
+    ONLY return the dictionary with NO additional text or explanations.
+  `;
+
+  const data = {
+    user_id: userId,
+    query: query,
+    allow_access: false,
+    using_user_id: true,
+  };
+
+  // Call AI API to recategorize the recurring transactions
+  const aiResponse = await fetch(`${AI_URL}/finance/categorize`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!aiResponse.ok) {
+    const errorText = await aiResponse.text();
+    console.error('Error from AI API:', errorText);
+    return ctx.json({ error: 'Failed to recategorize recurring transactions' }, 500);
+  }
+
+  const aiData = await aiResponse.json();
+  
+  // Convert the AI response string into a JavaScript object (dictionary)
+  const categorizedResults: Record<string, string> = JSON.parse(aiData);
+
+  // Ensure every transaction has a category, assign "Other" if missing
+  const finalCategorizedResults: Record<string, string> = {};
+  recurringTransactionNames.forEach((name) => {
+    finalCategorizedResults[name] = categorizedResults[name] || "Other";
+  });
+
+  // Update recurring transactions in the database with new categories
+  const updatedRecurringTransactions = await Promise.all(
+    userRecurringTransactions.map(async (transaction) => {
+      const categoryName = finalCategorizedResults[transaction.name];
+      const categoryId = dbCategories.find(category => category.name === categoryName)?.id;
+
+      if (!categoryId) {
+        // Assign "Other" category if no matching category found
+        const otherCategoryId = dbCategories.find(category => category.name === "Other")?.id;
+        if (!otherCategoryId) return null; // Skip if "Other" category doesn't exist
+        return db
+          .update(recurringTransactions)
+          .set({ categoryId: otherCategoryId })
+          .where(eq(recurringTransactions.id, transaction.id))
+          .returning();
+      }
+
+      // Update with found category ID
+      return db
+        .update(recurringTransactions)
+        .set({ categoryId })
+        .where(eq(recurringTransactions.id, transaction.id))
+        .returning();
+    })
+  );
+
+  return ctx.json({ recurringTransactions: updatedRecurringTransactions.filter(Boolean) });
 });
 
 export default app;

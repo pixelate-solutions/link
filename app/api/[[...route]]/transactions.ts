@@ -171,7 +171,6 @@ const app = new Hono()
         }
 
         const responseData = await aiResponse.json();
-        console.log("AI Response:", responseData);
       } catch (error) {
         console.error('Error upserting transaction to AI:', error);
         return ctx.json({ error: 'Failed to upsert transaction to AI' }, 500);
@@ -234,7 +233,6 @@ const app = new Hono()
         }
 
         const responseData = await aiResponse.json();
-        console.log("AI Response:", responseData);
       } catch (error) {
         console.error('Error upserting transactions to AI:', error);
         return ctx.json({ error: 'Failed to upsert transactions to AI' }, 500);

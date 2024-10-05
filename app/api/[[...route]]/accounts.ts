@@ -135,6 +135,14 @@ const app = new Hono()
           )
         );
 
+      // Delete recurring transactions associated with the accounts
+      await db
+        .delete(recurringTransactions)
+        .where(
+          inArray(recurringTransactions.accountId, values.ids)
+        );
+
+      // Delete the accounts from the database
       const data = await db
         .delete(accounts)
         .where(
