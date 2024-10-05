@@ -276,14 +276,29 @@ const TransactionsPage = () => {
                       Recategorize
                     </Button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent>
+                  <AlertDialogContent className="rounded-lg lg:rounded-2xl">
                     <AlertDialogHeader>
-                      <h2 className="font-semibold">Recategorize Transactions</h2>
-                      <p>Are you sure you want to recategorize all transactions?</p>
+                      <div className="flex items-center space-x-2">
+                        <h2 className="font-bold text-xl lg:text-2xl text-gray-900">
+                          Recategorize Transactions
+                        </h2>
+                        <div className="relative z-20 hover:z-40">
+                          <span className="cursor-pointer bg-transparent border border-gray-500 text-gray-500 rounded-full px-2 py-1 text-sm font-semibold peer">
+                            i
+                          </span>
+                          <div className="absolute left-1/2 transform -translate-x-1/2 mt-2 w-48 p-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg shadow-lg opacity-0 pointer-events-none transition-opacity duration-200 text-center peer-hover:opacity-100">
+                            Each transaction will recategorize into one of the categories you have set.
+                          </div>
+                        </div>
+                      </div>
+                      <p className="mt-4 text-gray-800">
+                        Are you sure you want to recategorize all transactions?
+                      </p>
                     </AlertDialogHeader>
+
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={onRecategorize}>Yes</AlertDialogAction>
+                      <AlertDialogCancel className="z-10 hover:z-50 md:mr-4">Cancel</AlertDialogCancel>
+                      <AlertDialogAction className="z-10 hover:z-50 md:px-10" onClick={onRecategorize}>Yes</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
