@@ -112,7 +112,6 @@ app.post('/', clerkMiddleware(), async (ctx) => {
   function stringToList(input: string): string[] {
     const cleanedInput = input.slice(1, -1).trim();
     const list = cleanedInput.split(',').map(item => item.trim());
-
     return list;
   }
 
@@ -120,13 +119,13 @@ app.post('/', clerkMiddleware(), async (ctx) => {
   const categorizedResults = stringToList(aiData);
 
   // Insert transactions into the database with categorized results
-  const insertedTransactions = await Promise.all(
+  await Promise.all(
     plaidTransactions.map(async (transaction, index) => {
       const accountId = accountIdMap[transaction.account_id];
 
       if (!accountId) {
         // Skip transaction if account is not in the database
-        return null;
+        return;
       }
 
       // Match AI result with a category in the database
@@ -134,13 +133,13 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
       if (!categoryId) {
         // Skip transaction if the AI categorization doesn't match any known category
-        return null;
+        return;
       }
 
       // Convert amount to string
       const amount = transaction.amount.toString();
 
-      return db.insert(transactions).values({
+      await db.insert(transactions).values({
         id: createId(),
         userId: userId,
         amount: amount,
@@ -153,8 +152,64 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     })
   );
 
-  return ctx.json({ transactions: insertedTransactions.filter(Boolean) });
-}).post('/recategorize', clerkMiddleware(), async (ctx) => {
+  // Fetch all inserted transactions for the user to format for AI
+  const userTransactions = await db
+    .select({
+      id: transactions.id,
+      amount: transactions.amount,
+      payee: transactions.payee,
+      date: transactions.date,
+      accountId: transactions.accountId,
+      categoryId: transactions.categoryId,
+    })
+    .from(transactions)
+    .where(eq(transactions.userId, userId));
+
+  // Format transactions for upserting to AI
+  const formattedTransactions = userTransactions
+    .map((transaction) => {
+      const amount = transaction.amount ?? "0"; // Default to "0" if undefined
+      const payee = transaction.payee ?? "Unknown Payee"; // Default to "Unknown Payee" if undefined
+      const date = new Date(transaction.date);
+      const formattedDate = date.toLocaleDateString();
+
+      return `
+        A transaction was made in the amount of $${amount} by the user to the person or group named ${payee} on ${formattedDate}. 
+        No additional notes were provided for this transaction.
+      `;
+    }).join("\n").trim(); // Remove any leading or trailing whitespace
+
+  // Upsert all transactions to the AI endpoint
+  try {
+    if (formattedTransactions) { // Ensure there are formatted transactions
+      const aiResponse = await fetch(
+        `${AI_URL}/resource/upsert_text?user_id=${userId}&name=Transactions for ${userId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+          },
+          body: formattedTransactions, // Ensure it is a properly formatted plain string
+        }
+      );
+
+      if (!aiResponse.ok) {
+        const errorText = await aiResponse.text();
+        throw new Error(`Upsert failed: ${errorText}`);
+      }
+
+      const responseData = await aiResponse.json();
+      console.log("AI Response:", responseData);
+    }
+  } catch (error) {
+    console.error('Error upserting transactions:', error);
+    return ctx.json({ error: 'Failed to upsert transactions' }, 500);
+  }
+
+  return ctx.json({ message: 'Transactions inserted successfully.' });
+});
+
+app.post('/recategorize', clerkMiddleware(), async (ctx) => {
   const auth = getAuth(ctx);
   const userId = auth?.userId;
 

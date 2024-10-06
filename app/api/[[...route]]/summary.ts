@@ -1,6 +1,6 @@
 import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 import { zValidator } from "@hono/zod-validator";
-import { differenceInDays, parse, subDays } from "date-fns";
+import { differenceInDays, parse, subDays, isSameDay } from "date-fns";
 import { and, desc, eq, gte, lte, sql, sum } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -40,6 +40,7 @@ const app = new Hono().get(
     const lastPeriodStart = subDays(startDate, periodLength);
     const lastPeriodEnd = subDays(endDate, periodLength);
 
+    // Fetch financial data (income, expenses, remaining)
     async function fetchFinancialData(
       userId: string,
       startDate: Date,
@@ -95,6 +96,34 @@ const app = new Hono().get(
       lastPeriod.remaining
     );
 
+    // Fetch categories with their budget amounts
+    const categoriesWithBudget = await db
+      .select({
+        name: categories.name,
+        budgetAmount: categories.budgetAmount, // Assuming budgetAmount exists in the schema
+      })
+      .from(categories)
+      .where(eq(categories.userId, auth.userId));
+
+    // Calculate total monthly budget
+    const totalMonthlyBudget = categoriesWithBudget.reduce(
+      (sum, category) => sum + parseFloat(category.budgetAmount || "0"),
+      0
+    );
+
+    // Prorate the budget over the selected date range
+    const budgetPerDay = totalMonthlyBudget / 30.44; // Average days in a month
+    const daysInRange = differenceInDays(endDate, startDate) + 1;
+
+    const dailyBudgets = Array.from({ length: daysInRange }).map((_, index) => {
+      const date = subDays(endDate, daysInRange - index - 1);
+      return {
+        date,
+        budget: budgetPerDay * (index + 1),
+      };
+    });
+
+    // Fetch category spending and group by categories
     const category = await db
       .select({
         name: categories.name,
@@ -129,6 +158,7 @@ const app = new Hono().get(
     if (otherCategories.length > 0)
       finalCategories.push({ name: "Other", value: otherSum });
 
+    // Fetch daily income and expenses, fill missing days
     const activeDays = await db
       .select({
         date: transactions.date,
@@ -154,6 +184,15 @@ const app = new Hono().get(
 
     const days = fillMissingDays(activeDays, startDate, endDate);
 
+    // Merge the budget data with the daily expenses data
+    const daysWithBudget = days.map((day) => {
+      const budgetData = dailyBudgets.find((d) => isSameDay(d.date, day.date));
+      return {
+        ...day,
+        budget: budgetData ? budgetData.budget : 0,
+      };
+    });
+
     return ctx.json({
       data: {
         remainingAmount: currentPeriod.remaining,
@@ -163,7 +202,7 @@ const app = new Hono().get(
         expensesAmount: currentPeriod.expenses,
         expensesChange,
         categories: finalCategories,
-        days,
+        days: daysWithBudget,
       },
     });
   }

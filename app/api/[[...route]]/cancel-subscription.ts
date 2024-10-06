@@ -2,14 +2,14 @@ import { Hono } from 'hono';
 import { clerkMiddleware, getAuth } from '@hono/clerk-auth';
 import Stripe from 'stripe';
 import { db } from '@/db/drizzle';
-import { stripeCustomers } from '@/db/schema';
+import { stripeCustomers, accounts, transactions } from '@/db/schema';
 import { config } from 'dotenv';
 import { eq, and } from 'drizzle-orm';
-import { accounts, transactions } from '@/db/schema';
 
 config({ path: '.env.local' });
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_TEST_KEY!);
+const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
 
 const app = new Hono();
 
@@ -54,13 +54,36 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       prorate: true,
     });
 
+    // Fetch all accounts for the user where isFromPlaid is True
+    const accountsToDelete = await db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(and(eq(accounts.userId, auth.userId), eq(accounts.isFromPlaid, true)));
+
+    // Make requests to delete resources from AI backend before deleting accounts
+    for (const account of accountsToDelete) {
+      const name = `Transactions from ${account.id} for ${auth.userId}`;
+      try {
+        const aiResponse = await fetch(`${AI_URL}/resources/delete/${encodeURIComponent(name)}`, {
+          method: 'DELETE',
+        });
+
+        if (!aiResponse.ok) {
+          const errorText = await aiResponse.text();
+          console.error(`Failed to delete from AI backend: ${errorText}`);
+        }
+      } catch (error) {
+        console.error(`Error deleting from AI backend for account ${account.id}:`, error);
+      }
+    }
+
     // Delete all accounts for the user where isFromPlaid is True
     await db.delete(accounts)
-      .where(and(eq(accounts.userId, auth.userId), eq(accounts.isFromPlaid, true)))
+      .where(and(eq(accounts.userId, auth.userId), eq(accounts.isFromPlaid, true)));
 
     // Delete all transactions for the user where isFromPlaid is True
     await db.delete(transactions)
-      .where(and(eq(transactions.userId, auth.userId), eq(transactions.isFromPlaid, true)))
+      .where(and(eq(transactions.userId, auth.userId), eq(transactions.isFromPlaid, true)));
 
     // Respond with a redirect URL
     return ctx.json({ message: 'Subscription canceled successfully.', redirectUrl: '/' });
