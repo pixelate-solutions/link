@@ -136,20 +136,20 @@ export const BudgetVsSpendingChart = ({ data }: BudgetVsSpendingChartProps) => {
                     }
 
                     return [
-                        <div className="bg-white">
-                            <div className='flex w-full'>
-                                <div
-                                    className="rounded-full mt-1.5 mr-2 w-[8px] h-[8px]"
-                                    style={{ backgroundColor: color }}
-                                    />
-                                <span className='text-sm text-gray-700'>
-                                    {name === "Spending" ? "Spending: " : "Budget: "}
-                                </span>
-                                <span className='text-sm text-black pl-2'>
-                                    {name !== "Spending" ? formattedValue : `-${formattedValue}`}
-                                </span>
-                            </div>
+                    <div key="tooltip-content" className="bg-white">
+                        <div className='flex w-full'>
+                        <div
+                            className="rounded-full mt-1.5 mr-2 w-[8px] h-[8px]"
+                            style={{ backgroundColor: color }}
+                        />
+                        <span className='text-sm text-gray-700'>
+                            {name === "Spending" ? "Spending: " : "Budget: "}
+                        </span>
+                        <span className='text-sm text-black pl-2'>
+                            {name !== "Spending" ? formattedValue : `-${formattedValue}`}
+                        </span>
                         </div>
+                    </div>
                     ];
                 }}
                 contentStyle={{
