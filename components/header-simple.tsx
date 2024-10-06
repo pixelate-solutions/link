@@ -12,7 +12,7 @@ export const HeaderSimple = () => {
   const { user, isLoaded } = useUser();
 
   return (
-    <header className="sticky top-0 bg-gradient-to-b from-blue-700 to-blue-500 px-4 py-8 lg:px-14 lg:pb-16 z-50">
+    <header className="sticky top-0 bg-gradient-to-br from-blue-500 to-purple-500 px-4 py-8 lg:px-14 lg:pb-16 z-50">
       <div className="mx-auto max-w-screen-2xl">
         <div className="mb-14 flex w-full items-center justify-between">
           <div className="flex items-center lg:gap-x-16">

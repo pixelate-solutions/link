@@ -5,24 +5,33 @@ import { useUser } from "@clerk/nextjs";
 import { ClerkLoaded, ClerkLoading, UserButton } from "@clerk/nextjs";
 import { Loader2 } from "lucide-react";
 
-import { Filters } from "./filters";
 import { HeaderLogo } from "./header-logo";
-import { Navigation } from "./navigation";
-import { WelcomeMsg } from "./welcome-msg";
+import { Button } from "./ui/button";
+import { useRouter } from "next/navigation";
 
-export const Header = () => {
+export const HeaderLanding = () => {
   const { user, isLoaded } = useUser();
+  const router = useRouter();
+  
+  const handleButtonClick = () => {
+    router.push("/overview");
+  };
 
   return (
-    <header className="bg-gradient-to-br from-blue-500 to-purple-500 px-4 py-8 lg:px-14 lg:pb-32">
+    <header className="bg-gradient-to-br from-blue-500 to-purple-500 px-4 py-8 lg:px-14 lg:pb-16 h-[150px] lg:h-[250px] z-0">
       <div className="mx-auto max-w-screen-2xl">
         <div className="mb-14 flex w-full items-center justify-between">
-          <div className="flex items-center lg:gap-x-16">
-            <HeaderLogo />
-            <Navigation />
+          <div className="flex items-center gap-x-2 lg:gap-x-16">
+            <HeaderLogo withLink={false} />
           </div>
 
           <div className="flex items-center gap-x-2">
+            <Button
+                className="px-6 py-2 lg:px-8 lg:py-6 mt-2 mr-2 lg:mr-8 bg-white text-black text-sm lg:text-lg hover:bg-gray-200"
+                onClick={handleButtonClick}
+            >
+                {user ? "Dashboard" : "Get Started"}
+            </Button>
             <ClerkLoaded>
               <UserButton afterSignOutUrl="/" />
             </ClerkLoaded>
@@ -33,10 +42,6 @@ export const Header = () => {
           </div>
         </div>
 
-        <WelcomeMsg />
-        {!!user && (
-          <Filters />
-        )}
       </div>
     </header>
   );

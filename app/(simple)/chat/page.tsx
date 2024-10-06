@@ -239,7 +239,7 @@ const Chatbot = () => {
               const isAssistant = item.role === "assistant";
               return (
                 <div key={`message-${index}`} className={`mb-4 flex ${isAssistant ? "justify-start" : "justify-end"}`}>
-                  <div className={`chat-message p-2 shadow-md rounded-lg ${isAssistant ? "bg-gray-200 text-gray-800" : "bg-blue-500 text-white"} max-w-[65%]`}>
+                  <div className={`chat-message p-2 shadow-md rounded-lg ${isAssistant ? "bg-gray-200 text-gray-800" : "bg-gradient-to-br from-blue-500 to-purple-500 text-white"} max-w-[65%]`}>
                     <ReactMarkdown
                       remarkPlugins={[gfm]}
                       rehypePlugins={[rehypeRaw as unknown as any]}
@@ -275,6 +275,7 @@ const Chatbot = () => {
       <div className="p-4 pb-10 fixed bottom-0 rounded-t-2xl full-width-minus bg-white border-t border-gray-300">
         <div className="flex">
           <textarea
+            disabled={(subscriptionStatus === "Free" || subscriptionStatus === "Loading..." || !isLoaded || isClearLoading)}
             className="flex-grow border border-gray-300 rounded-md p-2 mr-2 resize-none focus:border-blue-500 focus:outline-none text-sm lg:text-[16px]"
             placeholder="Type your message here..."
             rows={1}
@@ -282,7 +283,10 @@ const Chatbot = () => {
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyDown={handleKeyPress}
           />
-          <Button onClick={handleSendMessage} className="bg-blue-500 text-white rounded-r-md p-2 lg:w-[100px] text-sm lg:text-[16px] hover:bg-blue-400">
+          <Button
+            disabled={(subscriptionStatus === "Free" || subscriptionStatus === "Loading..." || !isLoaded || isClearLoading)}
+            onClick={handleSendMessage}
+            className="bg-gradient-to-br from-blue-500 to-purple-500 text-white rounded-r-md p-2 lg:w-[100px] text-sm lg:text-[16px] hover:bg-blue-400">
             Send
           </Button>
         </div>
@@ -290,7 +294,7 @@ const Chatbot = () => {
       {(subscriptionStatus === "Free" || subscriptionStatus === "Loading..." || !isLoaded || isClearLoading) && (
         <div className="absolute inset-0 backdrop-blur-sm bg-white/70 z-20 flex min-h-[600px] lg:min-h-[700px] items-center justify-center">
           {(subscriptionStatus !== "Loading..." && !isClearLoading) && (
-            <Button onClick={() => setOpenUpgradeDialog(true)} className="bg-blue-500 hover:bg-blue-400 z-30 shadow-sm hover:shadow-md shadow-gray-500">
+            <Button onClick={() => setOpenUpgradeDialog(true)} className="bg-gradient-to-br from-blue-500 to-purple-500 hover:scale-105 transition-all z-30 shadow-sm font-bold text-md hover:shadow-md shadow-gray-500">
               Upgrade to Link Premium
             </Button>
           )}

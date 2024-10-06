@@ -328,3 +328,10 @@ blockquote {
 table {
   margin-bottom: 1em;
 }
+
+.landing-gradient-text {
+  background: linear-gradient(to bottom right, #3370d3, #734ccd);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
