@@ -1,4 +1,4 @@
-import { LineChart, XAxis, YAxis, Tooltip, Legend, Line, ResponsiveContainer, CartesianGrid, Area, AreaChart } from 'recharts';
+import { XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid, Area, AreaChart } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { useEffect, useState } from 'react';
