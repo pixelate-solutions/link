@@ -9,7 +9,7 @@ interface HeaderLogoProps {
   withLink?: boolean; // Optional prop to control whether the logo is a link
 }
 
-export const HeaderLogo = ({ withLink = true }: HeaderLogoProps) => {
+export const HeaderLogoLanding = ({ withLink = true }: HeaderLogoProps) => {
   const [logoRoute, setLogoRoute] = useState<string>("/");
 
   const { user } = useUser();

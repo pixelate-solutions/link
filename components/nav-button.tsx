@@ -7,9 +7,10 @@ type NavButtonProps = {
   href: string;
   label: string;
   isActive: boolean;
+  onClick?: () => void;
 };
 
-export const NavButton = ({ href, label, isActive }: NavButtonProps) => {
+export const NavButton = ({ href, label, isActive, onClick }: NavButtonProps) => {
   return (
     <Button
       size="sm"
@@ -19,6 +20,7 @@ export const NavButton = ({ href, label, isActive }: NavButtonProps) => {
         isActive ? "bg-white/10 text-white" : "bg-transparent"
       )}
       asChild
+      onClick={onClick}
     >
       <Link href={href}>{label}</Link>
     </Button>
