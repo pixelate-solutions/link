@@ -377,7 +377,7 @@ const LandingPage = () => {
       >
         <Accordion type="single" collapsible className={cn("w-[90%] ml-[5%] sm:w-[70%] sm:ml-[15%] lg:w-[50%] lg:ml-[25%] text-left", montserratP.className)}>
           <AccordionItem value="item-1">
-            <AccordionTrigger className="text-lg hover:no-underline hover:bg-gray-100 p-4 rounded-2xl my-2">What can I do with Link's budgeting features?</AccordionTrigger>
+            <AccordionTrigger className="text-lg hover:no-underline hover:bg-gray-100 p-4 rounded-2xl my-2">What can I do with Link&apos;s budgeting features?</AccordionTrigger>
             <AccordionContent className="font-normal px-4 text-md">
               With Link, you can set personalized budgets, track your spending, and categorize your transactions. It gives you a clear picture of your financial habits.
             </AccordionContent>
@@ -397,11 +397,11 @@ const LandingPage = () => {
           <AccordionItem value="item-4">
             <AccordionTrigger className="text-lg hover:no-underline hover:bg-gray-100 p-4 rounded-2xl my-2">How does the virtual assistant work in Link?</AccordionTrigger>
             <AccordionContent className="font-normal px-4 text-md">
-              Link's virtual assistant can help you manage your budget and spending. You can choose to let it use information from your transactions or keep that data private. Chatting with the assistant is a premium feature.
+              Link&apos;s virtual assistant can help you manage your budget and spending. You can choose to let it use information from your transactions or keep that data private. Chatting with the assistant is a premium feature.
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="item-5">
-            <AccordionTrigger className="text-lg hover:no-underline hover:bg-gray-100 p-4 rounded-2xl my-2">What features are included in Link's free version?</AccordionTrigger>
+            <AccordionTrigger className="text-lg hover:no-underline hover:bg-gray-100 p-4 rounded-2xl my-2">What features are included in Link&apos;s free version?</AccordionTrigger>
             <AccordionContent className="font-normal px-4 text-md">
               The free version of Link is fully functional, allowing you to budget, track income, categorize transactions, and view dashboard insights. The only features not included are linking your bank accounts and chatting with the virtual assistant.
             </AccordionContent>
