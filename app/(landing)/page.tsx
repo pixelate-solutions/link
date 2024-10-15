@@ -67,7 +67,7 @@ const LandingPage = () => {
     const isLifetimePlanInView = useInView(lifetimePlanRef, { once: true });
 
     return (
-      <motion.section className="px-4 py-12 text-center" id="pricing">
+      <motion.section className="px-4 py-12 pt-32 text-center" id="pricing">
         <div className="bg-white w-[90%] ml-[5%] lg:w-[60%] lg:ml-[20%] py-6 px-6 lg:px-[150px] xl:px-[200px] rounded-2xl mb-12 z-50">
           <h2 className="text-3xl font-bold mb-6 text-gray-800">Transparent Pricing</h2>
           <p className="text-gray-600">
@@ -219,7 +219,7 @@ const LandingPage = () => {
     }, [controls, images.length]);
 
     return (
-      <div className="overflow-hidden w-[90%] md:w-[70%] sm:w-[80%] rounded-2xl relative -mt-[250px] sm:-mt-[370px] mb-[50px] fade-div px-2">
+      <div className="overflow-hidden w-[90%] md:w-[70%] sm:w-[80%] rounded-2xl relative -mt-[250px] sm:-mt-[370px] mb-[25px] fade-div px-2">
         <motion.div
           initial={{ opacity: 0 }} // Start with opacity 0
           animate={controls} // Attach controls for smooth scrolling
@@ -246,7 +246,7 @@ const LandingPage = () => {
     const isInView = useInView(ref, { once: true });
 
     return (
-      <section id="features" className="py-16 px-4 bg-white w-[90%] ml-[5%]" ref={ref}>
+      <section id="features" className="py-16 pt-32 px-4 bg-white w-[90%] ml-[5%]" ref={ref}>
         {/* Main heading and subtitle */}
         <motion.div
           className="text-center max-w-2xl mx-auto mb-12"
@@ -512,7 +512,7 @@ const LandingPage = () => {
             initial={{ scale: 0.250 }}
             animate={{ scale: 1 }}
             transition={{ duration: 0.5 }}
-            className="px-4 py-12 text-center"
+            className="px-4 py-12 pt-32 text-center"
             id="faq"
           >
             <h2 className="text-3xl font-bold mb-6 text-gray-800">Frequently Asked Questions</h2>
