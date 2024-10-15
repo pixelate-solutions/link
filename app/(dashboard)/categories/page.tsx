@@ -12,9 +12,20 @@ import { useBulkDeleteCategories } from "@/features/categories/api/use-bulk-dele
 import { useGetCategories } from "@/features/categories/api/use-get-categories";
 import { useNewCategory } from "@/features/categories/hooks/use-new-category";
 import { differenceInDays, parseISO, isFirstDayOfMonth, lastDayOfMonth, isSameDay, subDays, endOfToday, subMonths } from 'date-fns';
-
-// Import columns
+import "/styles.css"
 import { columns } from "./columns";
+import { Montserrat } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const montserratP = Montserrat({
+  weight: "600",
+  subsets: ["latin"],
+});
+
+const montserratH = Montserrat({
+  weight: "800",
+  subsets: ["latin"],
+});
 
 // Define the type for the category totals
 const fetchCategoryTotals = async (from: string, to: string): Promise<CategoryTotal[]> => {
@@ -62,7 +73,7 @@ const CategoriesPage = () => {
 
   if (categoriesQuery.isLoading || totalsQuery.isLoading) {
     return (
-      <div className="mx-auto -mt-6 w-full max-w-screen-2xl pb-10">
+      <div className={cn("mx-auto -mt-6 w-full max-w-screen-2xl pb-10", montserratP.className)}>
         <Card className="border-none drop-shadow-sm">
           <CardHeader>
             <Skeleton className="h-8 w-48" />
@@ -119,7 +130,7 @@ const CategoriesPage = () => {
   }));
 
   return (
-    <div className="mx-auto -mt-6 w-full max-w-screen-2xl pb-10">
+    <div className={cn("mx-auto -mt-6 w-full max-w-screen-2xl pb-10", montserratP.className)}>
       <Card className="border-none drop-shadow-sm">
         <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between">
           <CardTitle className="line-clamp-1 text-xl">

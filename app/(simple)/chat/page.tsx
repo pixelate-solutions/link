@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { UpgradePopup } from "@/components/upgrade-popup";
 import "@/styles.css";
+import { cn } from "@/lib/utils";
 
 const montserratP = Montserrat({
   weight: "600",
@@ -197,7 +198,7 @@ const Chatbot = () => {
   };
 
   return (
-    <div className="relative flex flex-col h-full w-full lg:w-[80%] lg:ml-[10%] -mt-5 lg:-mt-20 pb-[100px]">
+    <div className={cn("relative flex flex-col h-full w-full lg:w-[80%] lg:ml-[10%] -mt-5 lg:-mt-20 pb-[100px]", montserratP.className)}>
       <div className="flex flex-col flex-grow rounded-2xl bg-gradient-to-b from-gray-50 to-white">
         <div className="sticky top-[92px] bg-gray-50 p-4 rounded-2xl z-50">
           <div className="sticky bg-white w-full h-[110px] p-4 border-b-2 border-x-2 rounded-xl lg:rounded-b-xl">

@@ -68,13 +68,24 @@ const LandingPage = () => {
 
     return (
       <motion.section className="px-4 py-12 text-center" id="pricing">
-        <h2 className="text-3xl font-bold mb-6 text-gray-800">Transparent Pricing</h2>
-        <p className="text-gray-600 mb-12">
-          Choose the plan that fits your needs and start managing your finances effortlessly.
-        </p>
+        <div className="bg-white w-[90%] ml-[5%] lg:w-[60%] lg:ml-[20%] py-6 px-6 lg:px-[150px] xl:px-[200px] rounded-2xl mb-12 z-50">
+          <h2 className="text-3xl font-bold mb-6 text-gray-800">Transparent Pricing</h2>
+          <p className="text-gray-600">
+            Choose the plan that fits your needs and start managing your finances effortlessly.
+          </p>
+        </div>
 
-        <div className="grid grid-cols-1 gap-8 mb-12 mx-auto">
-          {/* Free Plan (takes full width on its own row) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12 mx-auto">
+          {/* Mockup Images (only visible on lg or larger screens) */}
+          <div className="hidden lg:flex justify-center items-center ml-[100px] xl:ml-[150px] -mt-[100px]">
+            <img
+              src="/OverviewMockUp.png"
+              alt="Overview Mock Up"
+              className="w-full h-auto max-w-[300px] lg:max-w-[300px]"
+            />
+          </div>
+
+          {/* Free Plan */}
           <motion.div
             ref={freePlanRef}
             initial={{ scale: 0.25 }}
@@ -96,6 +107,15 @@ const LandingPage = () => {
               Get Started
             </Button>
           </motion.div>
+
+          {/* Mockup Images (only visible on lg or larger screens) */}
+          <div className="hidden lg:flex justify-center items-center mr-[100px] xl:mr-[150px] -mt-[100px]">
+            <img
+              src="/ChatMockUp.png"
+              alt="Chat Mock Up"
+              className="w-full h-auto max-w-[300px] lg:max-w-[300px]"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
@@ -116,8 +136,8 @@ const LandingPage = () => {
               <li className="mb-2">✔ Chat with Virtual Assistant</li>
               <li className="mb-2">✔ Bulk-Upload Transactions</li>
             </ul>
-            <Button className="mt-auto w-full bg-gray-200 text-gray-700 hover:bg-gray-100 hover:scale-105 transition-all">
-              Choose Monthly
+            <Button onClick={() => {router.push("/settings")}} className="mt-auto w-full bg-gray-200 text-gray-700 hover:bg-gray-100 hover:scale-105 transition-all">
+              Upgrade
             </Button>
           </motion.div>
 
@@ -138,8 +158,8 @@ const LandingPage = () => {
               <li className="mb-2">✔ Chat with Virtual Assistant</li>
               <li className="mb-2">✔ Bulk-Upload Transactions</li>
             </ul>
-            <Button className="mt-auto w-full bg-white text-blue-500 hover:bg-gray-100 hover:scale-105 transition-all">
-              Choose Yearly
+            <Button onClick={() => {router.push("/settings")}} className="mt-auto w-full bg-white text-blue-500 hover:bg-gray-100 hover:scale-105 transition-all">
+              Upgrade
             </Button>
           </motion.div>
 
@@ -158,8 +178,8 @@ const LandingPage = () => {
               <li className="mb-2">✔ Lifetime access to all features</li>
               <li className="mb-2">✔ No renewal fees</li>
             </ul>
-            <Button className="mt-auto w-full bg-gray-200 text-gray-700 hover:bg-gray-100 hover:scale-105 transition-all">
-              Choose Lifetime
+            <Button onClick={() => {router.push("/settings")}} className="mt-auto w-full bg-gray-200 text-gray-700 hover:bg-gray-100 hover:scale-105 transition-all">
+              Upgrade
             </Button>
           </motion.div>
         </div>
@@ -173,7 +193,7 @@ const LandingPage = () => {
       "/Categories.png",
       "/Transactions.png",
       "/ConnectedAccounts.png",
-      "/Chat3.png",
+      "/Chat.png",
     ];
 
     const controls = useAnimation();
@@ -182,11 +202,17 @@ const LandingPage = () => {
       // Ensure animation is called after the component mounts
       controls.start({
         x: ["0%", "-50%", "-100%"], // Adjust for smooth scrolling and looping
+        opacity: [0, 1], // Start from opacity 0 and transition to 1
         transition: {
           x: {
             duration: images.length * 4, // Control speed based on number of images
             ease: "linear",
             repeat: Infinity, // Loop forever
+          },
+          opacity: {
+            duration: 0.6, // Opacity transition duration
+            ease: "linear", // Smooth easing for opacity
+            delay: 0.7, // Delay before opacity animation starts
           },
         },
       });
@@ -195,9 +221,10 @@ const LandingPage = () => {
     return (
       <div className="overflow-hidden w-[90%] md:w-[70%] sm:w-[80%] rounded-2xl relative -mt-[250px] sm:-mt-[370px] mb-[50px] fade-div px-2">
         <motion.div
+          initial={{ opacity: 0 }} // Start with opacity 0
+          animate={controls} // Attach controls for smooth scrolling
           className="flex bg-white"
           style={{ width: `${images.length * 50}%` }} // Display multiple images at once
-          animate={controls} // Attach controls for smooth scrolling
         >
           {images.concat(images).map((src, index) => ( // Duplicate images for continuous scrolling
             <div key={index} className="flex-none mx-5 bg-white pb-2">
@@ -350,21 +377,33 @@ const LandingPage = () => {
       >
         <Accordion type="single" collapsible className={cn("w-[90%] ml-[5%] sm:w-[70%] sm:ml-[15%] lg:w-[50%] lg:ml-[25%] text-left", montserratP.className)}>
           <AccordionItem value="item-1">
-            <AccordionTrigger>Is it accessible?</AccordionTrigger>
-            <AccordionContent>
-              Yes. It adheres to the WAI-ARIA design pattern.
+            <AccordionTrigger className="text-lg hover:no-underline hover:bg-gray-100 p-4 rounded-2xl my-2">What can I do with Link's budgeting features?</AccordionTrigger>
+            <AccordionContent className="font-normal px-4 text-md">
+              With Link, you can set personalized budgets, track your spending, and categorize your transactions. It gives you a clear picture of your financial habits.
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="item-2">
-            <AccordionTrigger>Is it styled?</AccordionTrigger>
-            <AccordionContent>
-              Yes. It comes with default styles that matches the other components&apos; aesthetic.
+            <AccordionTrigger className="text-lg hover:no-underline hover:bg-gray-100 p-4 rounded-2xl my-2">How does Link help with income tracking and financial insights?</AccordionTrigger>
+            <AccordionContent className="font-normal px-4 text-md">
+              Link lets you track income and spending trends over time, view detailed data through dashboard charts and graphs, and gain insights into your financial health.
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="item-3">
-            <AccordionTrigger>Is it animated?</AccordionTrigger>
-            <AccordionContent>
-              Yes. It&apos;s animated by default, but you can disable it if you prefer.
+            <AccordionTrigger className="text-lg hover:no-underline hover:bg-gray-100 p-4 rounded-2xl my-2">Can I link my bank accounts to Link for automatic transaction syncing?</AccordionTrigger>
+            <AccordionContent className="font-normal px-4 text-md">
+              Yes, you can link your bank accounts to automatically sync transactions. This feature is available with the premium version of Link.
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="item-4">
+            <AccordionTrigger className="text-lg hover:no-underline hover:bg-gray-100 p-4 rounded-2xl my-2">How does the virtual assistant work in Link?</AccordionTrigger>
+            <AccordionContent className="font-normal px-4 text-md">
+              Link's virtual assistant can help you manage your budget and spending. You can choose to let it use information from your transactions or keep that data private. Chatting with the assistant is a premium feature.
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="item-5">
+            <AccordionTrigger className="text-lg hover:no-underline hover:bg-gray-100 p-4 rounded-2xl my-2">What features are included in Link's free version?</AccordionTrigger>
+            <AccordionContent className="font-normal px-4 text-md">
+              The free version of Link is fully functional, allowing you to budget, track income, categorize transactions, and view dashboard insights. The only features not included are linking your bank accounts and chatting with the virtual assistant.
             </AccordionContent>
           </AccordionItem>
         </Accordion>
@@ -417,7 +456,7 @@ const LandingPage = () => {
                 }, 750);
                 setTimeout(() => {
                   scrollToTop();
-                }, 750);
+                }, 800);
               }}
               className="rounded-full h-[50px] w-[50px] bg-white p-2 hover:bg-gray-100"
             >
@@ -431,12 +470,11 @@ const LandingPage = () => {
       {(hasScrolledDown || showBoth) && (
         <div className="bg-white" ref={contentRef}>
           <HeaderLanding />
+          <div className="-mt-[100px] lg:-mt-[120px] h-[170px] lg:h-[240px] w-full bg-gradient-to-br from-blue-500 to-purple-500">
+          </div>
 
           {/* Feature Section */}
-          <motion.section
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 0.5 }}
+          <section
             className="px-4 py-12 text-center bg-white"
           >
             <div className="ml-[2.5%] w-[95%] md:ml-[10%] md:w-[80%] h-[700px] -mt-[100px] lg:-mt-[150px] p-10 z-50 shadow-md shadow-gray-300 mb-[50px] bg-white rounded-2xl">
@@ -447,13 +485,13 @@ const LandingPage = () => {
                 Budget your finances with charts, graphs, and AI analysis.
               </p>
               <div className="grid grid-cols-1 gap-y-5 sm:gap-y-0 sm:flex gap-x-5 w-full justify-items-center justify-center mt-10 xs:mt-20 sm:mt-20">
-                <Button className="px-8 py-6 lg:text-md rounded-full" variant="outline">
+                <Button onClick={() => {router.push("/#features")}} className="px-8 py-6 lg:text-md rounded-full" variant="outline">
                   Features
                 </Button>
                 <Button onClick={() => {router.push("/overview")}} className="py-8 px-12 -mt-1.5 rounded-full text-md lg:text-lg bg-gradient-to-br from-blue-500 to-purple-500 hover:opacity-85">
                   {user ? "Dashboard" : "Get Started"}
                 </Button>
-                <Button className="px-8 py-6 lg:text-md rounded-full" variant="outline">
+                <Button onClick={() => {router.push("/#pricing")}} className="px-8 py-6 lg:text-md rounded-full" variant="outline">
                   Pricing
                 </Button>
               </div>
@@ -463,7 +501,7 @@ const LandingPage = () => {
             <div className="relative mt-8 flex items-center justify-center">
               <InfiniteScrollComponent />
             </div>
-          </motion.section>
+          </section>
 
           {/* Feature Section */}
           <FeaturesSection />

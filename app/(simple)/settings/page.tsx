@@ -7,6 +7,18 @@ import { useEffect, useState } from "react";
 import { usePlaidLink } from 'react-plaid-link';
 import { UpgradePopup } from "@/components/upgrade-popup";
 import { Typewriter } from 'react-simple-typewriter';
+import { Montserrat } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const montserratP = Montserrat({
+  weight: "600",
+  subsets: ["latin"],
+});
+
+const montserratH = Montserrat({
+  weight: "800",
+  subsets: ["latin"],
+});
 
 const SettingsPage = () => {
   const { user, isLoaded } = useUser();
@@ -16,6 +28,9 @@ const SettingsPage = () => {
   const [plaidIsOpen, setPlaidIsOpen] = useState<boolean>(false);
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [openPlaid, setOpenPlaid] = useState<() => void>(() => () => {});
+
+  const [promoCode, setPromoCode] = useState("");
+  const [featureBugRequest, setFeatureBugRequest] = useState("");
 
   // Fetch Plaid link token and initialize the Plaid Link UI
   useEffect(() => {
@@ -88,7 +103,7 @@ const SettingsPage = () => {
           if (label === "Free") {
             setSubscriptionButton("Upgrade");
           } else if (label === "Monthly" || label === "Annual") {
-            setSubscriptionButton("Update");
+            setSubscriptionButton("Manage");
           } else if (label === "Lifetime") {
             setSubscriptionButton("Complete");
           }
@@ -97,8 +112,48 @@ const SettingsPage = () => {
     }
   }, [user]);
 
+  const handlePromoSubmit = async () => {
+    // Fetch API logic for submitting promo code
+    const response = await fetch("/api/apply-promo-code", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        promoCode,
+      }),
+    });
+
+    if (response.ok) {
+      alert("Promo code applied successfully!");
+    } else {
+      alert("Failed to apply promo code.");
+    }
+  };
+
+  const handleFeatureBugSubmit = async () => {
+    // Logic for sending email
+    const response = await fetch("/api/send-email", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        to: "support@budgetwithlink.com",
+        subject: "Feature/Bug Report",
+        body: `A feature or bug request from ${user?.firstName} ${user?.lastName} is as follows:\n\n${featureBugRequest}\n\nSincerely,\nLink Helper`,
+      }),
+    });
+
+    if (response.ok) {
+      alert("Feature/Bug request sent successfully!");
+    } else {
+      alert("Failed to send the request.");
+    }
+  };
+
   return (
-    <div className="relative">
+    <div className={cn("relative", montserratP.className)}>
       {/* Overlay background when plaidIsOpen is true */}
       {plaidIsOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 min-h-screen z-50"></div>
@@ -150,6 +205,7 @@ const SettingsPage = () => {
                 {subscriptionButton}
               </Button>
             </div>
+
             <div className="flex w-full border-t py-3 items-center">
               <p className="w-[30%] md:w-[25%] lg:w-[20%] ml-[5%] md:ml-[10%] text-sm md:text-normal my-4 font-bold">
                 Link Accounts
@@ -170,6 +226,46 @@ const SettingsPage = () => {
                   }
                 }}>
                 {subscriptionStatus === "Loading..." ? "Loading..." : "Link Account"}
+              </Button>
+            </div>
+
+            {/* Promo Code Section */}
+            <div className="flex w-full border-t py-3 items-center">
+              <p className="w-[30%] md:w-[25%] lg:w-[20%] ml-[5%] md:ml-[10%] text-sm md:text-normal my-4 font-bold">
+                Promo Code
+              </p>
+              <input
+                type="text"
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value)}
+                className="input-field w-[35%] md:w-[20%] lg:w-[35%] border p-2"
+                placeholder="Enter Promo Code"
+              />
+              <Button
+                disabled={subscriptionStatus !== "Free"}
+                onClick={handlePromoSubmit}
+                className={`ml-[10%] md:ml-[20%] w-1/4 border ${subscriptionStatus !== "Free" ? "opacity-50 cursor-not-allowed" : ""}`}
+                variant="ghost">
+                Sign Up
+              </Button>
+            </div>
+
+            {/* Feature/Bug Request Section */}
+            <div className="flex w-full border-t py-3 items-center">
+              <p className="w-[30%] md:w-[25%] lg:w-[20%] ml-[5%] md:ml-[10%] text-sm md:text-normal my-4 font-bold">
+                Feature/Bug Request
+              </p>
+              <textarea
+                value={featureBugRequest}
+                onChange={(e) => setFeatureBugRequest(e.target.value)}
+                className="textarea-field w-[35%] md:w-[20%] lg:w-[35%] border p-2 min-h-[40px] max-h-[250px]"
+                placeholder="Enter your feature or bug request"
+              />
+              <Button
+                onClick={handleFeatureBugSubmit}
+                className="ml-[10%] md:ml-[20%] w-1/4 border"
+                variant="ghost">
+                Submit Request
               </Button>
             </div>
           </CardContent>

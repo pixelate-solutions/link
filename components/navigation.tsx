@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 import { NavButton } from "./nav-button";
+import { cn } from "@/lib/utils";
+import { Montserrat } from "next/font/google";
 
 const routes = [
   {
@@ -37,6 +39,16 @@ const routes = [
   },
 ];
 
+const montserratP = Montserrat({
+  weight: "600",
+  subsets: ["latin"],
+});
+
+const montserratH = Montserrat({
+  weight: "800",
+  subsets: ["latin"],
+});
+
 export const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -56,7 +68,7 @@ export const Navigation = () => {
           <Button
             variant="outline"
             size="sm"
-            className="border-none bg-white/10 font-normal text-white outline-none transition hover:bg-white/20 hover:text-white focus:bg-white/30 focus-visible:ring-transparent focus-visible:ring-offset-0"
+            className={cn("border-none bg-white/10 font-normal text-white outline-none transition hover:bg-white/20 hover:text-white focus:bg-white/30 focus-visible:ring-transparent focus-visible:ring-offset-0", montserratP.className)}
           >
             <Menu className="size-4" />
           </Button>

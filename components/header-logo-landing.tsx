@@ -4,6 +4,18 @@ import Image from "next/image";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
+import { Montserrat } from "next/font/google";
+
+const montserratP = Montserrat({
+  weight: "600",
+  subsets: ["latin"],
+});
+
+const montserratH = Montserrat({
+  weight: "800",
+  subsets: ["latin"],
+});
 
 interface HeaderLogoProps {
   withLink?: boolean; // Optional prop to control whether the logo is a link
@@ -19,7 +31,7 @@ export const HeaderLogoLanding = ({ withLink = true }: HeaderLogoProps) => {
   }, [user]);
 
   const LogoContent = (
-    <div className="hidden lg:flex items-center">
+    <div className={cn("hidden lg:flex items-center", montserratP.className)}>
       <Image src="/logo.svg" alt="Finance logo" height={28} width={28} />
       <p className="ml-2.5 text-2xl font-semibold text-white">Link</p>
     </div>

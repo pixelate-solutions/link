@@ -4,6 +4,18 @@ import Image from "next/image";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
+import { Montserrat } from "next/font/google";
+
+const montserratP = Montserrat({
+  weight: "600",
+  subsets: ["latin"],
+});
+
+const montserratH = Montserrat({
+  weight: "800",
+  subsets: ["latin"],
+});
 
 interface HeaderLogoLargeProps {
   withLink?: boolean;
@@ -20,13 +32,13 @@ export const HeaderLogoLarge = ({ withLink = true }: HeaderLogoLargeProps) => {
 
   return withLink ? (
     <Link href={logoRoute}>
-      <div className="flex items-center">
+      <div className={cn("flex items-center", montserratP.className)}>
         <Image src="/logo.svg" alt="Finance logo" height={80} width={80} />
         <p className="ml-2.5 text-4xl font-semibold text-white">Link</p>
       </div>
     </Link>
   ) : (
-    <div className="flex items-center">
+    <div className={cn("flex items-center", montserratP.className)}>
       <Image src="/logo.svg" alt="Finance logo" height={80} width={80} />
       <p className="ml-2.5 text-4xl font-semibold text-white">Link</p>
     </div>

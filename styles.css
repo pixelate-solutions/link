@@ -362,3 +362,7 @@ table {
 html {
   scroll-behavior: smooth;
 }
+
+body {
+  pointer-events: auto !important;
+}

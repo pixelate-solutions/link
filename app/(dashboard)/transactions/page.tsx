@@ -21,6 +21,7 @@ import { NewRecurringTransactionSheet } from "@/features/transactions/components
 import { recurringColumns } from "./recurring-columns";
 import { columns } from "./columns";
 import { useNewTransaction } from "@/features/transactions/hooks/use-new-transaction";
+import "/styles.css"
 
 // Import Shadcn components
 import {
@@ -33,6 +34,18 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { BeatLoader } from "react-spinners";
+import { Montserrat } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const montserratP = Montserrat({
+  weight: "600",
+  subsets: ["latin"],
+});
+
+const montserratH = Montserrat({
+  weight: "800",
+  subsets: ["latin"],
+});
 
 const useGetRecurringTransactions = () => {
   return useQuery({
@@ -231,7 +244,7 @@ const TransactionsPage = () => {
   }
 
   return (
-    <div className="mx-auto -mt-6 lg:-mt-12 w-full max-w-screen-2xl pb-10 bg-white rounded-2xl p-2">
+    <div className={cn("mx-auto -mt-6 lg:-mt-12 w-full max-w-screen-2xl pb-10 bg-white rounded-2xl p-2", montserratP.className)}>
       {recategorizeLoading && (
         <div className="fixed inset-0 flex items-center justify-center w-full bg-black bg-opacity-50 min-h-screen z-50">
           <BeatLoader color="#2196f3" margin={3} size={25} speedMultiplier={0.75} />
