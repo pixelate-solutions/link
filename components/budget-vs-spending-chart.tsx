@@ -127,7 +127,7 @@ export const BudgetVsSpendingChart = ({ data }: BudgetVsSpendingChartProps) => {
                     </span>
                 )}
                 formatter={(value, name, props) => {
-                    const formattedValue = `$${Number(value).toFixed(2)}`; // Format currency
+                    const formattedValue = `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                     let color = '';
                     if (name === 'Budget') {
                     color = "#22C55E"; // Green for Budget
