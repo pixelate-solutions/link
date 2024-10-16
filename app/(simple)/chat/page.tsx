@@ -293,7 +293,7 @@ const Chatbot = () => {
         </div>
       </div>
       {(subscriptionStatus === "Free" || subscriptionStatus === "Loading..." || !isLoaded || isClearLoading) && (
-        <div className="absolute inset-0 backdrop-blur-sm bg-white/70 z-20 flex min-h-[600px] lg:min-h-[700px] items-center justify-center">
+        <div className="fixed inset-0 backdrop-blur-sm bg-white/70 z-20 flex min-h-[600px] lg:min-h-[700px] items-center justify-center">
           {(subscriptionStatus !== "Loading..." && !isClearLoading) && (
             <Button onClick={() => setOpenUpgradeDialog(true)} className="bg-gradient-to-br from-blue-500 to-purple-500 hover:scale-105 transition-all z-30 shadow-sm font-bold text-md hover:shadow-md shadow-gray-500">
               Upgrade to Link Premium

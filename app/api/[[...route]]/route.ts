@@ -18,6 +18,8 @@ import categoryTotals from './get-category-totals';
 import plaidWebhook from './plaid-webhook';
 import chatAccess from './chat-access-status';
 import recurringTransactions from './upload-plaid-recurring-transactions';
+import promoCode from './promo'
+import sendEmail from './send-email'
 const app = new Hono().basePath('/api');
 
 const routes = app
@@ -38,6 +40,8 @@ const routes = app
   .route('/plaid/webhook', plaidWebhook)
   .route('/chat-access', chatAccess)
   .route('/plaid/recurring', recurringTransactions)
+  .route('/apply-promo-code', promoCode)
+  .route('/send-email', sendEmail)
   
 export const GET = handle(app);
 export const POST = handle(app);

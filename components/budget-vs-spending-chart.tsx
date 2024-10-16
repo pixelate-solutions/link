@@ -122,44 +122,46 @@ export const BudgetVsSpendingChart = ({ data }: BudgetVsSpendingChartProps) => {
               
               <Tooltip
                 labelFormatter={(date) => (
-                    <span className='text-gray-800 text-sm'>
+                  <span className='text-gray-800 text-sm'>
                     {format(parseISO(date), 'MMM d, yyyy')}
-                    </span>
+                  </span>
                 )}
+                cursor={{ stroke: '#ccc', strokeWidth: 1 }}
                 formatter={(value, name, props) => {
-                    const formattedValue = `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                    let color = '';
-                    if (name === 'Budget') {
+                  const formattedValue = `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                  let color = '';
+                  if (name === 'Budget') {
                     color = "#22C55E"; // Green for Budget
-                    } else if (name === 'Spending') {
+                  } else if (name === 'Spending') {
                     color = '#EF4444'; // Red for Spending
-                    }
+                  }
 
-                    return [
+                  return [
                     <div key="tooltip-content" className="bg-white">
-                        <div className='flex w-full'>
+                      <div className='flex w-full'>
                         <div
-                            className="rounded-full mt-1.5 mr-2 w-[8px] h-[8px]"
-                            style={{ backgroundColor: color }}
+                          className="rounded-full mt-1.5 mr-2 w-[8px] h-[8px]"
+                          style={{ backgroundColor: color }}
                         />
                         <span className='text-sm text-gray-700'>
-                            {name === "Spending" ? "Spending: " : "Budget: "}
+                          {name === "Spending" ? "Spending: " : "Budget: "}
                         </span>
                         <span className='text-sm text-black pl-2'>
-                            {name !== "Spending" ? formattedValue : `-${formattedValue}`}
+                          {name !== "Spending" ? formattedValue : `-${formattedValue}`}
                         </span>
-                        </div>
+                      </div>
                     </div>
-                    ];
+                  ];
                 }}
                 contentStyle={{
-                    borderRadius: '8px',
-                    borderColor: '#E5E7EB',
-                    backgroundColor: '#FFFFFF',
-                    padding: '8px 12px',
-                    boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
+                  borderRadius: '8px',
+                  borderColor: '#E5E7EB',
+                  backgroundColor: '#FFFFFF',
+                  padding: '8px 12px',
+                  boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
                 }}
-                />
+              />
+
               <Legend />
               
               {/* Spending Line (cumulative) */}

@@ -136,7 +136,7 @@ const LandingPage = () => {
               <li className="mb-2">✔ Chat with Virtual Assistant</li>
               <li className="mb-2">✔ Bulk-Upload Transactions</li>
             </ul>
-            <Button onClick={() => {router.push("/settings")}} className="mt-auto w-full bg-gray-200 text-gray-700 hover:bg-gray-100 hover:scale-105 transition-all">
+            <Button onClick={() => {router.push(`${user ? "/overview" : "/settings"}`)}} className="mt-auto w-full bg-gray-200 text-gray-700 hover:bg-gray-100 hover:scale-105 transition-all">
               Upgrade
             </Button>
           </motion.div>
@@ -158,7 +158,7 @@ const LandingPage = () => {
               <li className="mb-2">✔ Chat with Virtual Assistant</li>
               <li className="mb-2">✔ Bulk-Upload Transactions</li>
             </ul>
-            <Button onClick={() => {router.push("/settings")}} className="mt-auto w-full bg-white text-blue-500 hover:bg-gray-100 hover:scale-105 transition-all">
+            <Button onClick={() => {router.push(`${user ? "/overview" : "/settings"}`)}} className="mt-auto w-full bg-white text-blue-500 hover:bg-gray-100 hover:scale-105 transition-all">
               Upgrade
             </Button>
           </motion.div>
@@ -178,7 +178,7 @@ const LandingPage = () => {
               <li className="mb-2">✔ Lifetime access to all features</li>
               <li className="mb-2">✔ No renewal fees</li>
             </ul>
-            <Button onClick={() => {router.push("/settings")}} className="mt-auto w-full bg-gray-200 text-gray-700 hover:bg-gray-100 hover:scale-105 transition-all">
+            <Button onClick={() => {router.push(`${user ? "/overview" : "/settings"}`)}} className="mt-auto w-full bg-gray-200 text-gray-700 hover:bg-gray-100 hover:scale-105 transition-all">
               Upgrade
             </Button>
           </motion.div>
@@ -456,7 +456,7 @@ const LandingPage = () => {
                 }, 750);
                 setTimeout(() => {
                   scrollToTop();
-                }, 800);
+                }, 825);
               }}
               className="rounded-full h-[50px] w-[50px] bg-white p-2 hover:bg-gray-100"
             >

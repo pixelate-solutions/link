@@ -15,13 +15,8 @@ const montserratP = Montserrat({
   subsets: ["latin"],
 });
 
-const montserratH = Montserrat({
-  weight: "800",
-  subsets: ["latin"],
-});
-
 const SettingsPage = () => {
-  const { user, isLoaded } = useUser();
+  const { user } = useUser();
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>('Loading...');
   const [subscriptionButton, setSubscriptionButton] = useState<string>('Loading...');
   const [openUpgradeDialog, setOpenUpgradeDialog] = useState<boolean>(false);
@@ -32,7 +27,6 @@ const SettingsPage = () => {
   const [promoCode, setPromoCode] = useState("");
   const [featureBugRequest, setFeatureBugRequest] = useState("");
 
-  // Fetch Plaid link token and initialize the Plaid Link UI
   useEffect(() => {
     const fetchLinkToken = async () => {
       if (user?.id) {
@@ -66,7 +60,6 @@ const SettingsPage = () => {
         body: JSON.stringify({ public_token, userId: user?.id }),
       });
 
-      // After successfully setting the access token, upload accounts and transactions
       await fetch('/api/plaid/upload-accounts', { method: 'POST' });
       await fetch('/api/plaid/upload-transactions', { method: 'POST' });
       await fetch('/api/plaid/recurring', { method: 'POST' });
@@ -113,26 +106,20 @@ const SettingsPage = () => {
   }, [user]);
 
   const handlePromoSubmit = async () => {
-    // Fetch API logic for submitting promo code
     const response = await fetch("/api/apply-promo-code", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        promoCode,
+        promoCode: promoCode.trim(),
       }),
     });
 
-    if (response.ok) {
-      alert("Promo code applied successfully!");
-    } else {
-      alert("Failed to apply promo code.");
-    }
+    window.location.reload();
   };
 
   const handleFeatureBugSubmit = async () => {
-    // Logic for sending email
     const response = await fetch("/api/send-email", {
       method: "POST",
       headers: {
@@ -141,32 +128,22 @@ const SettingsPage = () => {
       body: JSON.stringify({
         to: "support@budgetwithlink.com",
         subject: "Feature/Bug Report",
-        body: `A feature or bug request from ${user?.firstName} ${user?.lastName} is as follows:\n\n${featureBugRequest}\n\nSincerely,\nLink Helper`,
+        body: `A feature or bug request from\n\nName: ${user?.firstName} ${user?.lastName}\nEmail: ${user?.emailAddresses}\nUser ID: ${user?.id}\n\nis as follows:\n\n"${featureBugRequest}"\n\nSincerely,\nLink`,
       }),
     });
 
-    if (response.ok) {
-      alert("Feature/Bug request sent successfully!");
-    } else {
-      alert("Failed to send the request.");
-    }
+    window.location.reload();
   };
 
   return (
-    <div className={cn("relative", montserratP.className)}>
-      {/* Overlay background when plaidIsOpen is true */}
+    <div className={cn("relative", montserratP.className, "p-6 -mt-[120px] z-50")}>
       {plaidIsOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 min-h-screen z-50"></div>
-      )}
-
-      {/* Plaid Popup */}
-      {plaidIsOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded shadow-lg">
-            <h2 className="text-xl mb-4 text-center">Connecting Data</h2>
-            <p className="text-lg text-center">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+          <div className="bg-white p-8 rounded-lg shadow-lg w-96 text-center">
+            <h2 className="text-2xl font-bold mb-4">Connecting Your Data</h2>
+            <p className="text-lg text-gray-600">
               <Typewriter
-                words={['Fetching your financial data...', 'Categorizing your transactions...', 'Creating your accounts...', 'Organizing your dashboard...']}
+                words={['Fetching your financial data...', 'Categorizing transactions...', 'Creating accounts...']}
                 loop={true}
                 cursor
                 cursorStyle="|"
@@ -179,44 +156,40 @@ const SettingsPage = () => {
         </div>
       )}
 
-      {/* Main content */}
       <UpgradePopup open={openUpgradeDialog} onOpenChange={setOpenUpgradeDialog} />
-      <div className="relative mx-auto -mt-12 w-full max-w-screen-2xl pb-10 z-50">
-        <Card className="border-none drop-shadow-sm">
-          {plaidIsOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 rounded-lg"></div>
-          )}
-          <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between align-middle">
-            <CardTitle className="line-clamp-1 text-xl">Settings</CardTitle>
+      <div className="max-w-5xl mx-auto py-12">
+        <Card className="bg-white shadow-lg rounded-lg">
+          <CardHeader className="p-8 border-b">
+            <CardTitle className="text-4xl font-extrabold">Settings</CardTitle>
           </CardHeader>
-          <CardContent className="pb-0">
-            <div className="flex w-full border-t py-3 items-center">
-              <p className="w-[30%] md:w-[25%] lg:w-[20%] ml-[5%] md:ml-[10%] text-sm md:text-normal my-4 font-bold">
-                Current Subscription
-              </p>
-              <p className="w-[35%] md:w-[20%] lg:w-[35%] pl-[10%] text-sm md:text-normal text-center md:text-left text-gray-500">
-                <b>{subscriptionStatus}</b>
-              </p>
+          <CardContent className="p-8 space-y-10">
+
+            {/* Subscription Section */}
+            <div className="space-y-4 relative md:flex md:justify-between md:items-center">
+              <div>
+                <p className="font-semibold text-lg">Current Subscription</p>
+                <p className="text-gray-500">{subscriptionStatus}</p>
+              </div>
               <Button
                 disabled={subscriptionButton === "Loading..." || subscriptionStatus === "Lifetime"}
-                className="ml-[10%] md:ml-[20%] w-1/4 border"
-                variant="ghost"
-                onClick={() => setOpenUpgradeDialog(true)}>
+                className="mt-4 md:mt-0 px-6 py-3 w-full md:w-[200px]"
+                variant="outline"
+                onClick={() => setOpenUpgradeDialog(true)}
+              >
                 {subscriptionButton}
               </Button>
             </div>
 
-            <div className="flex w-full border-t py-3 items-center">
-              <p className="w-[30%] md:w-[25%] lg:w-[20%] ml-[5%] md:ml-[10%] text-sm md:text-normal my-4 font-bold">
-                Link Accounts
-              </p>
-              <p className="hidden md:inline w-[35%] md:w-[20%] lg:w-[35%] pl-[10%] text-center md:text-left text-sm md:text-normal text-gray-500 pt-2">
-                Link accounts to populate transactions automatically.
-              </p>
+            {/* Link Accounts Section */}
+            <div className="space-y-4 relative md:flex md:justify-between md:items-center">
+              <div>
+                <p className="font-semibold text-lg">Link Accounts</p>
+                <p className="text-gray-500">Sync transactions automatically.</p>
+              </div>
               <Button
                 disabled={subscriptionStatus === "Loading..."}
-                className="hidden md:inline ml-[10%] md:ml-[20%] w-1/4 border"
-                variant="ghost"
+                className="mt-4 md:mt-0 px-6 py-3 w-full md:w-[200px]"
+                variant="outline"
                 onClick={() => {
                   if (subscriptionStatus !== "Free") {
                     openPlaid();
@@ -224,50 +197,55 @@ const SettingsPage = () => {
                   } else {
                     setOpenUpgradeDialog(true);
                   }
-                }}>
-                {subscriptionStatus === "Loading..." ? "Loading..." : "Link Account"}
+                }}
+              >
+                {subscriptionStatus === "Loading..." ? "Loading..." : "Link"}
               </Button>
             </div>
 
             {/* Promo Code Section */}
-            <div className="flex w-full border-t py-3 items-center">
-              <p className="w-[30%] md:w-[25%] lg:w-[20%] ml-[5%] md:ml-[10%] text-sm md:text-normal my-4 font-bold">
-                Promo Code
-              </p>
-              <input
-                type="text"
-                value={promoCode}
-                onChange={(e) => setPromoCode(e.target.value)}
-                className="input-field w-[35%] md:w-[20%] lg:w-[35%] border p-2"
-                placeholder="Enter Promo Code"
-              />
+            <div className="space-y-4 relative md:flex md:justify-between md:items-center">
+              <div>
+                <p className="font-semibold text-lg">Promo Code</p>
+                <input
+                  type="text"
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value)}
+                  className="input border border-gray-300 rounded-lg px-4 py-2 shadow-sm w-full md:w-auto focus:outline-none mt-2"
+                  placeholder="Enter promo code"
+                />
+              </div>
               <Button
-                disabled={subscriptionStatus !== "Free"}
+                disabled={subscriptionStatus !== "Free" || promoCode === ""}
+                className="mt-4 md:mt-0 px-6 py-3 w-full md:w-[200px]"
+                variant="outline"
                 onClick={handlePromoSubmit}
-                className={`ml-[10%] md:ml-[20%] w-1/4 border ${subscriptionStatus !== "Free" ? "opacity-50 cursor-not-allowed" : ""}`}
-                variant="ghost">
-                Sign Up
+              >
+                Submit
               </Button>
             </div>
 
-            {/* Feature/Bug Request Section */}
-            <div className="flex w-full border-t py-3 items-center">
-              <p className="w-[30%] md:w-[25%] lg:w-[20%] ml-[5%] md:ml-[10%] text-sm md:text-normal my-4 font-bold">
-                Feature/Bug Request
-              </p>
-              <textarea
-                value={featureBugRequest}
-                onChange={(e) => setFeatureBugRequest(e.target.value)}
-                className="textarea-field w-[35%] md:w-[20%] lg:w-[35%] border p-2 min-h-[40px] max-h-[250px]"
-                placeholder="Enter your feature or bug request"
-              />
+            {/* Feature/Bug Section */}
+            <div className="space-y-4 relative md:flex md:justify-between md:items-center">
+              <div>
+                <p className="font-semibold text-lg">Feature/Bug Request</p>
+                <textarea
+                  value={featureBugRequest}
+                  onChange={(e) => setFeatureBugRequest(e.target.value)}
+                  className="textarea border border-gray-300 rounded-lg p-4 shadow-sm w-full md:w-auto md:min-w-[350px] focus:outline-none mt-2"
+                  placeholder="Enter your feature or bug request"
+                  rows={4}
+                />
+              </div>
               <Button
+                className="mt-4 md:mt-0 px-6 py-3 w-full md:w-[200px]"
                 onClick={handleFeatureBugSubmit}
-                className="ml-[10%] md:ml-[20%] w-1/4 border"
-                variant="ghost">
-                Submit Request
+                variant="outline"
+              >
+                Submit
               </Button>
             </div>
+
           </CardContent>
         </Card>
       </div>
