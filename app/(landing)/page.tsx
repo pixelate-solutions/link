@@ -46,13 +46,6 @@ const LandingPage = () => {
     }
   };
 
-  const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: "instant",
-    });
-  };
-
   const PricingSection = () => {
     const freePlanRef = useRef(null);
     const isFreePlanInView = useInView(freePlanRef, { once: true });
@@ -412,7 +405,7 @@ const LandingPage = () => {
   };
 
   return (
-    <div className={montserratP.className}>
+    <div id="top" className={montserratP.className}>
       {/* Hero Section */}
       {(!hasScrolledDown || showBoth) && (
         <motion.div
@@ -453,10 +446,7 @@ const LandingPage = () => {
                 }, 0);
                 setTimeout(() => {
                   setShowBoth(false);
-                }, 750);
-                setTimeout(() => {
-                  scrollToTop();
-                }, 825);
+                }, 850);
               }}
               className="rounded-full h-[50px] w-[50px] bg-white p-2 hover:bg-gray-100"
             >
