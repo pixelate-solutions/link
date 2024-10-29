@@ -15,7 +15,7 @@ import uploadPlaidTransactions from './upload-plaid-transactions';
 import deletePlaidData from './delete-plaid';
 import accountTotals from './get-account-totals';
 import categoryTotals from './get-category-totals';
-import plaidWebhook from './plaid-webhook';
+import plaidUpdateTransactions from './plaid-update-transactions';
 import chatAccess from './chat-access-status';
 import recurringTransactions from './upload-plaid-recurring-transactions';
 import promoCode from './promo'
@@ -37,7 +37,7 @@ const routes = app
   .route('/plaid/delete-data', deletePlaidData)
   .route('/plaid/account-totals', accountTotals)
   .route('/plaid/category-totals', categoryTotals)
-  .route('/plaid/webhook', plaidWebhook)
+  .route('/plaid/update-transactions', plaidUpdateTransactions)
   .route('/chat-access', chatAccess)
   .route('/plaid/recurring', recurringTransactions)
   .route('/apply-promo-code', promoCode)

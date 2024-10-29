@@ -17,8 +17,10 @@ app.post('/', async (ctx) => {
   const userId = auth?.userId || "";
 
   const { webhook_type, webhook_code, item_id } = body;
+  console.log("Success");
 
   if (webhook_type === "TRANSACTIONS" && webhook_code === "DEFAULT_UPDATE") {
+    console.log("Success");
     // Fetch the access token for the item
     const [userToken] = await db
       .select({ accessToken: userTokens.accessToken })
