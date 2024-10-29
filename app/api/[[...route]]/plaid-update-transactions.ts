@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { db } from "@/db/drizzle";
 import { accounts, recurringTransactions, userTokens } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import plaidClient from "./plaid";
 import { createId } from "@paralleldrive/cuid2";
 import { getAuth } from "@hono/clerk-auth";
@@ -25,7 +25,8 @@ app.post('/', async (ctx) => {
     const [userToken] = await db
       .select({ accessToken: userTokens.accessToken })
       .from(userTokens)
-      .where(eq(userTokens.itemId, item_id));
+      .where(eq(userTokens.itemId, item_id))
+      .orderBy(desc(userTokens.createdAt));
 
     const accessToken = userToken?.accessToken;
 
