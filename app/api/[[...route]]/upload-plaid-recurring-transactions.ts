@@ -4,7 +4,7 @@ import { db } from "@/db/drizzle";
 import { accounts, recurringTransactions, userTokens, categories } from "@/db/schema";
 import { createId } from "@paralleldrive/cuid2";
 import plaidClient from "./plaid";
-import { eq, and, sql, inArray } from "drizzle-orm";
+import { eq, and, sql, inArray, desc } from "drizzle-orm";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
@@ -23,12 +23,13 @@ app.post('/', clerkMiddleware(), async (ctx) => {
   }
 
   // Fetch the user's Plaid access token from the database
-  const tokenResult = await db
+  const result = await db
     .select({ accessToken: userTokens.accessToken })
     .from(userTokens)
-    .where(eq(userTokens.userId, userId));
+    .where(eq(userTokens.userId, userId))
+    .orderBy(desc(userTokens.createdAt));
 
-  const accessToken = tokenResult[tokenResult.length - 1]?.accessToken;
+  const accessToken = result[0]?.accessToken;
 
   if (!accessToken) {
     return ctx.json({ error: "Access token not found" }, 404);
@@ -147,8 +148,9 @@ app.post('/', clerkMiddleware(), async (ctx) => {
           frequency: stream.frequency.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' '),
           averageAmount: averageAmount,
           lastAmount: lastAmount,
-          date: new Date(),  // Add the current date
+          date: new Date(stream.last_date),
           isActive: stream.is_active.toString(),
+          streamId: stream.stream_id
         }).returning();
       })
     );
@@ -395,6 +397,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       lastAmount: lastAmountString,
       date: new Date(),  // Add the current date
       isActive: "true",  // Set active by default
+      streamId: createId(),
     }).returning();
 
     return ctx.json({ success: true, recurringTransaction: newRecurringTransaction });

@@ -4,7 +4,7 @@ import { db } from "@/db/drizzle";
 import { accounts, transactions, userTokens, categories } from "@/db/schema";
 import { createId } from "@paralleldrive/cuid2";
 import plaidClient from "./plaid";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 // Fetch the AI URL from environment variables
 const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
@@ -23,9 +23,10 @@ app.post('/', clerkMiddleware(), async (ctx) => {
   const result = await db
     .select({ accessToken: userTokens.accessToken })
     .from(userTokens)
-    .where(eq(userTokens.userId, userId));
+    .where(eq(userTokens.userId, userId))
+    .orderBy(desc(userTokens.createdAt));
 
-  const accessToken = result[result.length - 1]?.accessToken;
+  const accessToken = result[0]?.accessToken;
 
   if (!accessToken) {
     return ctx.json({ error: "Access token not found" }, 404);
@@ -148,6 +149,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
         accountId: accountId,
         categoryId: categoryId,
         isFromPlaid: true,
+        plaidTransactionId: transaction.transaction_id,
       }).returning();
     })
   );
@@ -183,7 +185,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
   try {
     if (formattedTransactions) { // Ensure there are formatted transactions
       const aiResponse = await fetch(
-        `${AI_URL}/resource/upsert_text?user_id=${userId}&name=Transactions for ${userId}`,
+        `${AI_URL}/resource/upsert_text?user_id=${userId}&name=Transactions from ${accountIdMap[plaidTransactions[0].account_id]} for ${userId}`,
         {
           method: 'POST',
           headers: {

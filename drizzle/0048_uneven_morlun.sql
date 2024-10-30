@@ -1,0 +1,1 @@
+ALTER TABLE "recurring_transactions" ADD COLUMN "stream_id" text NOT NULL;

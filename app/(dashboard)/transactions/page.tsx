@@ -23,7 +23,6 @@ import { columns } from "./columns";
 import { useNewTransaction } from "@/features/transactions/hooks/use-new-transaction";
 import "/styles.css"
 
-// Import Shadcn components
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -72,8 +71,8 @@ const INITIAL_IMPORT_RESULTS = {
   meta: [],
 };
 
-
 const TransactionsPage = () => {
+  const [hasFetchedTransactions, setHasFetchedTransactions] = useState(false);
   const [variant, setVariant] = useState<VARIANTS>(VARIANTS.LIST);
   const [importResults, setImportResults] = useState(INITIAL_IMPORT_RESULTS);
   const [currentTab, setCurrentTab] = useState("transactions");
@@ -84,7 +83,7 @@ const TransactionsPage = () => {
   const [recategorizeLoading, setRecategorizeLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [isDialogOpen, setIsDialogOpen] = useState(false); // State to manage alert dialog
+  const [isDialogOpen, setIsDialogOpen] = useState(false); 
 
   const [AccountDialog, confirm] = useSelectAccount();
   const createTransactions = useBulkCreateTransactions();
@@ -98,7 +97,30 @@ const TransactionsPage = () => {
 
   const transactions = transactionsQuery.data || [];
 
-  // Fetch recurring transactions when the tab changes to "recurring"
+  useEffect(() => {
+    if (!hasFetchedTransactions) {
+      const fetchNewTransactions = async () => {
+        try {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/plaid/update-transactions`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+          if (!response.ok) {
+            throw new Error("Failed to update transactions");
+          }
+          setHasFetchedTransactions(true);
+        } catch (error) {
+          console.error("Error updating transactions:", error);
+          toast.error("Failed to update transactions");
+        }
+      };
+
+      fetchNewTransactions();
+    }
+  }, [hasFetchedTransactions]);
+
   useEffect(() => {
     const fetchRecurringTransactions = async () => {
       setLoadingRecurring(true);

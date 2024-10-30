@@ -48,6 +48,7 @@ export const transactions = pgTable("transactions", {
     onDelete: "set null",
   }),
   isFromPlaid: boolean("is_from_plaid").default(false).notNull(),
+  plaidTransactionId: text("plaid_transaction_id").unique().notNull(),
 });
 
 export const transactionsRelations = relations(transactions, ({ one }) => ({
@@ -103,6 +104,7 @@ export const recurringTransactions = pgTable("recurring_transactions", {
   lastAmount: text("last_amount"), // Last transaction amount (stored as text)
   date: timestamp("date", { mode: "date" }).notNull(), // New date column for recurring transactions
   isActive: text("is_active").notNull(), // Is the transaction currently active? (text to match the type)
+  streamId: text("stream_id").notNull(),
 });
 
 export const recurringTransactionsRelations = relations(recurringTransactions, ({ one }) => ({
