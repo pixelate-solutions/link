@@ -74,6 +74,7 @@ export const TransactionForm = ({
       ...values,
       userId: user?.id || "-",
       amount: amount,
+      plaidTransactionId: "",
     });
   };
 
