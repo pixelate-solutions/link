@@ -19,7 +19,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
     const webhookRequest = {
       access_token: access_token,
-      webhook: `${process.env.NEXT_PUBLIC_APP_URL}/api/plaid/webhook`,
+      webhook: `${process.env.NEXT_PUBLIC_APP_URL}/api/plaid/update-transactions`,
     };
 
     const webhookResponse = await plaidClient.itemWebhookUpdate(webhookRequest);
