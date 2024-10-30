@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { Montserrat } from "next/font/google";
 
 const montserratP = Montserrat({
-  weight: "600",
+  weight: "500",
   subsets: ["latin"],
 });
 

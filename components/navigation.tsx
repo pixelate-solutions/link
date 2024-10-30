@@ -40,7 +40,7 @@ const routes = [
 ];
 
 const montserratP = Montserrat({
-  weight: "600",
+  weight: "500",
   subsets: ["latin"],
 });
 
