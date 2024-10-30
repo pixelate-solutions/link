@@ -261,7 +261,7 @@ const Chatbot = () => {
           </div>
           {isLoading && (
             <div className="flex p-2 rounded-lg">
-              <BeatLoader color="#2196f3" margin={3} size={25} speedMultiplier={0.75} />
+              <BeatLoader color="#8A2BE2" margin={3} size={25} speedMultiplier={0.75} />
             </div>
           )}
           {isClearLoading && (
