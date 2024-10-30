@@ -4,14 +4,14 @@ import { accounts, recurringTransactions, userTokens } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import plaidClient from "./plaid";
 import { createId } from "@paralleldrive/cuid2";
-import { getAuth } from "@hono/clerk-auth";
+import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 
 // Fetch the AI URL from environment variables
 const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
 
 const app = new Hono();
 
-app.post('/', async (ctx) => {
+app.post('/', clerkMiddleware(), async (ctx) => {
   const body = await ctx.req.json();
   const auth = getAuth(ctx);
   const userId = auth?.userId || "";
