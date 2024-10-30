@@ -115,6 +115,7 @@ const generateTransactionPerDay = (day: Date) => {
       isFromPlaid: false,
       payee: "Merchant",
       notes: "Random transaction",
+      plaidTransactionId: "",
     });
   }
 };
