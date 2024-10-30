@@ -11,6 +11,8 @@ const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
 
 const app = new Hono();
 
+console.log("plaid-update-transactions route loaded");
+
 app.post('/', clerkMiddleware(), async (ctx) => {
   const body = await ctx.req.json();
   const auth = getAuth(ctx);
