@@ -316,7 +316,7 @@ const Chatbot = () => {
               <AlertDialogHeader>
                 <AlertDialogTitle>Remove Transaction Knowledge?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to remove your virtual assistant's access to your transaction knowledge?
+                  Are you sure you want to remove your virtual assistant&apos;s access to your transaction knowledge?
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
