@@ -20,6 +20,8 @@ import chatAccess from './chat-access-status';
 import recurringTransactions from './upload-plaid-recurring-transactions';
 import promoCode from './promo'
 import sendEmail from './send-email'
+import gatherInfo from './chat-info'
+
 const app = new Hono().basePath('/api');
 
 const routes = app
@@ -42,6 +44,7 @@ const routes = app
   .route('/plaid/recurring', recurringTransactions)
   .route('/apply-promo-code', promoCode)
   .route('/send-email', sendEmail)
+  .route('/chat/info', gatherInfo)
   
 export const GET = handle(app);
 export const POST = handle(app);

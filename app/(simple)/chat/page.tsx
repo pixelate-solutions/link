@@ -24,6 +24,21 @@ const montserratH = Montserrat({
   subsets: ["latin"],
 });
 
+type RecurringTransaction = {
+  name: string;
+  frequency: string;
+  average_amount: string;
+  last_amount: string | null;
+  isActive: boolean;
+  last_date: string;
+};
+
+type CategoryData = {
+  name: string;
+  spent: string;
+  monthlyBudget: string;
+};
+
 const Chatbot = () => {
   const [inputMessage, setInputMessage] = useState("");
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>("Loading...");
@@ -42,6 +57,44 @@ const Chatbot = () => {
   const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
   const [allowAccess, setAllowAccess] = useState(false);
   const [streamingText, setStreamingText] = useState("");
+
+  // State for additional info
+  const [fetchedData, setFetchedData] = useState(false);
+  const [recurringTransactions, setRecurringTransactions] = useState<Record<string, RecurringTransaction>>({});
+  const [categoryData, setCategoryData] = useState<Record<string, CategoryData>>({});
+
+  const todaysDate = new Date().toLocaleDateString('en-US');
+
+  useEffect(() => {
+    const upsertChatInfo = async () => {
+      try {
+        const todaysDate = new Date().toISOString().split('T')[0]; // Format today's date as needed
+        const userId = user?.id; // Assuming you have user ID available
+
+        // Call the upsert endpoint
+        const response = await fetch('/api/chat/info/upsert', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userId, todaysDate }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to upsert chat info');
+        }
+
+        console.log('Chat info upserted successfully');
+      } catch (error) {
+        console.error("Error upserting chat info:", error);
+      }
+    };
+
+    if (!fetchedData) {
+      upsertChatInfo();
+      setFetchedData(true);
+    }
+  }, [user]);
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });

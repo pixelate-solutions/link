@@ -5,6 +5,7 @@ import { drizzle } from "drizzle-orm/neon-http";
 
 import { accounts, categories, transactions, stripeCustomers } from "@/db/schema";
 import { convertAmountToMilliunits } from "@/lib/utils";
+import { createId } from "@paralleldrive/cuid2";
 
 config({ path: ".env.local" });
 
@@ -115,7 +116,7 @@ const generateTransactionPerDay = (day: Date) => {
       isFromPlaid: false,
       payee: "Merchant",
       notes: "Random transaction",
-      plaidTransactionId: "",
+      plaidTransactionId: createId(),
     });
   }
 };

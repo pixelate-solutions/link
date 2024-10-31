@@ -108,12 +108,11 @@ const TransactionsPage = () => {
             },
           });
           if (!response.ok) {
-            throw new Error("Failed to update transactions");
+            console.error("Failed to update transactions");
           }
           setHasFetchedTransactions(true);
         } catch (error) {
           console.error("Error updating transactions:", error);
-          toast.error("Failed to update transactions");
         }
       };
 

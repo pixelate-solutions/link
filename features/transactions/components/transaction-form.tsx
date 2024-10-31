@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { insertTransactionSchema } from "@/db/schema";
 
 import { useUser } from "@clerk/nextjs";
+import { createId } from "@paralleldrive/cuid2";
 
 const formSchema = z.object({
   date: z.coerce.date(),
@@ -74,7 +75,7 @@ export const TransactionForm = ({
       ...values,
       userId: user?.id || "-",
       amount: amount,
-      plaidTransactionId: "",
+      plaidTransactionId: createId(),
     });
   };
 

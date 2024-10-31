@@ -3,7 +3,7 @@
 import { HeaderLanding } from "@/components/header-landing";
 import { Button } from "@/components/ui/button";
 import { ArrowDown } from "lucide-react";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import { motion, useAnimation, useInView } from "framer-motion";
 import "@/styles.css";
 import { HeaderLogoLarge } from "@/components/header-logo-large";
@@ -30,8 +30,6 @@ const montserratH = Montserrat({
 
 const LandingPage = () => {
   const contentRef = useRef<HTMLDivElement>(null);
-  const [hasScrolledDown, setHasScrolledDown] = useState(false);
-  const [showBoth, setShowBoth] = useState(false);
   const router = useRouter();
 
   const { user, isLoaded } = useUser();
@@ -42,7 +40,6 @@ const LandingPage = () => {
         top: contentRef.current.offsetTop,
         behavior: "smooth",
       });
-      setHasScrolledDown(true);
     }
   };
 
@@ -96,7 +93,7 @@ const LandingPage = () => {
               <li className="mb-2">✖ Link bank accounts</li>
               <li className="mb-2">✖ Chat with Virtual Assistant</li>
             </ul>
-            <Button className="mt-auto w-full bg-gray-200 text-gray-700 hover:bg-gray-100 hover:scale-105 transition-all">
+            <Button onClick={() => {router.push("/overview")}} className="mt-auto w-full bg-gray-200 text-gray-700 hover:bg-gray-100 hover:scale-105 transition-all">
               Get Started
             </Button>
           </motion.div>
@@ -195,7 +192,7 @@ const LandingPage = () => {
       // Ensure animation is called after the component mounts
       controls.start({
         x: ["0%", "-50%", "-100%"], // Adjust for smooth scrolling and looping
-        opacity: [0, 1], // Start from opacity 0 and transition to 1
+        opacity: [1, 1], // Start from opacity 0 and transition to 1
         transition: {
           x: {
             duration: images.length * 4, // Control speed based on number of images
@@ -203,9 +200,8 @@ const LandingPage = () => {
             repeat: Infinity, // Loop forever
           },
           opacity: {
-            duration: 0.6, // Opacity transition duration
+            duration: 1, // Opacity transition duration
             ease: "linear", // Smooth easing for opacity
-            delay: 0.7, // Delay before opacity animation starts
           },
         },
       });
@@ -214,8 +210,8 @@ const LandingPage = () => {
     return (
       <div className="overflow-hidden w-[90%] md:w-[70%] sm:w-[80%] rounded-2xl relative -mt-[250px] sm:-mt-[370px] mb-[25px] fade-div px-2">
         <motion.div
-          initial={{ opacity: 0 }} // Start with opacity 0
-          animate={controls} // Attach controls for smooth scrolling
+          initial={{ opacity: 100 }} // Start with opacity 0
+          animate={controls}
           className="flex bg-white"
           style={{ width: `${images.length * 50}%` }} // Display multiple images at once
         >
@@ -407,7 +403,6 @@ const LandingPage = () => {
   return (
     <div id="top" className={montserratP.className}>
       {/* Hero Section */}
-      {(!hasScrolledDown || showBoth) && (
         <motion.div
           initial={{ scale: 0.250 }}
           animate={{ scale: 1 }}
@@ -440,13 +435,7 @@ const LandingPage = () => {
           >
             <Button
               onClick={() => {
-                setShowBoth(true);
-                setTimeout(() => {
                   scrollToContent();
-                }, 0);
-                setTimeout(() => {
-                  setShowBoth(false);
-                }, 850);
               }}
               className="rounded-full h-[50px] w-[50px] bg-white p-2 hover:bg-gray-100"
             >
@@ -454,10 +443,7 @@ const LandingPage = () => {
             </Button>
           </motion.div>
         </motion.div>
-      )}
-
       {/* Content Section */}
-      {(hasScrolledDown || showBoth) && (
         <div className="bg-white" ref={contentRef}>
           <HeaderLanding />
           <div className="-mt-[100px] lg:-mt-[120px] h-[170px] lg:h-[240px] w-full bg-gradient-to-br from-blue-500 to-purple-500">
@@ -519,7 +505,6 @@ const LandingPage = () => {
             <p>© 2024 Link Budgeting Tool</p>
           </motion.footer>
         </div>
-      )}
     </div>
   );
 };
