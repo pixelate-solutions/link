@@ -57,6 +57,8 @@ const Chatbot = () => {
   const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
   const [allowAccess, setAllowAccess] = useState(false);
   const [streamingText, setStreamingText] = useState("");
+  const [isAllowDialogOpen, setIsAllowDialogOpen] = useState(false);
+  const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
 
   // State for additional info
   const [fetchedData, setFetchedData] = useState(false);
@@ -257,7 +259,9 @@ const Chatbot = () => {
           <div className="sticky bg-white w-full h-[110px] p-4 border-b-2 border-x-2 rounded-xl lg:rounded-b-xl">
             <h1 className="md:w-auto w-full text-center text-xl font-semibold">Ask Me Anything</h1>
             <div className="w-full flex flex-col lg:flex-row justify-center items-center lg:space-x-4 -space-y-4 text-xs lg:text-inherit lg:space-y-0 lg:mt-2">
-              <Button disabled={subscriptionStatus === "Free" || subscriptionStatus === "Loading..."} onClick={changeAccessValue} className="text-blue-600 hover:bg-transparent hover:text-blue-400" variant="ghost">
+              <Button disabled={subscriptionStatus === "Free" || subscriptionStatus === "Loading..."} onClick={() => {
+                if (allowAccess) { setIsRemoveDialogOpen(true) } else { setIsAllowDialogOpen(true); }
+              }} className="text-blue-600 hover:bg-transparent hover:text-blue-400" variant="ghost">
                 {allowAccess ? "Remove Transaction Knowledge" : "Allow Transaction Knowledge"}
               </Button>
               <Button disabled={subscriptionStatus === "Free" || subscriptionStatus === "Loading..."} onClick={() => setIsAlertDialogOpen(true)} className="bg-transparent text-red-500 rounded-md hover:text-red-300 hover:bg-transparent">
@@ -267,7 +271,7 @@ const Chatbot = () => {
           </div>
 
           <AlertDialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
-            <AlertDialogContent>
+            <AlertDialogContent className="rounded-2xl">
               <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -282,6 +286,43 @@ const Chatbot = () => {
                   <AlertDialogAction asChild onClick={handleClearHistoryConfirmed}>
                     <Button className="text-white bg-red-500 hover:bg-red-500 hover:opacity-90" variant="destructive">Clear History</Button>
                   </AlertDialogAction>
+                </div>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <AlertDialog open={isAllowDialogOpen} onOpenChange={setIsAllowDialogOpen}>
+          <AlertDialogContent className="rounded-2xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Allow Transaction Knowledge?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to allow your virtual assistant to access your transaction knowledge?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <div className="w-full flex flex-col space-y-4">
+                <AlertDialogAction className="text-white bg-gradient-to-br from-blue-500 to-purple-500 px-10 md:px-16" onClick={changeAccessValue}>
+                  Allow
+                </AlertDialogAction>
+                <AlertDialogCancel className="px-10 md:px-16" onClick={() => setIsAllowDialogOpen(false)}>
+                  Cancel
+                </AlertDialogCancel>
+              </div>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+          {/* Remove Access Dialog */}
+          <AlertDialog open={isRemoveDialogOpen} onOpenChange={setIsRemoveDialogOpen}>
+            <AlertDialogContent className="rounded-2xl">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remove Transaction Knowledge?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to remove your virtual assistant's access to your transaction knowledge?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <div className="w-full flex flex-col space-y-4">
+                  <AlertDialogAction className="text-white bg-red-500 hover:bg-red-500 hover:opacity-90" onClick={changeAccessValue}>Remove</AlertDialogAction>
+                  <AlertDialogCancel className="px-10 md:px-16" onClick={() => setIsRemoveDialogOpen(false)}>Cancel</AlertDialogCancel>
                 </div>
               </AlertDialogFooter>
             </AlertDialogContent>

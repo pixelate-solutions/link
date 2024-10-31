@@ -1,94 +1,120 @@
 import { Hono } from 'hono';
 import { db } from '@/db/drizzle';
-import { recurringTransactions, categories, transactions } from "@/db/schema"; // Add transactions to import
+import { recurringTransactions, categories, transactions } from "@/db/schema";
 import { clerkMiddleware, getAuth } from '@hono/clerk-auth';
-import { subMonths, endOfToday, format, startOfDay, endOfDay, parse, subDays } from 'date-fns';
+import { subMonths, format, startOfDay, endOfDay, parse, subDays } from 'date-fns';
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 
 const app = new Hono();
 
+const deleteChatInfo = async (name: string) => {
+  try {
+    const aiResponse = await fetch(`${process.env.NEXT_PUBLIC_AI_URL}/resources/delete/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    });
+
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error(`Failed to delete chat info from AI backend: ${errorText}`);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('Error deleting chat info from AI backend', error);
+    return false;
+  }
+};
+
+const upsertChatInfo = async (userId: string, prompt: string) => {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_AI_URL}/resource/upsert_text?user_id=${userId}&name=Chat Info`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain',
+      },
+      body: prompt,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to upsert chat info');
+    }
+    return true;
+  } catch (error) {
+    console.error('Error upserting chat info:', error);
+    return false;
+  }
+};
+
 app.post('/upsert', clerkMiddleware(), async (c) => {
-    // Define the RecurringTransaction type
+  try {
     const auth = getAuth(c);
     const userId = auth?.userId;
-
     const todaysDate = new Date();
-    const fromDate = format(subMonths(todaysDate, 1), 'yyyy-MM-dd'); // Last month
-    const toDate = format(todaysDate, 'yyyy-MM-dd'); // Today
 
+    // Define the RecurringTransaction type
     type RecurringTransaction = {
-        name: string;
-        frequency: string;
-        average_amount: string;
-        last_amount: string | null;
-        isActive: string;
-        last_date: string;
+      name: string;
+      frequency: string;
+      average_amount: string;
+      last_amount: string | null;
+      isActive: string;
+      last_date: string;
     };
 
     // Define the CategoryData type
     type CategoryData = {
-        name: string;
-        totalSpent: string; // Updated to total spent
-        monthlyBudget: string;
+      name: string;
+      totalSpent: string;
+      monthlyBudget: string;
     };
 
     // Define the type for the category totals response
     type CategoryTotal = {
-        categoryId: string; // Use the appropriate type based on your schema
-        totalCost: string; // Use string if stored as a string in the database
+      categoryId: string;
+      totalCost: string;
     };
 
     // Function to fetch category totals
     const fetchCategoryTotals = async (from: string, to: string): Promise<CategoryTotal[]> => {
-        const startDate = from ? startOfDay(parse(from, "yyyy-MM-dd", new Date())) : startOfDay(subDays(new Date(), 30));
-        const endDate = to ? endOfDay(parse(to, "yyyy-MM-dd", new Date())) : endOfDay(new Date());
+      const startDate = from ? startOfDay(parse(from, "yyyy-MM-dd", new Date())) : startOfDay(subDays(new Date(), 30));
+      const endDate = to ? endOfDay(parse(to, "yyyy-MM-dd", new Date())) : endOfDay(new Date());
 
-        try {
-            // Fetch the results from the database
-            const results = await db
-                .select({
-                    categoryId: categories.id,
-                    categoryName: categories.name,
-                    totalIncome: sql`SUM(CASE WHEN CAST(amount AS FLOAT) > 0 THEN CAST(amount AS FLOAT) ELSE 0 END)`.as('totalIncome'),
-                    totalCost: sql`SUM(CASE WHEN CAST(amount AS FLOAT) < 0 THEN CAST(amount AS FLOAT) ELSE 0 END)`.as('totalCost'),
-                })
-                .from(categories)
-                .leftJoin(transactions, eq(transactions.categoryId, categories.id))
-                .where(
-                    and(
-                        gte(transactions.date, startDate),
-                        lte(transactions.date, endDate)
-                    )
-                )
-                .groupBy(categories.id, categories.name);
+      try {
+        const results = await db
+          .select({
+            categoryId: categories.id,
+            categoryName: categories.name,
+            totalIncome: sql`SUM(CASE WHEN CAST(amount AS FLOAT) > 0 THEN CAST(amount AS FLOAT) ELSE 0 END)`.as('totalIncome'),
+            totalCost: sql`SUM(CASE WHEN CAST(amount AS FLOAT) < 0 THEN CAST(amount AS FLOAT) ELSE 0 END)`.as('totalCost'),
+          })
+          .from(categories)
+          .leftJoin(transactions, eq(transactions.categoryId, categories.id))
+          .where(
+            and(
+              gte(transactions.date, startDate),
+              lte(transactions.date, endDate)
+            )
+          )
+          .groupBy(categories.id, categories.name);
 
-            // Map results to CategoryTotal type
-            const categoryTotals: CategoryTotal[] = results.map(result => ({
-                categoryId: result.categoryId,
-                totalCost: (result.totalCost || 0).toString(), // Ensure it's a string
-            }));
-            return categoryTotals;
-        } catch (error) {
-            console.error('Error fetching category totals:', error);
-            throw new Error("Failed to calculate totals.");
-        }
+        const categoryTotals: CategoryTotal[] = results.map(result => ({
+          categoryId: result.categoryId,
+          totalCost: (result.totalCost || 0).toString(),
+        }));
+        return categoryTotals;
+      } catch (error) {
+        console.error('Error fetching category totals:', error);
+        throw new Error("Failed to calculate totals.");
+      }
     };
 
-  try {
-    const today = endOfToday();
-    const lastMonthStart = subMonths(today, 1);
-    const fromDate = format(lastMonthStart, 'yyyy-MM-dd');
-    const toDate = format(today, 'yyyy-MM-dd');
-
-    // Fetch category totals using the endpoint
-    let categoryTotals: CategoryTotal[] = [];
-    categoryTotals = await fetchCategoryTotals(fromDate, toDate);
+    // Fetch category totals
+    const fromDate = format(subMonths(todaysDate, 1), 'yyyy-MM-dd');
+    const toDate = format(todaysDate, 'yyyy-MM-dd');
+    const categoryTotals = await fetchCategoryTotals(fromDate, toDate);
 
     // Fetch recurring transactions from the database
-    const recurringTransactionsList = await db
-      .select()
-      .from(recurringTransactions)
-      .execute();
+    const recurringTransactionsList = await db.select().from(recurringTransactions).execute();
 
     const structuredRecurringData = recurringTransactionsList.reduce((acc: Record<string, RecurringTransaction>, transaction: any) => {
       acc[transaction.streamId] = {
@@ -103,16 +129,13 @@ app.post('/upsert', clerkMiddleware(), async (c) => {
     }, {});
 
     // Fetch category data from the database
-    const categoryInfo = await db
-      .select()
-      .from(categories)
-      .execute();
+    const categoryInfo = await db.select().from(categories).execute();
 
     const structuredCategoryData = categoryInfo.reduce((acc: Record<string, CategoryData>, category: any) => {
       const totalSpent = parseFloat(categoryTotals.find(total => total.categoryId === category.id)?.totalCost || '0');
       acc[category.id] = {
         name: category.name,
-        totalSpent: totalSpent.toFixed(2), // Use fetched total
+        totalSpent: totalSpent.toFixed(2),
         monthlyBudget: category.budgetAmount || '0',
       };
       return acc;
@@ -136,23 +159,21 @@ app.post('/upsert', clerkMiddleware(), async (c) => {
       prompt += `The last date for this transaction was ${trans.last_date}. `;
     });
 
-    // Upsert the prompt
-    const response = await fetch(`${process.env.NEXT_PUBLIC_AI_URL}/resource/upsert_text?user_id=${userId}&name=Chat info as of ${todaysDate}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain',
-      },
-      body: prompt,
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to upsert chat info');
+    // Step 1: Delete existing chat info
+    const isDeleted = await deleteChatInfo("Chat Info");
+    if (!isDeleted) {
+      console.error('Failed to delete existing chat info');
+    }
+    
+    const isUpserted = await upsertChatInfo(userId || "", prompt);
+    if (!isUpserted) {
+      console.error('Failed to upsert new chat info' );
     }
 
     return c.json({ message: 'Chat info upserted successfully' });
   } catch (error) {
-    console.error('Error fetching data or upserting chat info:', error);
-    return c.json({ error: 'Internal Server Error' });
+    console.error('Error in /upsert handler:', error);
+    console.error('Internal Server Error');
   }
 });
 
