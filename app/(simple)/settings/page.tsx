@@ -9,9 +9,15 @@ import { UpgradePopup } from "@/components/upgrade-popup";
 import { Typewriter } from 'react-simple-typewriter';
 import { Montserrat } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const montserratP = Montserrat({
   weight: "500",
+  subsets: ["latin"],
+});
+
+const montserratH = Montserrat({
+  weight: "700",
   subsets: ["latin"],
 });
 
@@ -108,17 +114,27 @@ const SettingsPage = () => {
   }, [user]);
 
   const handlePromoSubmit = async () => {
-    const response = await fetch("/api/apply-promo-code", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        promoCode: promoCode.trim(),
-      }),
-    });
+    try {
+      const response = await fetch("/api/apply-promo-code", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          promoCode: promoCode.trim(),
+        }),
+      });
 
-    window.location.reload();
+      if (response.ok) {
+        toast.success("Valid promo code!");
+        window.location.reload();
+      } else {
+        toast.error("Please try again with a valid promo code.");
+      }
+    } catch (error) {
+      console.error("Error submitting promo code:", error);
+      toast.error("Something went wrong. Please try again later.");
+    }
   };
 
   const handleFeatureBugSubmit = async () => {
@@ -134,7 +150,12 @@ const SettingsPage = () => {
       }),
     });
 
-    window.location.reload();
+    if (response.ok) {
+        toast.success("Success!");
+        window.location.reload();
+      } else {
+        toast.error("Error submitting request, please try again.");
+      }
   };
 
   return (
@@ -190,8 +211,7 @@ const SettingsPage = () => {
               </div>
               <Button
                 disabled={subscriptionStatus === "Loading..."}
-                className="mt-4 md:mt-0 px-6 py-3 w-full md:w-[200px]"
-                variant="outline"
+                className={cn("bg-gradient-to-br from-blue-500 to-purple-500 hover:opacity-85 text-white font-bold mt-4 md:mt-0 px-6 py-3 w-full md:w-[200px]", montserratH.className)}
                 onClick={() => {
                   if (subscriptionStatus !== "Free") {
                     openPlaid();
@@ -240,6 +260,7 @@ const SettingsPage = () => {
                 />
               </div>
               <Button
+                disabled={subscriptionStatus !== "Free" || featureBugRequest === ""}
                 className="mt-4 md:mt-0 px-6 py-3 w-full md:w-[200px]"
                 onClick={handleFeatureBugSubmit}
                 variant="outline"

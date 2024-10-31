@@ -43,6 +43,10 @@ const LandingPage = () => {
     }
   };
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const PricingSection = () => {
     const freePlanRef = useRef(null);
     const isFreePlanInView = useInView(freePlanRef, { once: true });

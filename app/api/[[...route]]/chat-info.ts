@@ -51,7 +51,11 @@ app.post('/upsert', clerkMiddleware(), async (c) => {
     const userId = auth?.userId;
     const todaysDate = new Date();
 
-    // Define the RecurringTransaction type
+    if (!userId) {
+      return c.json({ error: 'User not authenticated' }, 401);
+    }
+
+    // Define types
     type RecurringTransaction = {
       name: string;
       frequency: string;
@@ -61,14 +65,12 @@ app.post('/upsert', clerkMiddleware(), async (c) => {
       last_date: string;
     };
 
-    // Define the CategoryData type
     type CategoryData = {
       name: string;
       totalSpent: string;
       monthlyBudget: string;
     };
 
-    // Define the type for the category totals response
     type CategoryTotal = {
       categoryId: string;
       totalCost: string;
@@ -88,7 +90,10 @@ app.post('/upsert', clerkMiddleware(), async (c) => {
             totalCost: sql`SUM(CASE WHEN CAST(amount AS FLOAT) < 0 THEN CAST(amount AS FLOAT) ELSE 0 END)`.as('totalCost'),
           })
           .from(categories)
-          .leftJoin(transactions, eq(transactions.categoryId, categories.id))
+          .leftJoin(transactions, and(
+            eq(transactions.categoryId, categories.id),
+            eq(transactions.userId, userId)  // Filter by current user
+          ))
           .where(
             and(
               gte(transactions.date, startDate),
@@ -97,11 +102,10 @@ app.post('/upsert', clerkMiddleware(), async (c) => {
           )
           .groupBy(categories.id, categories.name);
 
-        const categoryTotals: CategoryTotal[] = results.map(result => ({
+        return results.map(result => ({
           categoryId: result.categoryId,
           totalCost: (result.totalCost || 0).toString(),
         }));
-        return categoryTotals;
       } catch (error) {
         console.error('Error fetching category totals:', error);
         throw new Error("Failed to calculate totals.");
@@ -113,8 +117,12 @@ app.post('/upsert', clerkMiddleware(), async (c) => {
     const toDate = format(todaysDate, 'yyyy-MM-dd');
     const categoryTotals = await fetchCategoryTotals(fromDate, toDate);
 
-    // Fetch recurring transactions from the database
-    const recurringTransactionsList = await db.select().from(recurringTransactions).execute();
+    // Fetch recurring transactions from the database for the current user
+    const recurringTransactionsList = await db
+      .select()
+      .from(recurringTransactions)
+      .where(eq(recurringTransactions.userId, userId))  // Filter by current user
+      .execute();
 
     const structuredRecurringData = recurringTransactionsList.reduce((acc: Record<string, RecurringTransaction>, transaction: any) => {
       acc[transaction.streamId] = {
@@ -128,8 +136,12 @@ app.post('/upsert', clerkMiddleware(), async (c) => {
       return acc;
     }, {});
 
-    // Fetch category data from the database
-    const categoryInfo = await db.select().from(categories).execute();
+    // Fetch category data from the database for the current user
+    const categoryInfo = await db
+      .select()
+      .from(categories)
+      .where(eq(categories.userId, userId))  // Filter by current user
+      .execute();
 
     const structuredCategoryData = categoryInfo.reduce((acc: Record<string, CategoryData>, category: any) => {
       const totalSpent = parseFloat(categoryTotals.find(total => total.categoryId === category.id)?.totalCost || '0');
@@ -173,7 +185,7 @@ app.post('/upsert', clerkMiddleware(), async (c) => {
     return c.json({ message: 'Chat info upserted successfully' });
   } catch (error) {
     console.error('Error in /upsert handler:', error);
-    console.error('Internal Server Error');
+    return c.json({ error: 'Internal Server Error' }, 500);
   }
 });
 

@@ -31,9 +31,8 @@ export const HeaderLogoLanding = ({ withLink = true }: HeaderLogoProps) => {
   }, [user]);
 
   const LogoContent = (
-    <div className={cn("hidden lg:flex items-center", montserratP.className)}>
-      <Image src="/Link_Logo_Transparent.png" alt="Finance logo" height={28} width={28} />
-      <p className="ml-2.5 text-2xl font-semibold text-white">Link</p>
+    <div className={cn("hidden lg:flex items-center bg-white bg-opacity-10 rounded-2xl", montserratP.className)}>
+      <Image src="/Link_Logo_Full.png" alt="Link logo" height={85} width={85} />
     </div>
   );
 
