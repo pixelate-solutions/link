@@ -65,6 +65,8 @@ const SettingsPage = () => {
       await fetch('/api/plaid/recurring', { method: 'POST' });
 
       setPlaidIsOpen(false);
+
+      window.location.reload();
     } catch (error) {
       console.error("Error exchanging public token and uploading data:", error);
     }
