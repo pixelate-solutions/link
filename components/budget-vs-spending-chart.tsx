@@ -89,7 +89,7 @@ export const BudgetVsSpendingChart = ({ data }: BudgetVsSpendingChartProps) => {
       <CardHeader>
         <CardTitle className="line-clamp-1 text-xl">Budget vs Spending</CardTitle>
       </CardHeader>
-      <CardContent className='-ml-5 w-[115%]'>
+      <CardContent className='-ml-5 w-full'>
         {data.length === 0 ? (
           <div className="flex h-[350px] w-full flex-col items-center justify-center gap-y-4">
             <FileSearch className="size-6 text-muted-foreground" />
@@ -98,10 +98,11 @@ export const BudgetVsSpendingChart = ({ data }: BudgetVsSpendingChartProps) => {
             </p>
           </div>
         ) : (
-          <ResponsiveContainer width="90%" height={350}>
-            <AreaChart className='-ml-4' data={processedData}>
+          <ResponsiveContainer className="w-full" height={350}>
+            <AreaChart data={processedData}>
               {/* X-Axis with dynamic tick intervals */}
               <XAxis
+                className='text-xs md:text-sm lg:text-md'
                 dataKey="date"  // Use the date field directly
                 scale="band"  // Use band scale for evenly spaced days
                 tickFormatter={tickFormatter} // Conditionally show labels based on screen size
