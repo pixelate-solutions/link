@@ -1,0 +1,2 @@
+ALTER TABLE "transaction_updates" ADD CONSTRAINT "transaction_updates_id_unique" UNIQUE("id");--> statement-breakpoint
+ALTER TABLE "transaction_updates" ADD CONSTRAINT "transaction_updates_user_id_unique" UNIQUE("user_id");

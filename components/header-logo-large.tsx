@@ -32,12 +32,12 @@ export const HeaderLogoLarge = ({ withLink = true }: HeaderLogoLargeProps) => {
 
   return withLink ? (
     <Link href={logoRoute}>
-      <div className={cn("flex items-center bg-white bg-opacity-10 rounded-full hover:bg-opacity-20 transition-all", montserratP.className)}>
+      <div className={cn("flex items-center bg-white bg-opacity-20 hover:bg-opacity-30 border-black border-l-4 border-r-4 rounded-full transition-all", montserratP.className)}>
         <Image src="/Link_Logo_Full.png" alt="Link logo" height={80} width={80} />
       </div>
     </Link>
   ) : (
-    <div className={cn("flex items-center bg-white bg-opacity-10 rounded-full", montserratP.className)}>
+    <div className={cn("flex items-center bg-white bg-opacity-20 border-black border-l-4 border-r-4 rounded-full transition-all", montserratP.className)}>
       <Image src="/Link_Logo_Full.png" alt="Link logo" height={150} width={150} />
     </div>
   );

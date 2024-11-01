@@ -31,7 +31,7 @@ export const HeaderLogo = ({ withLink = true }: HeaderLogoProps) => {
   }, [user]);
 
   const LogoContent = (
-    <div className={cn("hidden lg:flex items-center bg-white bg-opacity-10 rounded-2xl hover:bg-opacity-20 transition-all", montserratP.className)}>
+    <div className={cn("hidden lg:flex items-center bg-white bg-opacity-20 hover:bg-opacity-30 border-black border-l-4 border-r-4 rounded-full transition-all", montserratP.className)}>
       <Image src="/Link_Logo_Full.png" alt="Link logo" height={85} width={85} />
     </div>
   );

@@ -122,3 +122,9 @@ export const recurringTransactionsRelations = relations(recurringTransactions, (
 export const insertRecurringTransactionSchema = createInsertSchema(recurringTransactions, {
   date: z.coerce.date(), // Include the new date field in the insert schema
 });
+
+export const transactionUpdates = pgTable('transaction_updates', {
+  id: text('id').primaryKey().unique(),
+  userId: text('user_id').notNull().unique(),
+  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+});

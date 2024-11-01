@@ -344,6 +344,34 @@
       "when": 1730309521974,
       "tag": "0048_uneven_morlun",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "6",
+      "when": 1730428517457,
+      "tag": "0049_fancy_dagger",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "6",
+      "when": 1730429430123,
+      "tag": "0050_amusing_terrax",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "6",
+      "when": 1730429855730,
+      "tag": "0051_stormy_starfox",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "6",
+      "when": 1730430190349,
+      "tag": "0052_high_madelyne_pryor",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "chat_info_updates" RENAME TO "transaction_updates";

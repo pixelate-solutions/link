@@ -171,7 +171,6 @@ app.post('/upsert', clerkMiddleware(), async (c) => {
       prompt += `The last date for this transaction was ${trans.last_date}. `;
     });
 
-    // Step 1: Delete existing chat info
     const isDeleted = await deleteChatInfo("Chat Info");
     if (!isDeleted) {
       console.error('Failed to delete existing chat info');

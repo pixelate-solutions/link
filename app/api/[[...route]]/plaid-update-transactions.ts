@@ -1,15 +1,48 @@
 import { Hono } from "hono";
 import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 import { db } from "@/db/drizzle";
-import { accounts, transactions, userTokens, categories, recurringTransactions } from "@/db/schema";
+import { accounts, transactions, userTokens, categories, recurringTransactions, transactionUpdates } from "@/db/schema";
 import { createId } from "@paralleldrive/cuid2";
 import plaidClient from "./plaid";
 import { eq, and, desc } from "drizzle-orm";
+import { isSameDay } from "date-fns";
 
 // Fetch the AI URL from environment variables
 const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
 
 const app = new Hono();
+
+const checkOrUpdateLastRunDate = async (userId: string) => {
+  const today = new Date();
+
+  // Retrieve the last update date for the user
+  const [lastUpdate] = await db
+    .select({ lastUpdated: transactionUpdates.lastUpdated })
+    .from(transactionUpdates)
+    .where(eq(transactionUpdates.userId, userId))
+    .execute();
+
+  // Check if today’s date matches the last update date
+  if (lastUpdate && isSameDay(new Date(lastUpdate.lastUpdated), today)) {
+    return false; // Already updated today
+  }
+
+  // If not updated today, insert or update with today’s date
+  await db
+    .insert(transactionUpdates)
+    .values({
+      id: createId(),
+      userId: userId,
+      lastUpdated: today
+    })
+    .onConflictDoUpdate({
+      target: transactionUpdates.userId,
+      set: { lastUpdated: today },
+    })
+    .execute();
+
+  return true;
+};
 
 app.post('/', clerkMiddleware(), async (ctx) => {
   const auth = getAuth(ctx);
@@ -17,6 +50,11 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
   if (!userId) {
     return ctx.json({ error: "Unauthorized" }, 401);
+  }
+
+  const shouldProceed = await checkOrUpdateLastRunDate(userId);
+  if (!shouldProceed) {
+    return ctx.json({ message: 'Already processed today' });
   }
 
   // Fetch the user's access token from the database
