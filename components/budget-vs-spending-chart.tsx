@@ -111,7 +111,10 @@ export const BudgetVsSpendingChart = ({ data }: BudgetVsSpendingChartProps) => {
                 tick={{ stroke: '#ccc', strokeWidth: 0.5 }}  // Styling for ticks
               />
               {/* Y-Axis */}
-              <YAxis tickFormatter={(value) => (value === 0 ? '' : value)} />
+                <YAxis
+                  className='text-xs md:text-sm lg:text-md'
+                  tickFormatter={(value) => (value === 0 ? '' : value)}
+                />
               
               {/* Dotted grid lines */}
               <CartesianGrid
