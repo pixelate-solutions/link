@@ -25,7 +25,7 @@ const SignInPage = () => {
       </div>
 
       <div className="hidden h-full items-center justify-center bg-gradient-to-br from-blue-500 to-purple-500 lg:flex">
-        <Image src="/Link_Logo_Full.png" alt="Link logo" height={150} width={150} />
+        <Image src="/Link_Logo_Current.png" alt="Link logo" height={150} width={150} />
       </div>
     </div>
   );
