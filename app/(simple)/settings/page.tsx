@@ -10,6 +10,15 @@ import { Typewriter } from 'react-simple-typewriter';
 import { Montserrat } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { loadStripe, Stripe } from '@stripe/stripe-js';
+import { Copy } from "lucide-react";
+
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const montserratP = Montserrat({
   weight: "500",
@@ -25,6 +34,7 @@ const SettingsPage = () => {
   const { user } = useUser();
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>('Loading...');
   const [subscriptionButton, setSubscriptionButton] = useState<string>('Loading...');
+  const [copyOrCopied, setCopyOrCopied] = useState<string>('Copy');
   const [openUpgradeDialog, setOpenUpgradeDialog] = useState<boolean>(false);
   const [plaidIsOpen, setPlaidIsOpen] = useState<boolean>(false);
   const [linkToken, setLinkToken] = useState<string | null>(null);
@@ -32,6 +42,13 @@ const SettingsPage = () => {
 
   const [promoCode, setPromoCode] = useState("");
   const [featureBugRequest, setFeatureBugRequest] = useState("");
+  const [stripeBalance, setStripeBalance] = useState<number | null>(null);
+
+  const publishableKey = process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
+  ? process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_TEST_KEY
+  : process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  
+  const stripePromise = loadStripe(publishableKey!);
 
   useEffect(() => {
     const fetchLinkToken = async () => {
@@ -53,7 +70,20 @@ const SettingsPage = () => {
       }
     };
 
-    fetchLinkToken();
+    const fetchStripeBalance = async () => {
+      try {
+        const response = await fetch("/api/stripe-balance");
+        const data = await response.json();
+        setStripeBalance(data.balance);
+      } catch (error) {
+        console.error("Error fetching Stripe balance:", error);
+      }
+    };
+    
+    if (user?.id) {
+      fetchLinkToken();
+      fetchStripeBalance();
+    }
   }, [user]);
 
   const onSuccess = async (public_token: string) => {
@@ -114,26 +144,50 @@ const SettingsPage = () => {
   }, [user]);
 
   const handlePromoSubmit = async () => {
+    const stripe: Stripe | null = await stripePromise;
     try {
-      const response = await fetch("/api/apply-promo-code", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          promoCode: promoCode.trim(),
-        }),
-      });
+      if (stripe && user?.id && user?.emailAddresses[0]?.emailAddress) {
+        const response = await fetch("/api/apply-promo-code", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            promoCode,
+            customerEmail: user?.primaryEmailAddress,
+          }),
+        });
 
-      if (response.ok) {
-        toast.success("Valid promo code!");
-        window.location.reload();
+        const data = await response.json();
+
+        if (data.sessionId) {
+          const sessionId = data.sessionId;
+          const referringUserId = "user_" + promoCode;
+            await fetch("/api/stripe-balance/credit-referral", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ referringUserId }),
+            });
+
+          toast.success("Successfully applied promo code and credited referral!");
+
+          const result = await stripe.redirectToCheckout({ sessionId });
+
+          if (result.error) {
+            console.error(result.error.message);
+            toast.error(result.error.message);
+          }
+        } else {
+          toast.error("Invalid promo code");
+        }
       } else {
-        toast.error("Please try again with a valid promo code.");
+        console.error("Stripe object or user information is missing.");
       }
     } catch (error) {
-      console.error("Error submitting promo code:", error);
-      toast.error("Something went wrong. Please try again later.");
+      console.error("Error applying promo code:", error);
+      toast.error("Failed to apply promo code. Please try again.");
     }
   };
 
@@ -146,7 +200,7 @@ const SettingsPage = () => {
       body: JSON.stringify({
         to: "support@budgetwithlink.com",
         subject: "Feature/Bug Report",
-        body: `A feature or bug request from\n\nName: ${user?.firstName} ${user?.lastName}\nEmail: ${user?.emailAddresses}\nUser ID: ${user?.id}\n\nis as follows:\n\n"${featureBugRequest}"\n\nSincerely,\nLink`,
+        body: `A message from\n\nName: ${user?.firstName} ${user?.lastName}\nEmail: ${user?.emailAddresses}\nUser ID: ${user?.id}\n\nis as follows:\n\n"${featureBugRequest}"\n\nSincerely,\nLink`,
       }),
     });
 
@@ -158,8 +212,21 @@ const SettingsPage = () => {
       }
   };
 
+  const handleCopy = async (event: React.MouseEvent<HTMLParagraphElement>) => {
+    event.preventDefault(); // Prevent default behavior if necessary (optional)
+    if (user?.id) {
+      try {
+        await navigator.clipboard.writeText(user?.id.split("_")[1] || "");
+        setCopyOrCopied("Copied!")
+        setTimeout(() => setCopyOrCopied("Copy"), 3000);
+      } catch (err) {
+        console.error('Failed to copy text: ', err);
+      }
+    }
+  };
+
   return (
-    <div className={cn("relative", montserratP.className, "p-6 z-50")}>
+    <div className={cn("relative", montserratP.className, "p-2 md:p-6 z-50")}>
       {plaidIsOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
           <div className="bg-white p-8 rounded-lg shadow-lg w-96 text-center">
@@ -250,12 +317,12 @@ const SettingsPage = () => {
             {/* Feature/Bug Section */}
             <div className="space-y-4 relative md:flex md:justify-between md:items-center">
               <div>
-                <p className="font-semibold text-lg">Feature/Bug Request</p>
+                <p className="font-semibold text-lg">Contact Us</p>
                 <textarea
                   value={featureBugRequest}
                   onChange={(e) => setFeatureBugRequest(e.target.value)}
                   className="textarea border border-gray-300 rounded-lg p-4 shadow-sm w-full md:w-auto md:min-w-[350px] focus:outline-none mt-2"
-                  placeholder="Enter your feature or bug request"
+                  placeholder="Enter a feature request, bug report, or any general question."
                   rows={4}
                 />
               </div>
@@ -268,7 +335,24 @@ const SettingsPage = () => {
                 Submit
               </Button>
             </div>
-
+            <div className="border-t pt-10">
+              <p className={cn("flex w-full text-sm md:text-md", montserratH.className)}>Referral Code: <p className={cn("flex text-wrap break-all ml-2 md:ml-0 md:mx-4 max-w-[50%] text-xs md:text-sm", montserratP.className)}>{user?.id.split("_")[1]}</p><p onClick={handleCopy} className="text-gray-600 ml-2 hover:text-gray-500 hover:cursor-pointer text-sm md:text-md"><Copy className="h-4" /> {copyOrCopied}</p></p>
+              <Accordion type="single" collapsible className={cn("w-[90%] sm:w-[70%] lg:w-[50%] text-left mt-4", montserratP.className)}>
+                <AccordionItem className="border-none" value="item-1">
+                  <AccordionTrigger className="text-xs md:text-sm hover:no-underline border hover:bg-gray-100 p-2 rounded-2xl my-2">How does this work?</AccordionTrigger>
+                  <AccordionContent className="font-normal px-4 text-xs md:text-sm">
+                    Share your referral code to earn credit! Someone else can use your referral code once per month, and if they use it, you'll receive a $5 credit towards your next payment. You cannot use your own code, and it only works for users currently on the free version. To use a referral code, enter it in the promo code field and click submit.
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </div>
+            <div>
+              {(stripeBalance !== null && stripeBalance !== undefined) ? (
+                <p className={cn("flex", montserratH.className)}>Credit balance: <p className={stripeBalance > 0 ? "text-green-600 flex ml-2" : "flex ml-2"}> ${stripeBalance.toFixed(2)}</p></p>
+              ) : (
+                <p>Credit balance: $0.00</p>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>

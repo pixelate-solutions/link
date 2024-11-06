@@ -166,7 +166,7 @@ const LandingPage = () => {
             className="bg-white shadow-lg rounded-lg p-6 hover:shadow-xl transition-shadow duration-300 w-full max-w-md mx-auto flex flex-col justify-between"
           >
             <h3 className="text-xl font-semibold text-gray-800">Lifetime Plan</h3>
-            <p className="text-gray-600 text-4xl font-bold my-4">$295.00</p>
+            <p className="text-gray-600 text-4xl font-bold my-4">$495.00</p>
             <p className="text-gray-600 mb-4">One-time payment</p>
             <ul className="text-gray-600 text-left mb-6 flex-grow">
               <li className="mb-2">✔ Lifetime access to all features</li>

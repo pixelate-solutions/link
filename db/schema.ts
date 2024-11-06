@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -128,3 +128,13 @@ export const transactionUpdates = pgTable('transaction_updates', {
   userId: text('user_id').notNull().unique(),
   lastUpdated: timestamp('last_updated').defaultNow().notNull(),
 });
+
+export const referrals = pgTable('referrals', {
+  id: text('id').primaryKey(), // Referral record ID
+  userId: text('user_id').notNull(), // Referring user's ID
+  effectiveDate: text('effective_date').notNull(), // Date in MM-DD-YYYY format
+  amount: integer('amount').notNull(), // Amount of the referral credit
+  applied: boolean('applied').default(false), // Whether the credit has been applied
+});
+
+export const insertReferralSchema = createInsertSchema(referrals);

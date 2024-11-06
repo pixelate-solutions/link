@@ -86,7 +86,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       .where(and(eq(transactions.userId, auth.userId), eq(transactions.isFromPlaid, true)));
 
     // Respond with a redirect URL
-    return ctx.json({ message: 'Subscription canceled successfully.', redirectUrl: '/' });
+    return ctx.json({ message: 'Subscription canceled successfully.', redirectUrl: '/overview' });
   } catch (error) {
     console.error('Error canceling subscription:', error);
     return ctx.json({ error: 'Internal Server Error' }, 500);

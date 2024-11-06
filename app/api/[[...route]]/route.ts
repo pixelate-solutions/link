@@ -21,6 +21,7 @@ import recurringTransactions from './upload-plaid-recurring-transactions';
 import promoCode from './promo'
 import sendEmail from './send-email'
 import gatherInfo from './chat-info'
+import stripeBalance from './stripe-balance'
 
 const app = new Hono().basePath('/api');
 
@@ -45,6 +46,7 @@ const routes = app
   .route('/apply-promo-code', promoCode)
   .route('/send-email', sendEmail)
   .route('/chat/info', gatherInfo)
+  .route('/stripe-balance', stripeBalance)
   
 export const GET = handle(app);
 export const POST = handle(app);
