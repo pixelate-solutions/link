@@ -248,7 +248,7 @@ const SettingsPage = () => {
     <div className={cn("relative", montserratP.className, "p-2 md:p-6 z-50")}>
       {plaidIsOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
-          <div className="bg-white p-8rounded-lg shadow-lg w-80 text-center">
+          <div className="bg-white p-8 rounded-lg shadow-lg w-80 text-center">
             <h2 className="text-2xl font-bold mb-4">Connecting Your Data</h2>
             <p className="text-lg text-gray-600">
               <Typewriter
