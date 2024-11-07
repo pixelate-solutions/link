@@ -35,7 +35,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
   // Fetch Plaid transactions
   const startDate = new Date();
   const endDate = new Date();
-  startDate.setFullYear(endDate.getFullYear() - 10);
+  startDate.setFullYear(endDate.getFullYear() - 2);
 
   const formattedEndDate = endDate.toISOString().split('T')[0];
   const formattedStartDate = startDate.toISOString().split('T')[0];
