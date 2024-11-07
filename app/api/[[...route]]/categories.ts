@@ -77,14 +77,13 @@ const app = new Hono()
 
       const defaultCategories = [
         { name: "Salary/Wages (Default)", type: "income" },
-        { name: "Other Income (Default)", type: "income" },
+        { name: "Other (Default)", type: "income" },
         { name: "Housing/Utilities (Default)", type: "expense" },
         { name: "Transportation (Default)", type: "expense" },
         { name: "Groceries/Food (Default)", type: "expense" },
         { name: "Health/Insurance (Default)", type: "expense" },
         { name: "Entertainment/Leisure (Default)", type: "expense" },
         { name: "Savings/Investments (Default)", type: "expense" },
-        { name: "Other Expense (Default)", type: "expense" },
       ];
 
       const existingCategories = await db

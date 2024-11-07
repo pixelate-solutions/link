@@ -132,10 +132,10 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
         // Convert amounts to string, using "0" as fallback if undefined
         const averageAmount = stream.average_amount?.amount
-          ? stream.average_amount.amount.toString()
+          ? (stream.average_amount.amount * -1).toString()
           : "0";
         const lastAmount = stream.last_amount?.amount
-          ? stream.last_amount.amount.toString()
+          ? (stream.last_amount.amount * -1).toString()
           : "0";
 
         return db.insert(recurringTransactions).values({

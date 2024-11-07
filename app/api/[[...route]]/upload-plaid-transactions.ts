@@ -138,7 +138,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       }
 
       // Convert amount to string
-      const amount = transaction.amount.toString();
+      const amount = (transaction.amount * -1).toString();
 
       await db.insert(transactions).values({
         id: createId(),
