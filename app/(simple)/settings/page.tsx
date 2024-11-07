@@ -153,12 +153,11 @@ const SettingsPage = () => {
       .then(response => response.json())
       .then(data => {
         if (data.message) {
-          toast.success(data.message);
+          console.log("Default category setting successful.")
         }
       })
       .catch((error) => {
         console.error("Error checking default categories:", error);
-        toast.error("Failed to verify default categories.");
       });
     }
   }, [user]);
