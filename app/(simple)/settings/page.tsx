@@ -339,7 +339,7 @@ const SettingsPage = () => {
               <p className={cn("flex w-full text-sm md:text-md", montserratH.className)}>Referral Code: <p className={cn("flex text-wrap break-all ml-2 md:ml-0 md:mx-4 max-w-[50%] text-xs md:text-sm", montserratP.className)}>{user?.id.split("_")[1]}</p><p onClick={handleCopy} className="text-gray-600 ml-2 hover:text-gray-500 hover:cursor-pointer text-sm md:text-md"><Copy className="h-4" /> {copyOrCopied}</p></p>
               <Accordion type="single" collapsible className={cn("w-[90%] sm:w-[70%] lg:w-[50%] text-left mt-4", montserratP.className)}>
                 <AccordionItem className="border-none" value="item-1">
-                  <AccordionTrigger className="text-xs md:text-sm hover:no-underline border hover:bg-gray-100 p-2 rounded-2xl my-2">How does this work?</AccordionTrigger>
+                  <AccordionTrigger className="text-xs md:text-sm hover:no-underline border hover:bg-gray-100 p-2 rounded-2xl my-2">How does it work?</AccordionTrigger>
                   <AccordionContent className="font-normal px-4 text-xs md:text-sm">
                     Share your referral code to earn credit! Someone else can use your referral code once per month, and if they use it, you&apos;ll receive a $5 credit towards your next payment. You cannot use your own code, and it only works for users currently on the free version. To use a referral code, enter it in the promo code field and click submit.
                   </AccordionContent>
