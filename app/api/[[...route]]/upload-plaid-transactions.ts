@@ -317,57 +317,71 @@ app.post('/recategorize', clerkMiddleware(), async (ctx) => {
   // Use the payee name for categorization instead of the existing category
   const payeeNames = userTransactions.map(transaction => transaction.payee || "");
 
-  // Construct the query for the AI API to recategorize transactions based on payee names
-  const query = `
-    Here is a list of names from transactions: [${payeeNames}]
-    Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}].
-    ONLY if this list of categories is empty, use this list instead to categorize each of these into one
-       of the following categories: [Food & Drink, Transportation, Bills & Utilities, Fun, Other].
-    Return the result as a JavaScript dictionary (JSON object), where the key is the payee name and the value is the assigned category.
-    Use this format:
-    {
-      "payee_name_1": "Category_1",
-      "payee_name_2": "Category_2",
-      ...
+  // Split payee names into batches (e.g., 10 names per batch)
+  const batchSize = 10; // You can adjust this batch size as needed
+  const batches = batchArray(payeeNames, batchSize);
+
+  // This will hold the final categorized results
+  const finalCategorizedResults: Record<string, string> = {};
+
+  // Process each batch
+  for (const batch of batches) {
+    // Construct the query for the current batch
+    const query = `
+      Here is a list of names from transactions: [${batch}]
+      Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}].
+      ONLY if this list of categories is empty, use this list instead to categorize each of these into one
+         of the following categories: [Food & Drink, Transportation, Bills & Utilities, Fun, Other].
+      Return the result as a JavaScript dictionary (JSON object), where the key is the payee name and the value is the assigned category.
+      Use this format:
+      {
+        "payee_name_1": "Category_1",
+        "payee_name_2": "Category_2",
+        ...
+      }
+      EVERY transaction name must have a category assigned. If something cannot fit in a category, assign it as "Other".
+      ONLY return the dictionary with NO additional text or explanations.
+    `;
+
+    const data = {
+      user_id: userId,
+      query: query,
+      allow_access: false,
+      using_user_id: true,
+    };
+
+    try {
+      // Call AI API to recategorize the current batch of payees
+      const aiResponse = await fetch(`${AI_URL}/finance/categorize`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!aiResponse.ok) {
+        const errorText = await aiResponse.text();
+        console.error('Error from AI API:', errorText);
+        return ctx.json({ error: 'Failed to recategorize transactions' }, 500);
+      }
+
+      const aiData = await aiResponse.json();
+      
+      // Convert the AI response string into a JavaScript object (dictionary)
+      const categorizedResults: Record<string, string> = JSON.parse(aiData);
+
+      // Merge the current batch's results into the final categorized results
+      for (const payee of batch) {
+        finalCategorizedResults[payee] = categorizedResults[payee] || "Other";
+      }
+    } catch (error) {
+      console.error('AI API request failed:', error);
+      return ctx.json({ error: 'AI categorization request failed' }, 500);
     }
-    EVERY transaction name must have a category assigned. If something cannot fit in a category, assign it as "Other".
-    ONLY return the dictionary with NO additional text or explanations.
-  `;
-
-  const data = {
-    user_id: userId,
-    query: query,
-    allow_access: false,
-    using_user_id: true,
-  };
-
-  // Call AI API to recategorize the transactions
-  const aiResponse = await fetch(`${AI_URL}/finance/categorize`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!aiResponse.ok) {
-    const errorText = await aiResponse.text();
-    console.error('Error from AI API:', errorText);
-    return ctx.json({ error: 'Failed to recategorize transactions' }, 500);
   }
 
-  const aiData = await aiResponse.json();
-  
-  // Convert the AI response string into a JavaScript object (dictionary)
-  const categorizedResults: Record<string, string> = JSON.parse(aiData);
-
-  // Ensure every transaction has a category, assign "Other" if missing
-  const finalCategorizedResults: Record<string, string> = {};
-  payeeNames.forEach((payee) => {
-    finalCategorizedResults[payee] = categorizedResults[payee] || "Other";
-  });
-
-  // Update transactions in the database with new categories
+  // Update transactions in the database with the new categories
   const updatedTransactions = await Promise.all(
     userTransactions.map(async (transaction) => {
       const categoryName = finalCategorizedResults[transaction.payee || ""];
@@ -384,7 +398,7 @@ app.post('/recategorize', clerkMiddleware(), async (ctx) => {
           .returning();
       }
 
-      // Update with found category ID
+      // Update with the found category ID
       return db
         .update(transactions)
         .set({ categoryId })
