@@ -79,7 +79,7 @@ app.post('/credit-referral', clerkMiddleware(), async (ctx) => {
 
     if ('balance' in customer) {
       // Credit the user with $5 (500 cents)
-      const amountToCredit = 500; // $5 in cents
+      const amountToCredit = -500; // $5 in cents
       await stripe.customers.update(customerId, {
         balance: customer.balance + amountToCredit,
       });
