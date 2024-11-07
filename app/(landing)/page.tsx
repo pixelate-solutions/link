@@ -131,7 +131,7 @@ const LandingPage = () => {
               <li className="mb-2">✔ Bulk-Upload Transactions</li>
             </ul>
             <Button onClick={() => {router.push(`${user ? "/overview" : "/settings"}`)}} className="mt-auto w-full bg-gray-200 text-gray-700 hover:bg-gray-100 hover:scale-105 transition-all">
-              Upgrade
+              {user ? "Dashboard" : "Upgrade"}
             </Button>
           </motion.div>
 
@@ -153,7 +153,7 @@ const LandingPage = () => {
               <li className="mb-2">✔ Bulk-Upload Transactions</li>
             </ul>
             <Button onClick={() => {router.push(`${user ? "/overview" : "/settings"}`)}} className="mt-auto w-full bg-white text-blue-500 hover:bg-gray-100 hover:scale-105 transition-all">
-              Upgrade
+              {user ? "Dashboard" : "Upgrade"}
             </Button>
           </motion.div>
 
@@ -173,7 +173,7 @@ const LandingPage = () => {
               <li className="mb-2">✔ No renewal fees</li>
             </ul>
             <Button onClick={() => {router.push(`${user ? "/overview" : "/settings"}`)}} className="mt-auto w-full bg-gray-200 text-gray-700 hover:bg-gray-100 hover:scale-105 transition-all">
-              Upgrade
+              {user ? "Dashboard" : "Upgrade"}
             </Button>
           </motion.div>
         </div>
