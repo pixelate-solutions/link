@@ -24,6 +24,7 @@ export const categories = pgTable("categories", {
   plaidCategoryId: text("plaid_category_id"),
   isFromPlaid: boolean("is_from_plaid").default(false),
   budgetAmount: text("budget_amount"),
+  isDefault: boolean("is_default").default(false).notNull(),
 });
 
 export const categoriesRelations = relations(categories, ({ many }) => ({

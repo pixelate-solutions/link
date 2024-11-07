@@ -143,6 +143,26 @@ const SettingsPage = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (user?.id) {
+      // Check and insert default categories
+      fetch("/api/categories/set-default", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.message) {
+          toast.success(data.message);
+        }
+      })
+      .catch((error) => {
+        console.error("Error checking default categories:", error);
+        toast.error("Failed to verify default categories.");
+      });
+    }
+  }, [user]);
+
   const handlePromoSubmit = async () => {
     const stripe: Stripe | null = await stripePromise;
     try {
