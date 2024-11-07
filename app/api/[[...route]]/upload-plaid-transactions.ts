@@ -326,21 +326,15 @@ app.post('/recategorize', clerkMiddleware(), async (ctx) => {
 
   // Process each batch
   for (const batch of batches) {
-    // Construct the query for the current batch
+    // Construct the query for the current batch (using the original query format)
     const query = `
-      Here is a list of names from transactions: [${batch}]
-      Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}].
-      ONLY if this list of categories is empty, use this list instead to categorize each of these into one
-         of the following categories: [Food & Drink, Transportation, Bills & Utilities, Fun, Other].
-      Return the result as a JavaScript dictionary (JSON object), where the key is the payee name and the value is the assigned category.
-      Use this format:
-      {
-        "payee_name_1": "Category_1",
-        "payee_name_2": "Category_2",
-        ...
-      }
-      EVERY transaction name must have a category assigned. If something cannot fit in a category, assign it as "Other".
-      ONLY return the dictionary with NO additional text or explanations.
+      Here is a list of categories from transactions: [${batch}]
+      Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
+      respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
+      You MUST categorize each of these [${batch}] as one of these: [${categoryOptions.join(", ")}].
+      Every value in your list response will be one of these values: [${categoryOptions.join(", ")}]. Again, respond as a list with 
+      brackets "[]" and comma-separated values with NO other text than that list. And the only options you can use to make
+      the list are values from this list: [${categoryOptions.join(", ")}].
     `;
 
     const data = {
@@ -368,13 +362,13 @@ app.post('/recategorize', clerkMiddleware(), async (ctx) => {
 
       const aiData = await aiResponse.json();
       
-      // Convert the AI response string into a JavaScript object (dictionary)
-      const categorizedResults: Record<string, string> = JSON.parse(aiData);
+      // Split AI response into an array and map the results back to payee names
+      const categorizedResults = aiData.split(',').map((item: string) => item.trim());
 
       // Merge the current batch's results into the final categorized results
-      for (const payee of batch) {
-        finalCategorizedResults[payee] = categorizedResults[payee] || "Other";
-      }
+      batch.forEach((payee, index) => {
+        finalCategorizedResults[payee] = categorizedResults[index] || "Other";
+      });
     } catch (error) {
       console.error('AI API request failed:', error);
       return ctx.json({ error: 'AI categorization request failed' }, 500);
