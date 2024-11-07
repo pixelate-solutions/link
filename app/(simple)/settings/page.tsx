@@ -88,20 +88,61 @@ const SettingsPage = () => {
 
   const onSuccess = async (public_token: string) => {
     try {
-      const response = await fetch('/api/plaid/set-access-token', {
-        method: 'POST',
+      // Step 1: Fetch access token
+      const accessTokenResponse = await fetch('/api/plaid/fetch-access-token', {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ public_token, userId: user?.id }),
       });
 
-      await fetch('/api/plaid/upload-accounts', { method: 'POST' });
-      await fetch('/api/plaid/upload-transactions', { method: 'POST' });
-      await fetch('/api/plaid/recurring', { method: 'POST' });
+      const { accessToken } = await accessTokenResponse.json();
+      if (!accessToken) {
+        throw new Error("Access token not found");
+      }
+
+      // Step 2: Fetch Plaid transactions
+      const plaidTransactionsResponse = await fetch('/api/plaid/fetch-plaid-transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken, startDate: '2023-01-01', endDate: '2023-12-31' }),
+      });
+
+      const { transactions } = await plaidTransactionsResponse.json();
+      if (!transactions) {
+        throw new Error("Failed to fetch transactions");
+      }
+
+      // Step 3: Categorize transactions
+      const categorizeResponse = await fetch('/api/plaid/categorize-transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactions,
+          userId: user?.id,
+          categoryOptions: ['Food', 'Transport', 'Entertainment'],
+        }),
+      });
+
+      const { categorizedResults } = await categorizeResponse.json();
+      if (!categorizedResults) {
+        throw new Error("Failed to categorize transactions");
+      }
+
+      // Step 4: Insert transactions into the database
+      await fetch('/api/plaid/insert-transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactions,
+          userId: user?.id,
+          categorizedResults,
+          accountIdMap: {},  // Map of account IDs
+          dbCategories: []  // Categories from your DB
+        }),
+      });
 
       setPlaidIsOpen(false);
-
       window.location.reload();
     } catch (error) {
       console.error("Error exchanging public token and uploading data:", error);
