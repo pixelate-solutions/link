@@ -32,6 +32,15 @@ interface Category {
   name: string;
 }
 
+// Helper function to split an array into smaller batches
+const batchArray = (array: any[], size: number) => {
+  const batches: any[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    batches.push(array.slice(i, i + size));
+  }
+  return batches;
+};
+
 async function fetchPlaidTransactionsWithRetry(accessToken: string, startDate: string, endDate: string) {
   let attempts = 0;
   while (attempts < MAX_RETRIES) {
@@ -114,7 +123,6 @@ app.post('/start', clerkMiddleware(), async (ctx) => {
   return ctx.json({ plaidTransactions, accountIdMap, dbCategories, categoryOptions });
 });
 
-// 2. Categorize: Categorize transactions using AI
 app.post('/categorize', clerkMiddleware(), async (ctx) => {
   const { plaidTransactions, accountIdMap, dbCategories, categoryOptions } = await ctx.req.json();
 
@@ -127,45 +135,59 @@ app.post('/categorize', clerkMiddleware(), async (ctx) => {
     transaction.personal_finance_category?.detailed || transaction.personal_finance_category?.primary || ""
   );
 
+  // Split transactions into batches (e.g., 10 transactions per batch)
+  const batchSize = 10; // You can adjust this number depending on the size and processing time of each request
+  const batches = batchArray(transactionCategories, batchSize);
 
-  // Construct the query for the AI API
-  const query = `
-    Here is a list of categories from transactions: [${transactionCategories}]
-    Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
-    respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
-    You MUST categorize each of these [${transactionCategories}] as one of these: [${categoryOptions.join(", ")}].
-    Every value in your list response will be one of these values: [${categoryOptions.join(", ")}]. Again, respond as a list with 
-    brackets "[]" and comma-separated values with NO other text than that list. And the only options you can use to make
-    the list are values from this list: [${categoryOptions.join(", ")}]. ONLY if this list of categories is empty, use 
-    the list instead to categorize each of these into one of the following categories: 
-    [Food & Drink, Transportation, Bills & Utilities, Fun, Other].
-  `;
+  // This will hold the results of all batches
+  const allCategorizedResults: string[] = [];
 
-  const data = {
-    query: query,
-    allow_access: false,
-    using_user_id: true,
-  };
+  // Process each batch
+  for (const batch of batches) {
+    // Construct the query for the current batch
+    const query = `
+      Here is a list of categories from transactions: [${batch}]
+      Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
+      respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
+      You MUST categorize each of these [${batch}] as one of these: [${categoryOptions.join(", ")}].
+      Every value in your list response will be one of these values: [${categoryOptions.join(", ")}]. Again, respond as a list with 
+      brackets "[]" and comma-separated values with NO other text than that list. And the only options you can use to make
+      the list are values from this list: [${categoryOptions.join(", ")}].
+    `;
 
-  // Call AI API with the categorized transactions
-  const aiResponse = await fetch(`${AI_URL}/finance/categorize`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
+    const data = {
+      query: query,
+      allow_access: false,
+      using_user_id: true,
+    };
 
-  if (!aiResponse.ok) {
-    const errorText = await aiResponse.text();
-    console.error('Error from AI API:', errorText);
-    return ctx.json({ error: 'Failed to categorize transactions' }, 500);
+    try {
+      // Call AI API with the categorized transactions for the current batch
+      const aiResponse = await fetch(`${AI_URL}/finance/categorize`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!aiResponse.ok) {
+        const errorText = await aiResponse.text();
+        console.error('Error from AI API:', errorText);
+        return ctx.json({ error: 'Failed to categorize transactions' }, 500);
+      }
+
+      const aiData = await aiResponse.json();
+      const categorizedResults = aiData.split(',').map((item: string) => item.trim());
+      allCategorizedResults.push(...categorizedResults); // Append the results of this batch
+    } catch (error) {
+      console.error('AI API request failed:', error);
+      return ctx.json({ error: 'AI categorization request failed' }, 500);
+    }
   }
 
-  const aiData = await aiResponse.json();
-  const categorizedResults = aiData.split(',').map((item: string) => item.trim());
-
-  return ctx.json({ categorizedResults });
+  // Return the combined results
+  return ctx.json({ categorizedResults: allCategorizedResults });
 });
 
 // 3. Insert: Insert categorized transactions into the database
