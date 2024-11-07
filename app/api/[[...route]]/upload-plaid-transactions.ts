@@ -70,6 +70,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
   if (!plaidTransactions) {
     return ctx.json({ error: 'Failed to fetch transactions after retries' }, 500);
   }
+  console.log("FETCHED SUCCESSFULLY")
 
   // Fetch all accounts from the database for the user
   const dbAccounts = await db
@@ -134,6 +135,8 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: 'Failed to categorize transactions' }, 500);
   }
 
+  console.log("QUERY SUCCESSFUL")
+
   function stringToList(input: string): string[] {
     const cleanedInput = input.slice(1, -1).trim();
     const list = cleanedInput.split(',').map(item => item.trim());
@@ -177,6 +180,8 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       }).returning();
     })
   );
+
+  console.log("DB INSERT SUCCESSFUL")
 
   // Fetch all inserted transactions for the user to format for AI
   const userTransactions = await db
