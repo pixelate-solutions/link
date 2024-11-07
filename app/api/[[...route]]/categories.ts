@@ -198,53 +198,53 @@ const app = new Hono()
     }
   )
   .patch(
-  "/:id",
-  clerkMiddleware(),
-  zValidator(
-    "param",
-    z.object({
-      id: z.string().optional(),
-    })
-  ),
-  zValidator(
-    "json",
-    z.object({
-      budgetAmount: z.string(), // Only allow `budgetAmount` in the request body
-    })
-  ),
-  async (ctx) => {
-    const auth = getAuth(ctx);
-    const { id } = ctx.req.valid("param");
-    const { budgetAmount } = ctx.req.valid("json");
+    "/:id",
+    clerkMiddleware(),
+    zValidator(
+      "param",
+      z.object({
+        id: z.string().optional(),
+      })
+    ),
+    zValidator(
+      "json",
+      z.object({
+        budgetAmount: z.string(), // Only allow `budgetAmount` in the request body
+      })
+    ),
+    async (ctx) => {
+      const auth = getAuth(ctx);
+      const { id } = ctx.req.valid("param");
+      const { budgetAmount } = ctx.req.valid("json");
 
-    if (!id) {
-      return ctx.json({ error: "Missing id." }, 400);
+      if (!id) {
+        return ctx.json({ error: "Missing id." }, 400);
+      }
+
+      if (!auth?.userId) {
+        return ctx.json({ error: "Unauthorized." }, 401);
+      }
+
+      // Verify that the category belongs to the authenticated user
+      const category = await db
+        .select({ id: categories.id })
+        .from(categories)
+        .where(and(eq(categories.userId, auth.userId), eq(categories.id, id)));
+
+      if (!category.length) {
+        return ctx.json({ error: "Not found." }, 404);
+      }
+
+      // Proceed with update for `budgetAmount` regardless of default status
+      const [data] = await db
+        .update(categories)
+        .set({ budgetAmount }) // Only update `budgetAmount`
+        .where(and(eq(categories.userId, auth.userId), eq(categories.id, id)))
+        .returning();
+
+      return ctx.json({ data });
     }
-
-    if (!auth?.userId) {
-      return ctx.json({ error: "Unauthorized." }, 401);
-    }
-
-    // Verify that the category belongs to the authenticated user
-    const category = await db
-      .select({ id: categories.id })
-      .from(categories)
-      .where(and(eq(categories.userId, auth.userId), eq(categories.id, id)));
-
-    if (!category.length) {
-      return ctx.json({ error: "Not found." }, 404);
-    }
-
-    // Proceed with update for `budgetAmount` regardless of default status
-    const [data] = await db
-      .update(categories)
-      .set({ budgetAmount }) // Only update `budgetAmount`
-      .where(and(eq(categories.userId, auth.userId), eq(categories.id, id)))
-      .returning();
-
-    return ctx.json({ data });
-  }
-)
+  )
   .delete(
     "/:id",
     clerkMiddleware(),

@@ -19,6 +19,7 @@ import { CategoryForm } from "./category-form";
 
 const formSchema = insertCategorySchema.pick({
   name: true,
+  budgetAmount: true,
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -40,7 +41,12 @@ export const EditCategorySheet = () => {
   const isLoading = categoryQuery.isLoading;
 
   const onSubmit = (values: FormValues) => {
-    editMutation.mutate(values, {
+    const updatedValues = {
+      ...values,
+      budgetAmount: values.budgetAmount ?? '',
+    };
+
+    editMutation.mutate(updatedValues, {
       onSuccess: () => {
         onClose();
       },
