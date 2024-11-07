@@ -11,6 +11,31 @@ const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
 
 const app = new Hono();
 
+const MAX_RETRIES = 6;
+const RETRY_DELAY_MS = 10000;
+
+async function fetchPlaidTransactionsWithRetry(accessToken: string, startDate: string, endDate: string) {
+  let attempts = 0;
+  while (attempts < MAX_RETRIES) {
+    try {
+      const response = await plaidClient.transactionsGet({
+        access_token: accessToken,
+        start_date: startDate,
+        end_date: endDate,
+      });
+      return response.data.transactions; // Return transactions if successful
+    } catch (error) {
+      if (attempts >= MAX_RETRIES - 1) {
+        throw new Error("Failed to fetch transactions after multiple attempts.");
+      }
+      console.log(`Retrying transaction fetch... Attempt ${attempts + 1}`);
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS)); // Wait before retrying
+      attempts++;
+    }
+  }
+  return null;
+}
+
 app.post('/', clerkMiddleware(), async (ctx) => {
   const auth = getAuth(ctx);
   const userId = auth?.userId;
@@ -40,12 +65,11 @@ app.post('/', clerkMiddleware(), async (ctx) => {
   const formattedEndDate = endDate.toISOString().split('T')[0];
   const formattedStartDate = startDate.toISOString().split('T')[0];
 
-  const plaidTransactionsResponse = await plaidClient.transactionsGet({
-    access_token: accessToken,
-    start_date: formattedStartDate,
-    end_date: formattedEndDate,
-  });
-  const plaidTransactions = plaidTransactionsResponse.data.transactions;
+  let plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken, formattedStartDate, formattedEndDate);
+
+  if (!plaidTransactions) {
+    return ctx.json({ error: 'Failed to fetch transactions after retries' }, 500);
+  }
 
   // Fetch all accounts from the database for the user
   const dbAccounts = await db

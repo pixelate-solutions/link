@@ -13,6 +13,27 @@ const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
 
 const app = new Hono();
 
+const MAX_RETRIES = 6;
+const RETRY_DELAY_MS = 10000; // 10 seconds
+
+async function fetchRecurringTransactionsWithRetry(accessToken: string) {
+  let attempts = 0;
+  while (attempts < MAX_RETRIES) {
+    try {
+      const response = await plaidClient.transactionsRecurringGet({ access_token: accessToken });
+      return response.data; // Return data if successful
+    } catch (error) {
+      if (attempts >= MAX_RETRIES - 1) {
+        throw new Error("Failed to fetch recurring transactions after multiple attempts.");
+      }
+      console.log(`Retrying recurring transaction fetch... Attempt ${attempts + 1}`);
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS)); // Wait before retrying
+      attempts++;
+    }
+  }
+  return null; // Return null if all retries failed
+}
+
 // Insert recurring transactions from Plaid
 app.post('/', clerkMiddleware(), async (ctx) => {
   const auth = getAuth(ctx);
@@ -35,15 +56,16 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: "Access token not found" }, 404);
   }
 
-  // Fetch recurring transactions from Plaid
-  const request = { access_token: accessToken };
-
   try {
-    const response = await plaidClient.transactionsRecurringGet(request);
-    const inflowStreams = response.data.inflow_streams;
-    const outflowStreams = response.data.outflow_streams;
+    // Fetch recurring transactions with retry logic
+    const plaidData = await fetchRecurringTransactionsWithRetry(accessToken);
 
-    // Combine inflow and outflow streams
+    if (!plaidData) {
+      return ctx.json({ error: 'Failed to fetch recurring transactions after retries' }, 500);
+    }
+
+    const inflowStreams = plaidData.inflow_streams;
+    const outflowStreams = plaidData.outflow_streams;
     const allStreams = [...inflowStreams, ...outflowStreams];
 
     // Fetch user's accounts from the database
