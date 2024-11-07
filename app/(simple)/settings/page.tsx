@@ -341,7 +341,7 @@ const SettingsPage = () => {
                 <AccordionItem className="border-none" value="item-1">
                   <AccordionTrigger className="text-xs md:text-sm hover:no-underline border hover:bg-gray-100 p-2 rounded-2xl my-2">How does this work?</AccordionTrigger>
                   <AccordionContent className="font-normal px-4 text-xs md:text-sm">
-                    Share your referral code to earn credit! Someone else can use your referral code once per month, and if they use it, you'll receive a $5 credit towards your next payment. You cannot use your own code, and it only works for users currently on the free version. To use a referral code, enter it in the promo code field and click submit.
+                    Share your referral code to earn credit! Someone else can use your referral code once per month, and if they use it, you&apos;ll receive a $5 credit towards your next payment. You cannot use your own code, and it only works for users currently on the free version. To use a referral code, enter it in the promo code field and click submit.
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
