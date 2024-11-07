@@ -137,8 +137,8 @@ const SettingsPage = () => {
           transactions,
           userId: user?.id,
           categorizedResults,
-          accountIdMap: {},  // Map of account IDs
-          dbCategories: []  // Categories from your DB
+          accountIdMap: {},
+          dbCategories: []
         }),
       });
 
