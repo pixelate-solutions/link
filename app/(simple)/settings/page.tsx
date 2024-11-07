@@ -348,7 +348,7 @@ const SettingsPage = () => {
             </div>
             <div>
               {(stripeBalance !== null && stripeBalance !== undefined) ? (
-                <p className={cn("flex", montserratH.className)}>Credit balance: <p className={stripeBalance > 0 ? "text-green-600 flex ml-2" : "flex ml-2"}> ${stripeBalance.toFixed(2)}</p></p>
+                <p className={cn("flex", montserratH.className)}>Credit balance: <p className={stripeBalance < 0 ? "text-green-600 flex ml-2" : stripeBalance > 0 ? "text-red-600 flex ml-2" : "flex ml-2"}> ${stripeBalance.toFixed(2)}</p></p>
               ) : (
                 <p>Credit balance: $0.00</p>
               )}
