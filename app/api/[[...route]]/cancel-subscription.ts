@@ -8,9 +8,11 @@ import { eq, and } from 'drizzle-orm';
 
 config({ path: '.env.local' });
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_TEST_KEY!);
-const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
+const stripe = process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
+  ? new Stripe(process.env.STRIPE_SECRET_TEST_KEY!)
+  : new Stripe(process.env.STRIPE_SECRET_KEY!);
 
+const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
 const app = new Hono();
 
 app.post('/', clerkMiddleware(), async (ctx) => {

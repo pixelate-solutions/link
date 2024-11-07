@@ -6,7 +6,9 @@ import { stripeCustomers } from '@/db/schema';
 import { createId } from '@paralleldrive/cuid2';
 import { eq } from 'drizzle-orm';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_TEST_KEY!);
+const stripe = process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
+  ? new Stripe(process.env.STRIPE_SECRET_TEST_KEY!)
+  : new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const app = new Hono();
 

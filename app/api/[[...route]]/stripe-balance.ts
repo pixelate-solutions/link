@@ -7,7 +7,9 @@ import Stripe from 'stripe';
 import { createId } from '@paralleldrive/cuid2';
 
 const app = new Hono();
-const stripe = new Stripe(process.env.STRIPE_SECRET_TEST_KEY!);
+const stripe = process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
+  ? new Stripe(process.env.STRIPE_SECRET_TEST_KEY!)
+  : new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 app.get('/', clerkMiddleware(), async (ctx) => {
   const auth = getAuth(ctx);
