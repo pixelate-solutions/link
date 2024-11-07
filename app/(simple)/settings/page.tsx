@@ -89,7 +89,7 @@ const SettingsPage = () => {
   const onSuccess = async (public_token: string) => {
     try {
       // Step 1: Start by fetching user data and Plaid transactions
-      const startResponse = await fetch('/api/start', {
+      const startResponse = await fetch('/api/plaid/upload-transactions/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ public_token }), // Assuming public_token is passed to the endpoint
@@ -101,7 +101,7 @@ const SettingsPage = () => {
       }
 
       // Step 2: Categorize transactions using the AI endpoint
-      const categorizeResponse = await fetch('/api/categorize', {
+      const categorizeResponse = await fetch('/api/plaid/upload-transactions/categorize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -118,7 +118,7 @@ const SettingsPage = () => {
       }
 
       // Step 3: Insert categorized transactions into the database
-      const insertResponse = await fetch('/api/insert', {
+      const insertResponse = await fetch('/api/plaid/upload-transactions/insert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -135,7 +135,7 @@ const SettingsPage = () => {
       }
 
       // Step 4: Finalize by upserting the formatted transactions to AI
-      const finalizeResponse = await fetch('/api/finalize', {
+      const finalizeResponse = await fetch('/api/plaid/upload-transactions/finalize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
