@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/[[...route]]/upload-plaid-transactions.ts": {
+      "maxDuration": 15
+    }
+  }
+}
