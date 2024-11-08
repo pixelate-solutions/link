@@ -376,7 +376,6 @@ app.post('/', clerkMiddleware(), async (ctx) => {
   }
 
   try {
-    // Perform bulk delete of recurring transactions
     await db
       .delete(recurringTransactions)
       .where(
