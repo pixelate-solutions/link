@@ -88,77 +88,25 @@ const SettingsPage = () => {
 
   const onSuccess = async (public_token: string) => {
     try {
-      // Step 1: Start by fetching user data and Plaid transactions
-      const startResponse = await fetch('/api/plaid/upload-transactions/start', {
+      const response = await fetch('/api/plaid/set-access-token', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ public_token }), // Assuming public_token is passed to the endpoint
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ public_token, userId: user?.id }),
       });
 
-      const { plaidTransactions, accountIdMap, dbCategories, categoryOptions } = await startResponse.json();
-      if (!plaidTransactions || !accountIdMap || !dbCategories || !categoryOptions) {
-        throw new Error("Failed to fetch initial data");
-      }
+      await fetch('/api/plaid/upload-accounts', { method: 'POST' });
+      await fetch('/api/plaid/upload-transactions', { method: 'POST' });
+      await fetch('/api/plaid/recurring', { method: 'POST' });
 
-      // Step 2: Categorize transactions using the AI endpoint
-      const categorizeResponse = await fetch('/api/plaid/upload-transactions/categorize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          plaidTransactions,
-          accountIdMap,
-          dbCategories,
-          categoryOptions,
-        }),
-      });
-
-      const { categorizedResults } = await categorizeResponse.json();
-      if (!categorizedResults) {
-        throw new Error("Failed to categorize transactions");
-      }
-
-      // Step 3: Insert categorized transactions into the database
-      const insertResponse = await fetch('/api/plaid/upload-transactions/insert', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          plaidTransactions,
-          categorizedResults,
-          accountIdMap,
-          dbCategories,
-        }),
-      });
-
-      const insertResult = await insertResponse.json();
-      if (insertResult.error) {
-        throw new Error("Failed to insert transactions into the database");
-      }
-
-      // Step 4: Finalize by upserting the formatted transactions to AI
-      const finalizeResponse = await fetch('/api/plaid/upload-transactions/finalize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user?.id,
-          accountIdMap,
-          plaidTransactions,
-        }),
-      });
-
-      const finalizeResult = await finalizeResponse.json();
-      if (finalizeResult.error) {
-        throw new Error("Failed to finalize transactions");
-      }
-
-      // Success, transactions have been processed
       setPlaidIsOpen(false);
+
       window.location.reload();
-      
     } catch (error) {
       console.error("Error exchanging public token and uploading data:", error);
     }
   };
-
 
   const config = {
     token: linkToken!,

@@ -12,7 +12,7 @@ const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
 const app = new Hono();
 
 const MAX_RETRIES = 6;
-const RETRY_DELAY_MS = 2000;
+const RETRY_DELAY_MS = 10000;
 
 interface PlaidTransaction {
   transaction_id: string;
@@ -31,15 +31,6 @@ interface Category {
   id: string;
   name: string;
 }
-
-// Helper function to split an array into smaller batches
-const batchArray = (array: any[], size: number) => {
-  const batches: any[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    batches.push(array.slice(i, i + size));
-  }
-  return batches;
-};
 
 async function fetchPlaidTransactionsWithRetry(accessToken: string, startDate: string, endDate: string) {
   let attempts = 0;

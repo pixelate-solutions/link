@@ -14,7 +14,7 @@ const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
 const app = new Hono();
 
 const MAX_RETRIES = 6;
-const RETRY_DELAY_MS = 2000; // 2 seconds
+const RETRY_DELAY_MS = 10000; // 10 seconds
 
 async function fetchRecurringTransactionsWithRetry(accessToken: string) {
   let attempts = 0;
