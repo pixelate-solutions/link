@@ -43,6 +43,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
   const auth = getAuth(ctx);
   const userId = auth?.userId;
   const { item_id } = await ctx.req.json(); // Extract item_id from request body
+  console.log("obtained item id");
 
   if (!userId || !item_id) {
     return ctx.json({ error: "Unauthorized or missing item_id" }, 401);
@@ -61,6 +62,8 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     .orderBy(desc(userTokens.createdAt));
 
   const accessToken = result[0]?.accessToken;
+  
+  console.log("Got access token: ", accessToken);
 
   if (!accessToken) {
     return ctx.json({ error: "Access token not found" }, 404);
@@ -112,6 +115,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     allow_access: false,
     using_user_id: true,
   };
+  console.log("set query");
 
   const aiResponse = await fetch(`${AI_URL}/finance/categorize`, {
     method: 'POST',
@@ -158,6 +162,8 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       }).execute();
     })
   );
+
+  console.log("FINISHED");
 
   return ctx.json({ message: 'Transactions processed successfully' });
 });
