@@ -123,6 +123,7 @@ app.post('/start', clerkMiddleware(), async (ctx) => {
   return ctx.json({ plaidTransactions, accountIdMap, dbCategories, categoryOptions });
 });
 
+// 2. Categorize: Categorize transactions using AI
 app.post('/categorize', clerkMiddleware(), async (ctx) => {
   const { plaidTransactions, accountIdMap, dbCategories, categoryOptions } = await ctx.req.json();
 
@@ -130,64 +131,57 @@ app.post('/categorize', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: 'Missing required data from the previous step' }, 400);
   }
 
-  // Get the category for each transaction from Plaid
+  // Extract transaction categories for categorization
   const transactionCategories = plaidTransactions.map((transaction: PlaidTransaction) =>
     transaction.personal_finance_category?.detailed || transaction.personal_finance_category?.primary || ""
   );
 
-  // Split transactions into batches (e.g., 10 transactions per batch)
-  const batchSize = 10; // You can adjust this number depending on the size and processing time of each request
-  const batches = batchArray(transactionCategories, batchSize);
-
-  // This will hold the results of all batches
-  const allCategorizedResults: string[] = [];
-
-  // Process each batch
-  for (const batch of batches) {
-    // Construct the query for the current batch
-    const query = `
-      Here is a list of categories from transactions: [${batch}]
-      Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
-      respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
-      You MUST categorize each of these [${batch}] as one of these: [${categoryOptions.join(", ")}].
-      Every value in your list response will be one of these values: [${categoryOptions.join(", ")}]. Again, respond as a list with 
-      brackets "[]" and comma-separated values with NO other text than that list. And the only options you can use to make
-      the list are values from this list: [${categoryOptions.join(", ")}].
-    `;
-
-    const data = {
-      query: query,
-      allow_access: false,
-      using_user_id: true,
-    };
-
-    try {
-      // Call AI API with the categorized transactions for the current batch
-      const aiResponse = await fetch(`${AI_URL}/finance/categorize`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!aiResponse.ok) {
-        const errorText = await aiResponse.text();
-        console.error('Error from AI API:', errorText);
-        return ctx.json({ error: 'Failed to categorize transactions' }, 500);
-      }
-
-      const aiData = await aiResponse.json();
-      const categorizedResults = aiData.split(',').map((item: string) => item.trim());
-      allCategorizedResults.push(...categorizedResults); // Append the results of this batch
-    } catch (error) {
-      console.error('AI API request failed:', error);
-      return ctx.json({ error: 'AI categorization request failed' }, 500);
-    }
+  // Break down the categories into smaller batches to reduce AI API workload
+  const BATCH_SIZE = 10;
+  const transactionBatches = [];
+  for (let i = 0; i < transactionCategories.length; i += BATCH_SIZE) {
+    transactionBatches.push(transactionCategories.slice(i, i + BATCH_SIZE));
   }
 
-  // Return the combined results
-  return ctx.json({ categorizedResults: allCategorizedResults });
+  // Function to categorize a batch of transactions
+  const categorizeBatch = async (batch: string[]) => {
+    const query = `Categorize each of these: [${batch.join(", ")}] into one of these: [${categoryOptions.join(", ")}].
+    Respond as a comma-separated list of these categories only.`;
+
+    const response = await fetch(`${AI_URL}/finance/categorize`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: query,
+        allow_access: false,
+        using_user_id: true,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error from AI API:', errorText);
+      throw new Error('Failed to categorize transactions');
+    }
+
+    const resultText = await response.json();
+    return resultText.split(',').map((item: string) => item.trim());
+  };
+
+  try {
+    // Categorize each batch in parallel
+    const categorizedBatches = await Promise.all(transactionBatches.map(categorizeBatch));
+
+    // Flatten the results from all batches into a single list
+    const categorizedResults = categorizedBatches.flat();
+
+    return ctx.json({ categorizedResults });
+  } catch (error) {
+    console.error('Error during categorization:', error);
+    return ctx.json({ error: 'Failed to categorize transactions' }, 500);
+  }
 });
 
 // 3. Insert: Insert categorized transactions into the database
@@ -317,65 +311,57 @@ app.post('/recategorize', clerkMiddleware(), async (ctx) => {
   // Use the payee name for categorization instead of the existing category
   const payeeNames = userTransactions.map(transaction => transaction.payee || "");
 
-  // Split payee names into batches (e.g., 10 names per batch)
-  const batchSize = 10; // You can adjust this batch size as needed
-  const batches = batchArray(payeeNames, batchSize);
-
-  // This will hold the final categorized results
-  const finalCategorizedResults: Record<string, string> = {};
-
-  // Process each batch
-  for (const batch of batches) {
-    // Construct the query for the current batch (using the original query format)
-    const query = `
-      Here is a list of categories from transactions: [${batch}]
-      Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
-      respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
-      You MUST categorize each of these [${batch}] as one of these: [${categoryOptions.join(", ")}].
-      Every value in your list response will be one of these values: [${categoryOptions.join(", ")}]. Again, respond as a list with 
-      brackets "[]" and comma-separated values with NO other text than that list. And the only options you can use to make
-      the list are values from this list: [${categoryOptions.join(", ")}].
-    `;
-
-    const data = {
-      user_id: userId,
-      query: query,
-      allow_access: false,
-      using_user_id: true,
-    };
-
-    try {
-      // Call AI API to recategorize the current batch of payees
-      const aiResponse = await fetch(`${AI_URL}/finance/categorize`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!aiResponse.ok) {
-        const errorText = await aiResponse.text();
-        console.error('Error from AI API:', errorText);
-        return ctx.json({ error: 'Failed to recategorize transactions' }, 500);
-      }
-
-      const aiData = await aiResponse.json();
-      
-      // Split AI response into an array and map the results back to payee names
-      const categorizedResults = aiData.split(',').map((item: string) => item.trim());
-
-      // Merge the current batch's results into the final categorized results
-      batch.forEach((payee, index) => {
-        finalCategorizedResults[payee] = categorizedResults[index] || "Other";
-      });
-    } catch (error) {
-      console.error('AI API request failed:', error);
-      return ctx.json({ error: 'AI categorization request failed' }, 500);
+  // Construct the query for the AI API to recategorize transactions based on payee names
+  const query = `
+    Here is a list of names from transactions: [${payeeNames}]
+    Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}].
+    ONLY if this list of categories is empty, use this list instead to categorize each of these into one
+       of the following categories: [Food & Drink, Transportation, Bills & Utilities, Fun, Other].
+    Return the result as a JavaScript dictionary (JSON object), where the key is the payee name and the value is the assigned category.
+    Use this format:
+    {
+      "payee_name_1": "Category_1",
+      "payee_name_2": "Category_2",
+      ...
     }
+    EVERY transaction name must have a category assigned. If something cannot fit in a category, assign it as "Other".
+    ONLY return the dictionary with NO additional text or explanations.
+  `;
+
+  const data = {
+    user_id: userId,
+    query: query,
+    allow_access: false,
+    using_user_id: true,
+  };
+
+  // Call AI API to recategorize the transactions
+  const aiResponse = await fetch(`${AI_URL}/finance/categorize`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!aiResponse.ok) {
+    const errorText = await aiResponse.text();
+    console.error('Error from AI API:', errorText);
+    return ctx.json({ error: 'Failed to recategorize transactions' }, 500);
   }
 
-  // Update transactions in the database with the new categories
+  const aiData = await aiResponse.json();
+  
+  // Convert the AI response string into a JavaScript object (dictionary)
+  const categorizedResults: Record<string, string> = JSON.parse(aiData);
+
+  // Ensure every transaction has a category, assign "Other" if missing
+  const finalCategorizedResults: Record<string, string> = {};
+  payeeNames.forEach((payee) => {
+    finalCategorizedResults[payee] = categorizedResults[payee] || "Other";
+  });
+
+  // Update transactions in the database with new categories
   const updatedTransactions = await Promise.all(
     userTransactions.map(async (transaction) => {
       const categoryName = finalCategorizedResults[transaction.payee || ""];
@@ -392,7 +378,7 @@ app.post('/recategorize', clerkMiddleware(), async (ctx) => {
           .returning();
       }
 
-      // Update with the found category ID
+      // Update with found category ID
       return db
         .update(transactions)
         .set({ categoryId })
