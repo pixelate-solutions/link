@@ -12,7 +12,7 @@ const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
 const app = new Hono();
 
 const MAX_RETRIES = 6;
-const RETRY_DELAY_MS = 10000;
+const RETRY_DELAY_MS = 2000;
 
 interface PlaidTransaction {
   transaction_id: string;
