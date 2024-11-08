@@ -13,7 +13,7 @@ const app = new Hono();
 
 const MAX_RETRIES = 6;
 const RETRY_DELAY_MS = 2000;
-export const maxDuration = 15;
+export const maxDuration = 45;
 
 interface PlaidTransaction {
   transaction_id: string;
