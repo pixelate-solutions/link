@@ -313,7 +313,6 @@ const app = new Hono()
           // If no other accounts with this access token, delete Plaid item and remove row from user_tokens
           try {
             await plaidClient.itemRemove({ access_token: accessToken });
-            await plaidClient.itemRemove({ access_token: "access-sandbox-e140993d-2675-424e-9e0f-745454fe7c41" });
             
             // Delete the access token from the user_tokens table
             await db
