@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { clerkMiddleware } from '@hono/clerk-auth';
 import plaidClient from './plaid';
-import { CountryCode, Products } from 'plaid'; 
+import { CountryCode, Products } from 'plaid';
 
 const app = new Hono();
 
@@ -16,6 +16,7 @@ app.post("/", clerkMiddleware(), async (ctx) => {
     products: [Products.Transactions],
     country_codes: [CountryCode.Us],
     language: 'en',
+    webhook: `${process.env.NEXT_PUBLIC_APP_URL}/api/plaid/update-transactions`,
   };
 
   try {

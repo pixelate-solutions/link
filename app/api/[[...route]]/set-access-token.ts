@@ -17,12 +17,10 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     const access_token = response.data.access_token;
     const item_id = response.data.item_id;
 
-    const webhookRequest = {
+    await plaidClient.itemWebhookUpdate({
       access_token: access_token,
       webhook: `${process.env.NEXT_PUBLIC_APP_URL}/api/plaid/update-transactions`,
-    };
-
-    const webhookResponse = await plaidClient.itemWebhookUpdate(webhookRequest);
+    });
 
     // Check if this item_id already exists for the user
     const existingToken = await db
@@ -32,7 +30,6 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       .limit(1);
 
     if (existingToken.length > 0) {
-      // Item is already linked, skip further processing
       return ctx.json({
         success: false,
         message: 'This account has already been linked.'

@@ -1,0 +1,1 @@
+ALTER TABLE "accounts" RENAME COLUMN "plaid_item_id" TO "plaid_access_token";

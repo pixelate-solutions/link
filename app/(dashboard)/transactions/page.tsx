@@ -97,28 +97,28 @@ const TransactionsPage = () => {
 
   const transactions = transactionsQuery.data || [];
 
-  useEffect(() => {
-    if (!hasFetchedTransactions) {
-      const fetchNewTransactions = async () => {
-        try {
-          const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/plaid/update-transactions`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
-          if (!response.ok) {
-            console.error("Failed to update transactions");
-          }
-          setHasFetchedTransactions(true);
-        } catch (error) {
-          console.error("Error updating transactions:", error);
-        }
-      };
+  // useEffect(() => {
+  //   if (!hasFetchedTransactions) {
+  //     const fetchNewTransactions = async () => {
+  //       try {
+  //         const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/plaid/update-transactions`, {
+  //           method: "POST",
+  //           headers: {
+  //             "Content-Type": "application/json",
+  //           },
+  //         });
+  //         if (!response.ok) {
+  //           console.error("Failed to update transactions");
+  //         }
+  //         setHasFetchedTransactions(true);
+  //       } catch (error) {
+  //         console.error("Error updating transactions:", error);
+  //       }
+  //     };
 
-      fetchNewTransactions();
-    }
-  }, [hasFetchedTransactions]);
+  //     fetchNewTransactions();
+  //   }
+  // }, [hasFetchedTransactions]);
 
   useEffect(() => {
     const fetchRecurringTransactions = async () => {

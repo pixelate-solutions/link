@@ -7,6 +7,7 @@ export const accounts = pgTable('accounts', {
   id: text('id').primaryKey(),
   userId: text('user_id').notNull(),
   plaidAccountId: text('plaid_account_id'),
+  plaidAccessToken: text('plaid_access_token'),
   name: text('name').notNull(),
   isFromPlaid: boolean('is_from_plaid').notNull().default(true),
 });

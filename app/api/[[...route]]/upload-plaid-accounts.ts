@@ -75,6 +75,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
         id: createId(),
         userId: userId,
         plaidAccountId: account.account_id,
+        plaidAccessToken: accessToken,
         name: account.name,
         isFromPlaid: true,
     });
