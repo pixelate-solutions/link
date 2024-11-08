@@ -14,24 +14,6 @@ const app = new Hono();
 const MAX_RETRIES = 6;
 const RETRY_DELAY_MS = 10000;
 
-interface PlaidTransaction {
-  transaction_id: string;
-  amount: number;
-  name: string;
-  date: string;
-  account_id: string;
-  personal_finance_category?: {
-    detailed?: string;
-    primary?: string;
-  };
-  payee: string;
-}
-
-interface Category {
-  id: string;
-  name: string;
-}
-
 async function fetchPlaidTransactionsWithRetry(accessToken: string, startDate: string, endDate: string) {
   let attempts = 0;
   while (attempts < MAX_RETRIES) {
@@ -54,8 +36,7 @@ async function fetchPlaidTransactionsWithRetry(accessToken: string, startDate: s
   return null;
 }
 
-// 1. Start: Fetch user data and Plaid transactions
-app.post('/start', clerkMiddleware(), async (ctx) => {
+app.post('/', clerkMiddleware(), async (ctx) => {
   const auth = getAuth(ctx);
   const userId = auth?.userId;
 
@@ -96,6 +77,7 @@ app.post('/start', clerkMiddleware(), async (ctx) => {
     .from(accounts)
     .where(eq(accounts.userId, userId));
 
+  // Create a map of Plaid account IDs to database account IDs
   const accountIdMap = dbAccounts.reduce((map, account) => {
     if (account.plaidAccountId) {
       map[account.plaidAccountId] = account.id; // Map Plaid account ID to database account ID
@@ -109,24 +91,13 @@ app.post('/start', clerkMiddleware(), async (ctx) => {
     .from(categories)
     .where(eq(categories.userId, userId));
 
+  // Map category names from the categories table
   const categoryOptions = dbCategories.map(category => category.name);
 
-  return ctx.json({ plaidTransactions, accountIdMap, dbCategories, categoryOptions });
-});
-
-// 2. Categorize: Categorize transactions using AI
-app.post('/categorize', clerkMiddleware(), async (ctx) => {
-  const { plaidTransactions, accountIdMap, dbCategories, categoryOptions } = await ctx.req.json();
-
-  if (!plaidTransactions || !accountIdMap || !dbCategories || !categoryOptions) {
-    return ctx.json({ error: 'Missing required data from the previous step' }, 400);
-  }
-
   // Get the category for each transaction from Plaid
-  const transactionCategories = plaidTransactions.map((transaction: PlaidTransaction) =>
+  const transactionCategories = plaidTransactions.map(transaction => 
     transaction.personal_finance_category?.detailed || transaction.personal_finance_category?.primary || ""
   );
-
 
   // Construct the query for the AI API
   const query = `
@@ -142,6 +113,7 @@ app.post('/categorize', clerkMiddleware(), async (ctx) => {
   `;
 
   const data = {
+    user_id: userId,
     query: query,
     allow_access: false,
     using_user_id: true,
@@ -162,41 +134,39 @@ app.post('/categorize', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: 'Failed to categorize transactions' }, 500);
   }
 
-  const aiData = await aiResponse.json();
-  const categorizedResults = aiData.split(',').map((item: string) => item.trim());
-
-  return ctx.json({ categorizedResults });
-});
-
-// 3. Insert: Insert categorized transactions into the database
-app.post('/insert', clerkMiddleware(), async (ctx) => {
-  const auth = getAuth(ctx);
-  const userId = auth?.userId;
-  const { plaidTransactions, categorizedResults, accountIdMap, dbCategories } = await ctx.req.json();
-
-  if (!plaidTransactions || !categorizedResults || !accountIdMap || !dbCategories) {
-    return ctx.json({ error: 'Missing required data from the previous step' }, 400);
+  function stringToList(input: string): string[] {
+    const cleanedInput = input.slice(1, -1).trim();
+    const list = cleanedInput.split(',').map(item => item.trim());
+    return list;
   }
 
+  const aiData = await aiResponse.json();
+  const categorizedResults = stringToList(aiData);
+
+  // Insert transactions into the database with categorized results
   await Promise.all(
-    plaidTransactions.map(async (transaction: PlaidTransaction, index: number) => {
+    plaidTransactions.map(async (transaction, index) => {
       const accountId = accountIdMap[transaction.account_id];
 
       if (!accountId) {
+        // Skip transaction if account is not in the database
         return;
       }
 
-      const categoryId = dbCategories.find((category: Category) => category.name === categorizedResults[index])?.id;
+      // Match AI result with a category in the database
+      const categoryId = dbCategories.find(category => category.name === categorizedResults[index])?.id;
 
       if (!categoryId) {
+        // Skip transaction if the AI categorization doesn't match any known category
         return;
       }
 
+      // Convert amount to string
       const amount = (transaction.amount * -1).toString();
 
       await db.insert(transactions).values({
         id: createId(),
-        userId: userId || "",
+        userId: userId,
         amount: amount,
         payee: transaction.name,
         date: new Date(transaction.date),
@@ -208,21 +178,24 @@ app.post('/insert', clerkMiddleware(), async (ctx) => {
     })
   );
 
-  return ctx.json({ message: 'Transactions inserted successfully.' });
-});
+  // Fetch all inserted transactions for the user to format for AI
+  const userTransactions = await db
+    .select({
+      id: transactions.id,
+      amount: transactions.amount,
+      payee: transactions.payee,
+      date: transactions.date,
+      accountId: transactions.accountId,
+      categoryId: transactions.categoryId,
+    })
+    .from(transactions)
+    .where(eq(transactions.userId, userId));
 
-// 4. Finalize: Finalize by upserting formatted transactions to AI
-app.post('/finalize', clerkMiddleware(), async (ctx) => {
-  const { userId, accountIdMap, plaidTransactions } = await ctx.req.json();
-
-  if (!userId || !accountIdMap || !plaidTransactions) {
-    return ctx.json({ error: 'Missing required data from the previous step' }, 400);
-  }
-
-  const formattedTransactions = plaidTransactions
-    .map((transaction: PlaidTransaction) => {
-      const amount = transaction.amount ?? "0";
-      const payee = transaction.payee ?? "Unknown Payee";
+  // Format transactions for upserting to AI
+  const formattedTransactions = userTransactions
+    .map((transaction) => {
+      const amount = transaction.amount ?? "0"; // Default to "0" if undefined
+      const payee = transaction.payee ?? "Unknown Payee"; // Default to "Unknown Payee" if undefined
       const date = new Date(transaction.date);
       const formattedDate = date.toLocaleDateString();
 
@@ -230,33 +203,36 @@ app.post('/finalize', clerkMiddleware(), async (ctx) => {
         A transaction was made in the amount of $${amount} by the user to the person or group named ${payee} on ${formattedDate}. 
         No additional notes were provided for this transaction.
       `;
-    }).join("\n").trim();
+    }).join("\n").trim(); // Remove any leading or trailing whitespace
 
+  // Upsert all transactions to the AI endpoint
   try {
-    const aiResponse = await fetch(
-      `${AI_URL}/resource/upsert_text?user_id=${userId}&name=Transactions from ${accountIdMap[plaidTransactions[0].account_id]} for ${userId}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain',
-        },
-        body: formattedTransactions,
+    if (formattedTransactions) { // Ensure there are formatted transactions
+      const aiResponse = await fetch(
+        `${AI_URL}/resource/upsert_text?user_id=${userId}&name=Transactions from ${accountIdMap[plaidTransactions[0].account_id]} for ${userId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+          },
+          body: formattedTransactions, // Ensure it is a properly formatted plain string
+        }
+      );
+
+      if (!aiResponse.ok) {
+        const errorText = await aiResponse.text();
+        throw new Error(`Upsert failed: ${errorText}`);
       }
-    );
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      throw new Error(`Upsert failed: ${errorText}`);
+      const responseData = await aiResponse.json();
+      console.log("AI Response:", responseData);
     }
-
-    const responseData = await aiResponse.json();
-    console.log("AI Response:", responseData);
   } catch (error) {
     console.error('Error upserting transactions:', error);
     return ctx.json({ error: 'Failed to upsert transactions' }, 500);
   }
 
-  return ctx.json({ message: 'Finalization successful.' });
+  return ctx.json({ message: 'Transactions inserted successfully.' });
 });
 
 app.post('/recategorize', clerkMiddleware(), async (ctx) => {
