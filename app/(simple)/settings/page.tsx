@@ -245,7 +245,7 @@ const SettingsPage = () => {
   };
 
   return (
-    <div className={cn("relative", montserratP.className, "p-2 md:p-6 z-50")}>
+    <div className={cn("relative", montserratP.className, "p-2 md:p-6")}>
       {plaidIsOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
           <div className="bg-white p-8 rounded-lg shadow-lg w-80 text-center">
@@ -267,11 +267,11 @@ const SettingsPage = () => {
 
       <UpgradePopup open={openUpgradeDialog} onOpenChange={setOpenUpgradeDialog} />
       <div className="max-w-5xl mx-auto -mt-[80px]">
-        <Card className="bg-white shadow-lg rounded-lg">
-          <CardHeader className="p-8 border-b">
-            <CardTitle className="text-4xl font-extrabold">Settings</CardTitle>
+        <Card className="shadow-lg rounded-lg bg-transparent border-none">
+          <CardHeader className="sticky top-[140px] p-8 border-b bg-white rounded-lg z-50">
+            <CardTitle className="text-4xl font-extrabold z-10">Settings</CardTitle>
           </CardHeader>
-          <CardContent className="p-8 space-y-10">
+          <CardContent className="p-8 space-y-10 z-0">
 
             {/* Subscription Section */}
             <div className="space-y-4 relative md:flex md:justify-between md:items-center">
