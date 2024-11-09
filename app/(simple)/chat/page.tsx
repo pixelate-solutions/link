@@ -255,7 +255,7 @@ const Chatbot = () => {
   return (
     <div className={cn("relative flex flex-col h-full w-full lg:w-[80%] lg:ml-[10%] -mt-5 lg:-mt-20 pb-[100px]", montserratP.className)}>
       <div className="flex flex-col flex-grow rounded-2xl bg-gradient-to-b from-gray-50 to-white">
-        <div className="sticky top-[92px] bg-gray-50 p-4 rounded-2xl z-50">
+        <div className="sticky top-[100px] bg-gray-50 p-4 rounded-2xl z-50">
           <div className="sticky bg-white w-full h-[110px] p-4 border-b-2 border-x-2 rounded-xl lg:rounded-b-xl">
             <h1 className="md:w-auto w-full text-center text-xl font-semibold">Ask Me Anything</h1>
             <div className="w-full flex flex-col lg:flex-row justify-center items-center lg:space-x-4 -space-y-4 text-xs lg:text-inherit lg:space-y-0 lg:mt-2">
@@ -334,7 +334,7 @@ const Chatbot = () => {
               const isAssistant = item.role === "assistant";
               return (
                 <div key={`message-${index}`} className={`mb-4 flex ${isAssistant ? "justify-start" : "justify-end"}`}>
-                  <div className={`chat-message p-2 shadow-md rounded-lg ${isAssistant ? "bg-gray-200 text-gray-800" : "bg-gradient-to-br from-blue-500 to-purple-500 text-white"} max-w-[65%]`}>
+                  <div className={`chat-message p-2 shadow-md rounded-lg text-xs sm:text-sm md:text-base ${isAssistant ? "bg-gray-200 text-gray-800" : "bg-gradient-to-br from-blue-500 to-purple-500 text-white"} max-w-[65%]`}>
                     <ReactMarkdown
                       remarkPlugins={[gfm]}
                       rehypePlugins={[rehypeRaw as unknown as any]}
