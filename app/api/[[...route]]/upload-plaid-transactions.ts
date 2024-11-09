@@ -57,7 +57,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: "Access token not found" }, 404);
   }
 
-  const startDate = new Date('2022-01-01'); // Fixed start date to January 1, 2022
+  const startDate = new Date('2022-01-01');
   const endDate = new Date();
 
   const formattedStartDate = startDate.toISOString().split('T')[0];
