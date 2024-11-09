@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { Copy } from "lucide-react";
+import "/styles.css"
 
 import {
   Accordion,
@@ -245,7 +246,7 @@ const SettingsPage = () => {
   };
 
   return (
-    <div className={cn("relative", montserratP.className, "p-2 md:p-6 mb-4")}>
+    <div className={cn("relative", montserratP.className, `p-2 md:p-6 mb-4 ${plaidIsOpen ? 'plaid-open' : ''}`)}>
       {plaidIsOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
           <div className="bg-white p-8 rounded-lg shadow-lg w-80 text-center">
@@ -268,7 +269,7 @@ const SettingsPage = () => {
       <UpgradePopup open={openUpgradeDialog} onOpenChange={setOpenUpgradeDialog} />
       <div className="max-w-5xl mx-auto -mt-[80px]">
         <Card className="shadow-lg rounded-lg bg-transparent border-none">
-          <CardHeader className="sticky top-[100px] lg:top-[140px] p-8 border-b bg-white rounded-lg z-50">
+          <CardHeader className={`sticky top-[100px] lg:top-[140px] p-8 border-b bg-white rounded-lg ${plaidIsOpen ? 'z-40' : 'z-50'}`}>
             <CardTitle className="text-4xl font-extrabold z-10">Settings</CardTitle>
           </CardHeader>
           <CardContent className="p-8 space-y-10 z-0">

@@ -24,7 +24,7 @@ export const HeaderSimple = () => {
   const { user, isLoaded } = useUser();
 
   return (
-    <header className={cn("sticky top-0 bg-gradient-to-br from-blue-500 to-purple-500 px-4 py-8 lg:px-14 lg:pb-16 z-50", montserratP.className)}>
+    <header className={cn("sticky top-0 bg-gradient-to-br from-blue-500 to-purple-500 px-4 py-8 lg:px-14 lg:pb-16 z-30", montserratP.className)}>
       <div className="mx-auto max-w-screen-2xl">
         <div className="mb-14 flex w-full items-center justify-between">
           <div className="flex items-center lg:gap-x-16">
