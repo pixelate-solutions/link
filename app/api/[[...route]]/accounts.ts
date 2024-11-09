@@ -11,6 +11,42 @@ import plaidClient from "./plaid";
 
 const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
 
+async function cleanUpUserTokens(userId: string) {
+  // Step 1: Fetch all access tokens for the given userId from the user_tokens table
+  const tokens = await db
+    .select({ accessToken: userTokens.accessToken })
+    .from(userTokens)
+    .where(eq(userTokens.userId, userId)); // Use eq() to filter by userId
+
+  // Step 2: Loop through each access token and check if any accounts exist for this user
+  for (const token of tokens) {
+    const accessToken = token.accessToken;
+
+    // Step 3: Check if any account exists with this access token and the same userId
+    const accountsExist = await db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(and(eq(accounts.userId, userId), eq(accounts.plaidAccessToken, accessToken))); // Use eq() for both filters
+
+    // Step 4: If no accounts found for this user and access token, remove the Plaid item and delete the user token
+    if (accountsExist.length === 0) {
+      try {
+        // Remove the Plaid item using the access token
+        await plaidClient.itemRemove({ access_token: accessToken || "" });
+        console.log(`Removed Plaid item for access token: ${accessToken}`);
+
+        // Now, delete the user token from the user_tokens table
+        await db
+          .delete(userTokens)
+          .where(and(eq(userTokens.userId, userId), eq(userTokens.accessToken, accessToken))); // Use eq() for deletion condition
+        console.log(`Deleted user token for userId: ${userId}, access token: ${accessToken}`);
+      } catch (error) {
+        console.error(`Error removing Plaid item or deleting user token for userId: ${userId}, access token: ${accessToken}`, error);
+      }
+    }
+  }
+}
+
 const app = new Hono()
   .get("/", clerkMiddleware(), async (ctx) => {
     const auth = getAuth(ctx);
@@ -127,7 +163,11 @@ const app = new Hono()
 
       // Fetch the accounts to be deleted
       const accountsToDelete = await db
-        .select({ id: accounts.id, accessToken: accounts.plaidAccessToken, isFromPlaid: accounts.isFromPlaid })
+        .select({
+          id: accounts.id,
+          plaidAccessToken: accounts.plaidAccessToken,
+          isFromPlaid: accounts.isFromPlaid
+        })
         .from(accounts)
         .where(
           and(
@@ -141,15 +181,12 @@ const app = new Hono()
         .delete(recurringTransactions)
         .where(inArray(recurringTransactions.accountId, values.ids));
 
-      // Map to keep track of access tokens for Plaid accounts being deleted
-      const plaidAccessTokens = new Map<string, string>();
-
-      // Identify Plaid accounts and their access tokens
-      for (const account of accountsToDelete) {
-        if (account.isFromPlaid && account.accessToken) {
-          plaidAccessTokens.set(account.accessToken, account.id);
-        }
-      }
+      // Track Plaid access tokens for deleted accounts
+      const plaidAccessTokens = Array.from(new Set(
+        accountsToDelete
+          .filter(account => account.isFromPlaid && account.plaidAccessToken)
+          .map(account => account.plaidAccessToken)
+      ));
 
       // Delete the accounts from the database
       const data = await db
@@ -160,30 +197,33 @@ const app = new Hono()
             inArray(accounts.id, values.ids)
           )
         )
-        .returning({
-          id: accounts.id,
-        });
+        .returning({ id: accounts.id });
 
-      // Check remaining accounts for each access token
-      for (const [accessToken, accountId] of plaidAccessTokens.entries()) {
-        const remainingAccounts = await db
+      // Loop through user tokens to check if access token exists in accounts table
+      for (const accessToken of plaidAccessTokens) {
+        // Check if any account exists with this access token
+        const accountExists = await db
           .select({ id: accounts.id })
           .from(accounts)
           .where(and(
             eq(accounts.userId, auth.userId),
-            eq(accounts.plaidAccessToken, accessToken),
+            eq(accounts.plaidAccessToken, accessToken || ""),
             eq(accounts.isFromPlaid, true)
           ));
 
-        if (remainingAccounts.length === 0) {
-          // If no other accounts with this access token, delete Plaid item and remove row from user_tokens
+        if (accountExists.length === 0) {
+          // If no accounts are found, remove the Plaid item and delete user token
           try {
-            await plaidClient.itemRemove({ access_token: accessToken });
+            // Remove the Plaid item
+            await plaidClient.itemRemove({ access_token: accessToken || "" });
 
             // Delete the access token from the user_tokens table
             await db
               .delete(userTokens)
-              .where(and(eq(userTokens.userId, auth.userId), eq(userTokens.accessToken, accessToken)));
+              .where(and(
+                eq(userTokens.userId, auth.userId),
+                eq(userTokens.accessToken, accessToken || "")
+              ));
           } catch (error) {
             console.error(`Failed to delete Plaid item for access token ${accessToken}:`, error);
           }
@@ -206,6 +246,8 @@ const app = new Hono()
           console.error(`Error deleting from AI backend for account ${account.id}:`, error);
         }
       }
+
+      await cleanUpUserTokens(auth.userId);
 
       return ctx.json({ data });
     }

@@ -14,25 +14,41 @@ const app = new Hono();
 const MAX_RETRIES = 6;
 const RETRY_DELAY_MS = 2000;
 
-async function fetchPlaidTransactionsWithRetry(accessToken: string, startDate: string, endDate: string) {
+async function fetchPlaidTransactionsWithRetry(accessToken: string) {
   let attempts = 0;
+  let cursor: string | null = null;
+  let allTransactions: any[] = [];
+
   while (attempts < MAX_RETRIES) {
     try {
-      const response = await plaidClient.transactionsGet({
-        access_token: accessToken,
-        start_date: startDate,
-        end_date: endDate,
-      });
-      return response.data.transactions; // Return transactions if successful
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await plaidClient.transactionsSync({
+          access_token: accessToken,
+          cursor: cursor ?? undefined,
+        });
+
+        const { added, modified, removed, next_cursor, has_more } = response.data;
+        allTransactions = [...allTransactions, ...added, ...modified]; // Aggregate new transactions
+        cursor = next_cursor; // Update cursor for the next call
+        hasMore = has_more; // Continue looping if there are more pages
+
+        // Log removed transactions if needed for deletion tracking
+      }
+
+      return allTransactions; // Return aggregated transactions when sync is complete
+
     } catch (error) {
       if (attempts >= MAX_RETRIES - 1) {
-        throw new Error("Failed to fetch transactions after multiple attempts.");
+        throw new Error("Failed to sync transactions after multiple attempts.");
       }
-      console.log(`Retrying transaction fetch... Attempt ${attempts + 1}`);
+      console.log(`Retrying transaction sync... Attempt ${attempts + 1}`);
       await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS)); // Wait before retrying
       attempts++;
     }
   }
+
   return null;
 }
 
@@ -57,13 +73,15 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: "Access token not found" }, 404);
   }
 
-  const startDate = new Date('2022-01-01');
+  const startDate = new Date();
   const endDate = new Date();
+  startDate.setFullYear(endDate.getFullYear() - 200);
 
   const formattedStartDate = startDate.toISOString().split('T')[0];
   const formattedEndDate = endDate.toISOString().split('T')[0];
 
-  let plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken, formattedStartDate, formattedEndDate);
+  let plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken);
+  console.log("TRANSACTIONS LENGTH: ", plaidTransactions?.length);
 
   if (!plaidTransactions) {
     return ctx.json({ error: 'Failed to fetch transactions after retries' }, 500);
@@ -213,7 +231,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
           headers: {
             'Content-Type': 'text/plain',
           },
-          body: formattedTransactions, // Ensure it is a properly formatted plain string
+          body: formattedTransactions,
         }
       );
 
@@ -223,7 +241,6 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       }
 
       const responseData = await aiResponse.json();
-      console.log("AI Response:", responseData);
     }
   } catch (error) {
     console.error('Error upserting transactions:', error);

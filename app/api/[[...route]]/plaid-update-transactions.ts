@@ -8,6 +8,8 @@ import { eq, and, desc } from "drizzle-orm";
 import { isSameDay } from "date-fns";
 
 const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
+const MAX_RETRIES = 3;  // Max retries for Plaid transactions sync
+const RETRY_DELAY_MS = 2000;  // Retry delay in ms
 
 const app = new Hono();
 
@@ -39,6 +41,44 @@ const checkOrUpdateLastRunDate = async (userId: string) => {
   return true;
 };
 
+async function fetchPlaidTransactionsWithRetry(accessToken: string) {
+  let attempts = 0;
+  let cursor: string | null = null;
+  let allTransactions: any[] = [];
+
+  while (attempts < MAX_RETRIES) {
+    try {
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await plaidClient.transactionsSync({
+          access_token: accessToken,
+          cursor: cursor ?? undefined,
+        });
+
+        const { added, modified, removed, next_cursor, has_more } = response.data;
+        allTransactions = [...allTransactions, ...added, ...modified]; // Aggregate new transactions
+        cursor = next_cursor; // Update cursor for the next call
+        hasMore = has_more; // Continue looping if there are more pages
+
+        // Log removed transactions if needed for deletion tracking
+      }
+
+      return allTransactions; // Return aggregated transactions when sync is complete
+
+    } catch (error) {
+      if (attempts >= MAX_RETRIES - 1) {
+        throw new Error("Failed to sync transactions after multiple attempts.");
+      }
+      console.log(`Retrying transaction sync... Attempt ${attempts + 1}`);
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS)); // Wait before retrying
+      attempts++;
+    }
+  }
+
+  return null;
+}
+
 app.post('/', clerkMiddleware(), async (ctx) => {
   const auth = getAuth(ctx);
   const userId = auth?.userId;
@@ -66,16 +106,11 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: "Access token not found" }, 404);
   }
 
-  const startDate = new Date();
-  startDate.setFullYear(startDate.getFullYear() - 10);
-  const endDate = new Date();
+  const plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken);
 
-  const plaidTransactionsResponse = await plaidClient.transactionsGet({
-    access_token: accessToken,
-    start_date: startDate.toISOString().split('T')[0],
-    end_date: endDate.toISOString().split('T')[0],
-  });
-  const plaidTransactions = plaidTransactionsResponse.data.transactions;
+  if (!plaidTransactions) {
+    return ctx.json({ error: "Failed to fetch transactions after multiple attempts" }, 500);
+  }
 
   const dbAccounts = await db
     .select({ id: accounts.id, plaidAccountId: accounts.plaidAccountId })
