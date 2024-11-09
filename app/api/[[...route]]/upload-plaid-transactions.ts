@@ -57,13 +57,11 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: "Access token not found" }, 404);
   }
 
-  // Fetch Plaid transactions
-  const startDate = new Date();
+  const startDate = new Date('2022-01-01'); // Fixed start date to January 1, 2022
   const endDate = new Date();
-  startDate.setFullYear(endDate.getFullYear() - 10);
 
-  const formattedEndDate = endDate.toISOString().split('T')[0];
   const formattedStartDate = startDate.toISOString().split('T')[0];
+  const formattedEndDate = endDate.toISOString().split('T')[0];
 
   let plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken, formattedStartDate, formattedEndDate);
 
