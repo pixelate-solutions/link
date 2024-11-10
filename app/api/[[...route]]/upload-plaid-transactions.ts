@@ -37,8 +37,7 @@ async function fetchPlaidTransactionsWithRetry(accessToken: string) {
           .filter(transaction => transaction.transaction_code !== "transfer")
           .filter(transaction => !transaction.personal_finance_category?.detailed.toLowerCase().includes("transfer"))
           .filter(transaction => !transaction.personal_finance_category?.primary.toLowerCase().includes("transfer"))
-          .filter(transaction => !transaction.merchant_name?.toLowerCase().includes("transfer"))
-          .filter(transaction => transaction.merchant_name !== null);
+          .filter(transaction => !transaction.merchant_name?.toLowerCase().includes("transfer"));
 
         allTransactions = [...allTransactions, ...newTransactions];
         cursor = next_cursor;
