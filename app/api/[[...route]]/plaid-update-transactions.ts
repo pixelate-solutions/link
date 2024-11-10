@@ -57,21 +57,25 @@ async function fetchPlaidTransactionsWithRetry(accessToken: string) {
         });
 
         const { added, modified, removed, next_cursor, has_more } = response.data;
-        allTransactions = [...allTransactions, ...added, ...modified]; // Aggregate new transactions
-        cursor = next_cursor; // Update cursor for the next call
-        hasMore = has_more; // Continue looping if there are more pages
+        
+        // Aggregate transactions, filtering out transfers
+        const newTransactions = added
+          .concat(modified)
+          .filter(transaction => transaction.payment_channel !== "other"); // filter out nonsense
 
-        // Log removed transactions if needed for deletion tracking
+        allTransactions = [...allTransactions, ...newTransactions];
+        cursor = next_cursor;
+        hasMore = has_more;
       }
 
-      return allTransactions; // Return aggregated transactions when sync is complete
+      return allTransactions; // Return aggregated, filtered transactions
 
     } catch (error) {
       if (attempts >= MAX_RETRIES - 1) {
         throw new Error("Failed to sync transactions after multiple attempts.");
       }
       console.log(`Retrying transaction sync... Attempt ${attempts + 1}`);
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS)); // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
       attempts++;
     }
   }

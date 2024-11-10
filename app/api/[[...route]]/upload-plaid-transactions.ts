@@ -34,7 +34,10 @@ async function fetchPlaidTransactionsWithRetry(accessToken: string) {
         // Aggregate transactions, filtering out transfers
         const newTransactions = added
           .concat(modified)
-          .filter(transaction => transaction.payment_channel !== "other");
+          .filter(transaction => transaction.transaction_code !== "transfer")
+          .filter(transaction => transaction.personal_finance_category?.detailed.toLowerCase().includes("transfer"))
+          .filter(transaction => transaction.personal_finance_category?.primary.toLowerCase().includes("transfer"))
+          .filter(transaction => transaction.merchant_name === null);
 
         allTransactions = [...allTransactions, ...newTransactions];
         cursor = next_cursor;
