@@ -191,7 +191,7 @@ export const RecurringTransactionForm = ({
           control={form.control}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Date</FormLabel>
+              <FormLabel>Last Date</FormLabel>
               <FormControl>
                 <DatePicker
                   value={field.value}

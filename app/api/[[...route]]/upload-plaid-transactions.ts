@@ -35,9 +35,9 @@ async function fetchPlaidTransactionsWithRetry(accessToken: string) {
         const newTransactions = added
           .concat(modified)
           .filter(transaction => transaction.transaction_code !== "transfer")
-          .filter(transaction => !transaction.personal_finance_category?.detailed.toLowerCase().includes("transfer"))
-          .filter(transaction => !transaction.personal_finance_category?.primary.toLowerCase().includes("transfer"))
-          .filter(transaction => !transaction.merchant_name?.toLowerCase().includes("transfer"));
+          .filter(transaction => !(transaction.personal_finance_category?.detailed.toLowerCase().includes("transfer") && !transaction.personal_finance_category?.detailed.toLowerCase().includes("pay") && !transaction.personal_finance_category?.detailed.toLowerCase().includes("check")))
+          .filter(transaction => !(transaction.personal_finance_category?.primary.toLowerCase().includes("transfer") && !transaction.personal_finance_category?.primary.toLowerCase().includes("pay") && !transaction.personal_finance_category?.primary.toLowerCase().includes("check")))
+          .filter(transaction => !(transaction.name?.toLowerCase().includes("transfer")) && !transaction.name?.toLowerCase().includes("pay")  && !transaction.name?.toLowerCase().includes("check"));
 
         allTransactions = [...allTransactions, ...newTransactions];
         cursor = next_cursor;
