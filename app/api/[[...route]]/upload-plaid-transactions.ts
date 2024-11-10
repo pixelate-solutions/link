@@ -353,7 +353,7 @@ app.post('/recategorize', clerkMiddleware(), async (ctx) => {
 
       if (!categoryId) {
         // Assign "Other" category if no matching category found
-        const otherCategoryId = dbCategories.find(category => category.name === "Other")?.id;
+        const otherCategoryId = dbCategories.find(category => category.name === "Other (Default)")?.id || null;
         if (!otherCategoryId) return null; // Skip if "Other" category doesn't exist
         return db
           .update(transactions)

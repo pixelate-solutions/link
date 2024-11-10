@@ -169,14 +169,16 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     body: JSON.stringify(data),
   });
 
+  let categorizedResults;
+
   if (!aiResponse.ok) {
     const errorText = await aiResponse.text();
     console.error('Error from AI API:', errorText);
-    return ctx.json({ error: 'Failed to categorize transactions' }, 500);
+    categorizedResults = plaidTransactions.map(() => 'Uncategorized');
+  } else {
+    const aiData = await aiResponse.json();
+    categorizedResults = JSON.parse(aiData);
   }
-
-  const aiData = await aiResponse.json();
-  const categorizedResults = JSON.parse(aiData);
 
   await Promise.all(
     plaidTransactions.map(async (transaction, index) => {
@@ -185,8 +187,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       
       const plaidTransactionId = transaction.transaction_id;
       const amount = transaction.amount.toString();
-      const categoryId = dbCategories.find(category => category.name === categorizedResults[index])?.id;
-      if (!categoryId) return;
+      const categoryId = dbCategories.find(category => category.name === categorizedResults[index])?.id || dbCategories.find(category => category.name === "Other (Default)")?.id || null;
 
       const existingTransaction = await db
         .select({ plaidTransactionId: transactions.plaidTransactionId })
