@@ -182,7 +182,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
             )}
             {(currentSubscription === "Monthly") && (
               <AlertDialogAction asChild className="w-1/3">
-                <Button variant="ghost" onClick={() => setCancelPopupOpen(true)} className="bg-red-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
+                <Button variant="ghost" onClick={() => setCancelPopupOpen(true)} className="bg-red-100 text-black hover:bg-200 md:inline w-1/2 border border-transparent hover:border-gray-300">
                   Cancel
                 </Button>
               </AlertDialogAction>
@@ -221,7 +221,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
             )}
             {(currentSubscription === "Annual") && (
               <AlertDialogAction asChild className="w-1/3">
-                <Button variant="ghost" onClick={() => setCancelPopupOpen(true)} className="bg-red-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
+                <Button variant="ghost" onClick={() => setCancelPopupOpen(true)} className="bg-red-100 text-black hover:bg-200 md:inline w-1/2 border border-transparent hover:border-gray-300">
                   Cancel
                 </Button>
               </AlertDialogAction>
@@ -260,7 +260,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
             )}
             {(currentSubscription === "Lifetime") && (
               <AlertDialogAction asChild className="w-1/3">
-                <Button variant="ghost" onClick={() => setCancelPopupOpen(true)} className="bg-red-100 text-black hover:bg-200 hidden md:inline w-1/2 border border-transparent hover:border-gray-300">
+                <Button variant="ghost" onClick={() => setCancelPopupOpen(true)} className="bg-red-100 text-black hover:bg-200 md:inline w-1/2 border border-transparent hover:border-gray-300">
                   Cancel
                 </Button>
               </AlertDialogAction>

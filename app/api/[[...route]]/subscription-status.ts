@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { clerkMiddleware, getAuth } from '@hono/clerk-auth';
 import { stripe } from './stripe'; // Adjust the import path if needed
 import { db } from '@/db/drizzle';
-import { stripeCustomers } from '@/db/schema';
+import { stripeCustomers, lifetimePurchases } from '@/db/schema';
 import { eq } from "drizzle-orm";
 
 
@@ -17,15 +17,32 @@ app.get('/', clerkMiddleware(), async (ctx) => {
 
   try {
     // Fetch the Stripe customer ID and lifetime purchase status from the database
-    const [customerRecord] = await db
+    const [stripeRecord] = await db
       .select({
         stripeCustomerId: stripeCustomers.stripeCustomerId,
-        lifetimePurchase: stripeCustomers.lifetimePurchase,
       })
       .from(stripeCustomers)
       .where(eq(stripeCustomers.userId, auth.userId));
 
-    if (!customerRecord) {
+    // Fetch the isLifetime value from the lifetimePurchases table
+    const [lifetimeRecord] = await db
+      .select({
+        lifetimePurchase: lifetimePurchases.isLifetime,
+      })
+      .from(lifetimePurchases)
+      .where(eq(lifetimePurchases.userId, auth.userId));
+
+    // Combine the results into a single object
+    const customerRecord = {
+      stripeCustomerId: stripeRecord?.stripeCustomerId || null,
+      lifetimePurchase: lifetimeRecord?.lifetimePurchase || false, // default to false if no record exists
+    };
+
+    if (customerRecord.lifetimePurchase) {
+      return ctx.json({ status: 'Paid', plan: 'Lifetime' });
+    }
+
+    if (!customerRecord.stripeCustomerId) {
       return ctx.json({ status: 'Free', plan: 'Free' });
     }
 
@@ -34,7 +51,7 @@ app.get('/', clerkMiddleware(), async (ctx) => {
 
     // Check if the customer has active subscriptions
     const subscriptions = await stripe.subscriptions.list({
-      customer: stripeCustomerId,
+      customer: stripeCustomerId || "",
     });
 
     if (subscriptions.data.length > 0) {

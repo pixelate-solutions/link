@@ -200,7 +200,12 @@ const SettingsPage = () => {
             toast.error(result.error.message);
           }
         } else {
-          toast.error("Invalid promo code");
+          if (data.message === "Friends & Family") {
+            toast.success("Successfully applied promo code");
+            window.location.reload();
+          } else {
+            toast.error("Invalid promo code");
+          }
         }
       } else {
         console.error("Stripe object or user information is missing.");

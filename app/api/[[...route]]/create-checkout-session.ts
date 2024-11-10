@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { clerkMiddleware } from '@hono/clerk-auth';
 import Stripe from 'stripe';
 import { db } from '@/db/drizzle';
-import { stripeCustomers } from '@/db/schema';
+import { stripeCustomers, lifetimePurchases } from '@/db/schema';
 import { createId } from '@paralleldrive/cuid2';
 import { eq } from 'drizzle-orm';
 
@@ -81,8 +81,8 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
     // Mark the lifetime purchase in the database after session creation
     if (isLifetime && session.status !== 'expired') {
-      await db.update(stripeCustomers)
-        .set({ lifetimePurchase: true })
+      await db.update(lifetimePurchases)
+        .set({ isLifetime: true })
         .where(eq(stripeCustomers.userId, userId));
     }
 

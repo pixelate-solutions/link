@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { clerkMiddleware, getAuth } from '@hono/clerk-auth';
 import { db } from '@/db/drizzle';
-import { stripeCustomers, referrals } from '@/db/schema';
+import { stripeCustomers, referrals, lifetimePurchases } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import Stripe from 'stripe';
 import { createId } from '@paralleldrive/cuid2';
@@ -66,9 +66,29 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     const customerEmailAddress = customerEmail.emailAddress;
 
     if (promoCode === FF_PROMO_CODE) {
-      await db.update(stripeCustomers).set({ lifetimePurchase: true }).where(eq(stripeCustomers.userId, userId));
-      return ctx.json({ message: 'Friends and Family promo applied successfully, lifetime purchase granted!' });
+      // Check if user exists in the lifetimePurchases table
+      const existingUser = await db.select()
+        .from(lifetimePurchases)
+        .where(eq(lifetimePurchases.userId, userId))
+        .limit(1);
+
+      if (existingUser.length > 0) {
+        // User exists, update isLifetime to true
+        await db.update(lifetimePurchases)
+          .set({ isLifetime: true })
+          .where(eq(lifetimePurchases.userId, userId));
+      } else {
+        // User does not exist, insert a new entry with isLifetime set to true
+        await db.insert(lifetimePurchases).values({
+          id: createId(),
+          userId: userId,
+          isLifetime: true,
+        });
+      }
+
+      return ctx.json({ message: 'Friends & Family' });
     }
+
 
     const referringUserId = `user_${promoCode}`;
     if (userId === referringUserId) {

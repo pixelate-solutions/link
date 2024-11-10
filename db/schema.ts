@@ -72,7 +72,6 @@ export const stripeCustomers = pgTable('stripe_customers', {
   id: text('id').primaryKey(),
   userId: text('user_id').notNull(),
   stripeCustomerId: text('stripe_customer_id').notNull(),
-  lifetimePurchase: boolean('lifetime_purchase').default(false),
 });
 
 export const insertStripeCustomerSchema = createInsertSchema(stripeCustomers);
@@ -140,3 +139,11 @@ export const referrals = pgTable('referrals', {
 });
 
 export const insertReferralSchema = createInsertSchema(referrals);
+
+export const lifetimePurchases = pgTable('lifetime_purchases', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  isLifetime: boolean('is_lifetime').notNull().default(false),
+});
+
+export const insertLifetimePurchaseSchema = createInsertSchema(lifetimePurchases);
