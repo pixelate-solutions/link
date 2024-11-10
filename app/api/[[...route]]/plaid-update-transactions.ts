@@ -61,7 +61,18 @@ async function fetchPlaidTransactionsWithRetry(accessToken: string) {
         // Aggregate transactions, filtering out transfers
         const newTransactions = added
           .concat(modified)
-          .filter(transaction => transaction.payment_channel !== "other"); // filter out nonsense
+          .filter(transaction => transaction.transaction_code !== "transfer")
+          .filter(transaction => {
+            const categoryCheck = (category: string) => category.toLowerCase().includes("transfer");
+            const nameCheck = (name: string | undefined) => name?.toLowerCase().includes("check") || name?.toLowerCase().includes("pay");
+
+            const detailedCategory = transaction.personal_finance_category?.detailed ?? "";
+            const primaryCategory = transaction.personal_finance_category?.primary ?? "";
+            const name = transaction.name ?? "";
+
+            // Filter out transactions that are "transfer" unless they also have "check" or "pay"
+            return !(categoryCheck(detailedCategory) || categoryCheck(primaryCategory)) || nameCheck(name);
+          });
 
         allTransactions = [...allTransactions, ...newTransactions];
         cursor = next_cursor;
