@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 import { db } from "@/db/drizzle";
 import { accounts, transactions, userTokens, categories, transactionUpdates } from "@/db/schema";
 import { createId } from "@paralleldrive/cuid2";
@@ -161,14 +160,27 @@ const isAxiosError = (error: unknown): error is AxiosError => {
 };
 
 // Webhook endpoint to process the incoming Plaid webhook
-app.post('/', clerkMiddleware(), async (ctx) => {
-  const auth = getAuth(ctx);
-  const userId = auth?.userId;
+app.post('/', async (ctx) => {
   const { item_id } = await ctx.req.json();
 
-  if (!userId || !item_id) {
-    return ctx.json({ error: "Unauthorized or missing item_id" }, 401);
+  if (!item_id) {
+    return ctx.json({ error: "Missing item_id" }, 400);
   }
+
+  const userTokensResult = await db
+    .select({ userId: userTokens.userId, accessToken: userTokens.accessToken, cursor: userTokens.cursor })
+    .from(userTokens)
+    .where(eq(userTokens.itemId, item_id))
+    .orderBy(desc(userTokens.createdAt));
+
+  const userToken = userTokensResult[0];
+  if (!userToken) {
+    return ctx.json({ error: "Access token not found" }, 404);
+  }
+
+  const userId = userToken.userId;
+  const accessToken = userToken.accessToken;
+  const initialCursor = userToken.cursor || null;
 
   await sendEmail(`Transaction webhook triggered for User: ${userId} and Item Id: ${item_id}.`);
 
@@ -176,15 +188,6 @@ app.post('/', clerkMiddleware(), async (ctx) => {
   if (!shouldProceed) {
     return ctx.json({ message: 'Already processed today' });
   }
-
-  const result = await db
-    .select({ accessToken: userTokens.accessToken, cursor: userTokens.cursor })
-    .from(userTokens)
-    .where(and(eq(userTokens.userId, userId), eq(userTokens.itemId, item_id)))
-    .orderBy(desc(userTokens.createdAt));
-
-  const accessToken = result[0]?.accessToken;
-  const initialCursor = result[0]?.cursor || null;
 
   if (!accessToken) {
     console.log("NO ACCESS TOKEN");
