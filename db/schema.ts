@@ -80,6 +80,7 @@ export const userTokens = pgTable('user_tokens', {
   id: text('id').notNull().primaryKey(),
   userId: text('user_id').notNull(),
   accessToken: text('access_token').notNull(),
+  cursor: text('cursor'),
   itemId: text('item_id'),
   createdAt: timestamp('created_at').defaultNow(),
 });

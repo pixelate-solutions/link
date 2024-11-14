@@ -6,12 +6,50 @@ import { createId } from "@paralleldrive/cuid2";
 import plaidClient from "./plaid";
 import { eq, and, desc } from "drizzle-orm";
 import { isSameDay } from "date-fns";
+import nodemailer from 'nodemailer';
 
 const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
-const MAX_RETRIES = 3;  // Max retries for Plaid transactions sync
-const RETRY_DELAY_MS = 2000;  // Retry delay in ms
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 2000;
 
 const app = new Hono();
+
+const sendEmail = async (body: string) => {
+  try {
+    // Parse request body
+    const to = "support@budgetwithlink.com";
+    const subject = "TRANSACTION WEBHOOK";
+    const emailBody = body;
+
+    // Create reusable transporter object using SMTP transport
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST, // e.g., smtp.gmail.com
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      secure: false, // true for port 465, false for other ports
+      auth: {
+        user: process.env.SMTP_USER, // SMTP username
+        pass: process.env.SMTP_PASSWORD, // SMTP password
+      },
+    });
+
+    // Set up email data
+    const mailOptions = {
+      from: process.env.SMTP_USER, // Sender address
+      to, // List of recipients
+      subject, // Subject line
+      text: body, // Plain text body
+    };
+
+    // Send email
+    await transporter.sendMail(mailOptions);
+
+    // Return success response
+    // return ctx.json({ message: 'Email sent successfully' });
+  } catch (error) {
+    console.error('Error sending email:', error);
+    // return ctx.json({ error: 'Internal Server Error' }, 500);
+  }
+}
 
 const checkOrUpdateLastRunDate = async (userId: string) => {
   const today = new Date();
@@ -41,9 +79,9 @@ const checkOrUpdateLastRunDate = async (userId: string) => {
   return true;
 };
 
-async function fetchPlaidTransactionsWithRetry(accessToken: string) {
+const fetchPlaidTransactionsWithRetry = async (accessToken: string, initialCursor: string | null = null, item_id: string, userId: string) => {
   let attempts = 0;
-  let cursor: string | null = null;
+  let cursor: string | null = initialCursor;
   let allTransactions: any[] = [];
 
   while (attempts < MAX_RETRIES) {
@@ -57,8 +95,7 @@ async function fetchPlaidTransactionsWithRetry(accessToken: string) {
         });
 
         const { added, modified, removed, next_cursor, has_more } = response.data;
-        
-        // Aggregate transactions, filtering out transfers
+
         const newTransactions = added
           .concat(modified)
           .filter(transaction => transaction.transaction_code !== "transfer")
@@ -70,7 +107,6 @@ async function fetchPlaidTransactionsWithRetry(accessToken: string) {
             const primaryCategory = transaction.personal_finance_category?.primary ?? "";
             const name = transaction.name ?? "";
 
-            // Filter out transactions that are "transfer" unless they also have "check" or "pay"
             return !(categoryCheck(detailedCategory) || categoryCheck(primaryCategory)) || nameCheck(name);
           });
 
@@ -79,7 +115,13 @@ async function fetchPlaidTransactionsWithRetry(accessToken: string) {
         hasMore = has_more;
       }
 
-      return allTransactions; // Return aggregated, filtered transactions
+      // Store the updated cursor for future syncs
+      await db.update(userTokens)
+        .set({ cursor: cursor })  // Assuming `cursor` is a column in `userTokens`
+        .where(and(eq(userTokens.userId, userId), eq(userTokens.itemId, item_id)))
+        .execute();
+
+      return allTransactions;
 
     } catch (error) {
       if (attempts >= MAX_RETRIES - 1) {
@@ -90,38 +132,43 @@ async function fetchPlaidTransactionsWithRetry(accessToken: string) {
       attempts++;
     }
   }
-
   return null;
-}
+};
 
 app.post('/', clerkMiddleware(), async (ctx) => {
   const auth = getAuth(ctx);
   const userId = auth?.userId;
-  const { item_id } = await ctx.req.json(); // Extract item_id from request body
+  const { item_id } = await ctx.req.json();
 
   if (!userId || !item_id) {
     return ctx.json({ error: "Unauthorized or missing item_id" }, 401);
   }
+
+  await sendEmail(`Transaction webhook triggered for User: ${userId} and Item Id: ${item_id}.`);
 
   const shouldProceed = await checkOrUpdateLastRunDate(userId);
   if (!shouldProceed) {
     return ctx.json({ message: 'Already processed today' });
   }
 
-  // Retrieve the access token for the specific item_id
   const result = await db
-    .select({ accessToken: userTokens.accessToken })
+    .select({ accessToken: userTokens.accessToken, cursor: userTokens.cursor })
     .from(userTokens)
     .where(and(eq(userTokens.userId, userId), eq(userTokens.itemId, item_id)))
     .orderBy(desc(userTokens.createdAt));
 
   const accessToken = result[0]?.accessToken;
+  const initialCursor = result[0]?.cursor || null;
 
   if (!accessToken) {
     return ctx.json({ error: "Access token not found" }, 404);
   }
 
-  const plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken);
+  await sendEmail(`Transaction webhook about to fetch transactions for User: ${userId} and Item Id: ${item_id}.`);
+
+  const plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken, initialCursor, item_id, userId);
+
+  await sendEmail(`Transaction webhook successfully fetched transactions for User: ${userId} and Item Id: ${item_id}.`);
 
   if (!plaidTransactions) {
     return ctx.json({ error: "Failed to fetch transactions after multiple attempts" }, 500);
@@ -149,12 +196,13 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     transaction.personal_finance_category?.detailed || transaction.personal_finance_category?.primary || ""
   );
 
-  const query = 
-      `Here is a list of categories from recurring transactions: [${transactionCategories}]
+  await sendEmail(`Transaction webhook about to query for User: ${userId} and Item Id: ${item_id}.`);
+
+  const query = `Here is a list of categories from recurring transactions: [${transactionCategories}]
       Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
       respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
       You MUST categorize each of these [${transactionCategories}] as one of these: [${categoryOptions.join(", ")}].
-    `;
+  `;
 
   const data = {
     user_id: userId,
@@ -169,48 +217,37 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     body: JSON.stringify(data),
   });
 
-  let categorizedResults;
-
   if (!aiResponse.ok) {
-    const errorText = await aiResponse.text();
-    console.error('Error from AI API:', errorText);
-    categorizedResults = plaidTransactions.map(() => 'Uncategorized');
-  } else {
-    const aiData = await aiResponse.json();
-    categorizedResults = JSON.parse(aiData);
+    return ctx.json({ error: "AI categorization failed" }, 500);
   }
 
-  await Promise.all(
-    plaidTransactions.map(async (transaction, index) => {
-      const accountId = accountIdMap[transaction.account_id];
-      if (!accountId) return;
-      
-      const plaidTransactionId = transaction.transaction_id;
-      const amount = transaction.amount.toString();
-      const categoryId = dbCategories.find(category => category.name === categorizedResults[index])?.id || dbCategories.find(category => category.name === "Other (Default)")?.id || null;
+  const categorizedResults = await aiResponse.json();
+  const categoriesArray = categorizedResults.slice(1, -1).split(','); // Assuming response format is "[cat1,cat2,...]"
 
-      const existingTransaction = await db
-        .select({ plaidTransactionId: transactions.plaidTransactionId })
-        .from(transactions)
-        .where(and(eq(transactions.userId, userId), eq(transactions.plaidTransactionId, plaidTransactionId)));
+  await Promise.all(plaidTransactions.map(async (transaction, index) => {
+    const accountId = accountIdMap[transaction.account_id];
+    if (!accountId) return;
+    const categoryId = dbCategories.find(category => category.name === categorizedResults[index])?.id || dbCategories.find(category => category.name === "Other (Default)")?.id || null;
 
-      if (existingTransaction.length > 0) return;
 
+    if (accountId) {
       await db.insert(transactions).values({
         id: createId(),
         userId: userId,
-        amount: amount,
+        amount: transaction.amount.toString(),
         payee: transaction.name,
         date: new Date(transaction.date),
         accountId: accountId,
         categoryId: categoryId,
         isFromPlaid: true,
-        plaidTransactionId: plaidTransactionId,
+        plaidTransactionId: transaction.transaction_id,
       }).execute();
-    })
-  );
+    }
+  }));
 
-  return ctx.json({ message: 'Transactions processed successfully' });
+  await sendEmail(`Transaction webhook finished for User: ${userId} and Item Id: ${item_id}.`);
+
+  return ctx.json({ message: "Transactions synced and inserted" });
 });
 
 export default app;

@@ -5,12 +5,12 @@
 ![Track your income and expenses with Finance.](/.github/images/img_main.png "Track your income and expenses with Finance.")
 
 [![Ask Me Anything!](https://flat.badgen.net/static/Ask%20me/anything?icon=github&color=black&scale=1.01)](https://github.com/sanidhyy "Ask Me Anything!")
-[![GitHub license](https://flat.badgen.net/github/license/sanidhyy/finance-dashboard?icon=github&color=black&scale=1.01)](https://github.com/sanidhyy/finance-dashboard/blob/main/LICENSE "GitHub license")
-[![Maintenance](https://flat.badgen.net/static/Maintained/yes?icon=github&color=black&scale=1.01)](https://github.com/sanidhyy/finance-dashboard/commits/main "Maintenance")
-[![GitHub branches](https://flat.badgen.net/github/branches/sanidhyy/finance-dashboard?icon=github&color=black&scale=1.01)](https://github.com/sanidhyy/finance-dashboard/branches "GitHub branches")
-[![Github commits](https://flat.badgen.net/github/commits/sanidhyy/finance-dashboard?icon=github&color=black&scale=1.01)](https://github.com/sanidhyy/finance-dashboard/commits "Github commits")
-[![GitHub issues](https://flat.badgen.net/github/issues/sanidhyy/finance-dashboard?icon=github&color=black&scale=1.01)](https://github.com/sanidhyy/finance-dashboard/issues "GitHub issues")
-[![GitHub pull requests](https://flat.badgen.net/github/prs/sanidhyy/finance-dashboard?icon=github&color=black&scale=1.01)](https://github.com/sanidhyy/finance-dashboard/pulls "GitHub pull requests")
+[![GitHub license](https://flat.badgen.net/github/license/sanidhyy/link?icon=github&color=black&scale=1.01)](https://github.com/sanidhyy/link/blob/main/LICENSE "GitHub license")
+[![Maintenance](https://flat.badgen.net/static/Maintained/yes?icon=github&color=black&scale=1.01)](https://github.com/sanidhyy/link/commits/main "Maintenance")
+[![GitHub branches](https://flat.badgen.net/github/branches/sanidhyy/link?icon=github&color=black&scale=1.01)](https://github.com/sanidhyy/link/branches "GitHub branches")
+[![Github commits](https://flat.badgen.net/github/commits/sanidhyy/link?icon=github&color=black&scale=1.01)](https://github.com/sanidhyy/link/commits "Github commits")
+[![GitHub issues](https://flat.badgen.net/github/issues/sanidhyy/link?icon=github&color=black&scale=1.01)](https://github.com/sanidhyy/link/issues "GitHub issues")
+[![GitHub pull requests](https://flat.badgen.net/github/prs/sanidhyy/link?icon=github&color=black&scale=1.01)](https://github.com/sanidhyy/link/pulls "GitHub pull requests")
 [![Vercel status](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://appfinance.vercel.app/ "Vercel status")
 
 <!-- Table of Contents -->
@@ -44,7 +44,7 @@
 Here is the folder structure of this app.
 
 ```bash
-finance-dashboard/
+Link/
   |- app/
     |-- (auth)/
     |-- (dashboard)/
@@ -274,7 +274,7 @@ Useful resources and dependencies that are used in Finance.
 ## :rocket: Follow Me
 
 [![Follow Me](https://img.shields.io/github/followers/sanidhyy?style=social&label=Follow&maxAge=2592000)](https://github.com/sanidhyy "Follow Me")
-[![Tweet about this project](https://img.shields.io/twitter/url?style=social&url=https%3A%2F%2Ftwitter.com%2FTechnicalShubam)](https://twitter.com/intent/tweet?text=Check+out+this+amazing+app:&url=https%3A%2F%2Fgithub.com%2Fsanidhyy%2Ffinance-dashboard "Tweet about this project")
+[![Tweet about this project](https://img.shields.io/twitter/url?style=social&url=https%3A%2F%2Ftwitter.com%2FTechnicalShubam)](https://twitter.com/intent/tweet?text=Check+out+this+amazing+app:&url=https%3A%2F%2Fgithub.com%2Fsanidhyy%2Flink "Tweet about this project")
 [![Subscribe to my YouTube Channel](https://img.shields.io/youtube/channel/subscribers/UCNAz_hUVBG2ZUN8TVm0bmYw)](https://www.youtube.com/@OPGAMER./?sub_confirmation=1 "Subscribe to my YouTube Channel")
 
 ## :books: Learn More
@@ -298,11 +298,11 @@ You can also give this repository a star to show more people and they can use th
 
 ## :star2: Star History
 
-<a href="https://star-history.com/#sanidhyy/finance-dashboard&Timeline">
+<a href="https://star-history.com/#sanidhyy/link&Timeline">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=sanidhyy/finance-dashboard&type=Timeline&theme=dark" />
-  <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=sanidhyy/finance-dashboard&type=Timeline" />
-  <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=sanidhyy/finance-dashboard&type=Timeline" />
+  <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=sanidhyy/link&type=Timeline&theme=dark" />
+  <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=sanidhyy/link&type=Timeline" />
+  <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=sanidhyy/link&type=Timeline" />
 </picture>
 </a>
 
