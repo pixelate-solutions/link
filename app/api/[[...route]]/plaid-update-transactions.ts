@@ -23,9 +23,8 @@ app.post('/transactions', async (ctx) => {
   } else {
     return ctx.text('Webhook signature missing', 400);
   }
-})
-  .get('/transactions', async (ctx) => {
+}).get('/transactions', async (ctx) => {
     return ctx.text('PLAID TRANSACTIONS WEBHOOK PAGE', 200);
-  });
+});
 
 export default app;
