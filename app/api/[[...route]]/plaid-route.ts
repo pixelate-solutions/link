@@ -16,7 +16,7 @@ app.post("/", clerkMiddleware(), async (ctx) => {
     products: [Products.Transactions],
     country_codes: [CountryCode.Us],
     language: 'en',
-    webhook: `https://link-jomo125s-projects.vercel.app/api/plaid/update-transactions`,
+    webhook: `https://www.link-jomo125s-projects.vercel.app/api/plaid/update-transactions`,
   };
 
   try {
