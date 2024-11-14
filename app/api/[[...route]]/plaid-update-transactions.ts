@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 
 const app = new Hono();
 
-app.post('/webhook', async (ctx) => {
+app.post('/', async (ctx) => {
   try {
     const webhookData = await ctx.req.json();
     console.log('Received webhook:', webhookData);
