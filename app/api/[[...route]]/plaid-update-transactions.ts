@@ -1,8 +1,9 @@
+import { clerkMiddleware } from '@hono/clerk-auth';
 import { Hono } from 'hono';
 
 const app = new Hono();
 
-app.post('/', async (ctx) => {
+app.post('/', clerkMiddleware(), async (ctx) => {
   try {
     const webhookData = await ctx.req.json();
     console.log('Received webhook:', webhookData);
