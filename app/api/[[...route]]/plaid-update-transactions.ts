@@ -13,3 +13,5 @@ app.post('/webhook', async (ctx) => {
     return ctx.text('Internal Server Error', 500);
   }
 });
+
+export default app;
