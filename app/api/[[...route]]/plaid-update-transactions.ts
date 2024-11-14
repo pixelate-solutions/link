@@ -7,6 +7,7 @@ import plaidClient from "./plaid";
 import { eq, and, desc } from "drizzle-orm";
 import { isSameDay } from "date-fns";
 import nodemailer from 'nodemailer';
+import { AxiosError } from 'axios';
 
 const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
 const MAX_RETRIES = 3;
@@ -79,7 +80,17 @@ const checkOrUpdateLastRunDate = async (userId: string) => {
   return true;
 };
 
-const fetchPlaidTransactionsWithRetry = async (accessToken: string, initialCursor: string | null = null, item_id: string, userId: string) => {
+interface PlaidErrorResponse {
+  error_code: string;
+  error_message: string;
+}
+
+const fetchPlaidTransactionsWithRetry = async (
+  accessToken: string,
+  initialCursor: string | null = null,
+  item_id: string,
+  userId: string
+) => {
   let attempts = 0;
   let cursor: string | null = initialCursor;
   let allTransactions: any[] = [];
@@ -123,16 +134,42 @@ const fetchPlaidTransactionsWithRetry = async (accessToken: string, initialCurso
 
       return allTransactions;
 
-    } catch (error) {
-      if (attempts >= MAX_RETRIES - 1) {
-        throw new Error("Failed to sync transactions after multiple attempts.");
+    } catch (error: unknown) {
+      // Narrowing the error type to AxiosError
+      if (isAxiosError(error)) {
+        // Log the full error to help with debugging
+        console.error('Error syncing transactions:', error);
+
+        // If the error is INVALID_ACCESS_TOKEN, skip this token and continue
+        const errorResponse = error.response?.data as PlaidErrorResponse; // Type assertion
+        if (errorResponse?.error_code === 'INVALID_ACCESS_TOKEN') {
+          console.warn(`Skipping access token for item ${item_id} due to invalid token.`);
+          return [];  // Return an empty array or continue with the next token
+        }
+
+        // Retry logic if it is a recoverable error
+        if (attempts >= MAX_RETRIES - 1) {
+          console.error("Max retries reached. Failing sync.");
+          throw new Error("Failed to sync transactions after multiple attempts.");
+        }
+      } else {
+        // If it's not an Axios error, log and throw
+        console.error('Unknown error:', error);
+        throw new Error('An unknown error occurred.');
       }
+
       console.log(`Retrying transaction sync... Attempt ${attempts + 1}`);
       await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
       attempts++;
     }
   }
+
   return null;
+};
+
+// Type guard to check if the error is an AxiosError
+const isAxiosError = (error: unknown): error is AxiosError => {
+  return (error as AxiosError).isAxiosError !== undefined;
 };
 
 app.post('/', clerkMiddleware(), async (ctx) => {
