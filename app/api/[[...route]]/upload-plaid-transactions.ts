@@ -4,7 +4,7 @@ import { db } from "@/db/drizzle";
 import { accounts, transactions, userTokens, categories } from "@/db/schema";
 import { createId } from "@paralleldrive/cuid2";
 import plaidClient from "./plaid";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, and } from "drizzle-orm";
 
 // Fetch the AI URL from environment variables
 const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
@@ -14,9 +14,9 @@ const app = new Hono();
 const MAX_RETRIES = 6;
 const RETRY_DELAY_MS = 2000;
 
-async function fetchPlaidTransactionsWithRetry(accessToken: string) {
+const fetchPlaidTransactionsWithRetry = async (accessToken: string, initialCursor: string | null = null, item_id: string, userId: string) => {
   let attempts = 0;
-  let cursor: string | null = null;
+  let cursor: string | null = initialCursor;
   let allTransactions: any[] = [];
 
   while (attempts < MAX_RETRIES) {
@@ -30,8 +30,7 @@ async function fetchPlaidTransactionsWithRetry(accessToken: string) {
         });
 
         const { added, modified, removed, next_cursor, has_more } = response.data;
-        
-        // Aggregate transactions, filtering out transfers
+
         const newTransactions = added
           .concat(modified)
           .filter(transaction => transaction.transaction_code !== "transfer")
@@ -43,7 +42,6 @@ async function fetchPlaidTransactionsWithRetry(accessToken: string) {
             const primaryCategory = transaction.personal_finance_category?.primary ?? "";
             const name = transaction.name ?? "";
 
-            // Filter out transactions that are "transfer" unless they also have "check" or "pay"
             return !(categoryCheck(detailedCategory) || categoryCheck(primaryCategory)) || nameCheck(name);
           });
 
@@ -52,7 +50,13 @@ async function fetchPlaidTransactionsWithRetry(accessToken: string) {
         hasMore = has_more;
       }
 
-      return allTransactions; // Return aggregated, filtered transactions
+      // Store the updated cursor for future syncs
+      await db.update(userTokens)
+        .set({ cursor: cursor })  // Assuming `cursor` is a column in `userTokens`
+        .where(and(eq(userTokens.userId, userId), eq(userTokens.itemId, item_id)))
+        .execute();
+
+      return allTransactions;
 
     } catch (error) {
       if (attempts >= MAX_RETRIES - 1) {
@@ -63,9 +67,8 @@ async function fetchPlaidTransactionsWithRetry(accessToken: string) {
       attempts++;
     }
   }
-
   return null;
-}
+};
 
 app.post('/', clerkMiddleware(), async (ctx) => {
   const auth = getAuth(ctx);
@@ -75,21 +78,30 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: "Unauthorized" }, 401);
   }
 
-  // Fetch access token
-  const result = await db
-    .select({ accessToken: userTokens.accessToken })
+  // Fetch all rows for the given userId
+  const results = await db
+    .select({ accessToken: userTokens.accessToken, cursor: userTokens.cursor, item_id: userTokens.itemId })
     .from(userTokens)
     .where(eq(userTokens.userId, userId))
     .orderBy(desc(userTokens.createdAt));
 
-  const accessToken = result[0]?.accessToken;
-
-  if (!accessToken) {
-    return ctx.json({ error: "Access token not found" }, 404);
+  if (results.length === 0) {
+    return;
   }
 
-  // Fetch transactions from Plaid, already filtered
-  let plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken);
+  // Loop through the results and fetch transactions for each one
+  const plaidTransactionsPromises = results.map(async (row) => {
+    const accessToken = row.accessToken;
+    const initialCursor = row.cursor || null;
+    const itemId = row.item_id || "";
+
+    // Fetch transactions from Plaid for each row's accessToken, cursor, and itemId
+    return fetchPlaidTransactionsWithRetry(accessToken, initialCursor, itemId, userId);
+  });
+
+  // Wait for all the fetches to complete
+  const plaidTransactions = (await Promise.all(plaidTransactionsPromises)).flat();
+  
   console.log("TRANSACTIONS LENGTH (non-transfer): ", plaidTransactions?.length);
 
   if (!plaidTransactions) {
