@@ -161,7 +161,7 @@ const isAxiosError = (error: unknown): error is AxiosError => {
 };
 
 // Webhook endpoint to process the incoming Plaid webhook
-app.post('/', clerkMiddleware(), async (ctx) => {
+app.post('/', async (ctx) => {
   const auth = getAuth(ctx);
   const userId = auth?.userId;
   const { item_id } = await ctx.req.json();
