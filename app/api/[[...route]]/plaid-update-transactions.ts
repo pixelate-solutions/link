@@ -172,6 +172,7 @@ const isAxiosError = (error: unknown): error is AxiosError => {
 };
 
 app.post('/', async (ctx) => {
+  console.log("WEBHOOK STARTED");
   const { item_id } = await ctx.req.json();
 
   if (!item_id) {
