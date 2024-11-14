@@ -1,7 +1,7 @@
 {
   "functions": {
     "api/plaid/update-transactions": {
-      "runtime": "edge"
+      "runtime": "@vercel/node"
     }
   }
 }
