@@ -16,7 +16,7 @@ app.post("/", clerkMiddleware(), async (ctx) => {
     products: [Products.Transactions],
     country_codes: [CountryCode.Us],
     language: 'en',
-    webhook: `https://www.budgetwithlink.com/api/plaid/update-transactions`,
+    webhook: `https://www.budgetwithlink.com/api/plaid/webhook/transactions`,
   };
 
   try {

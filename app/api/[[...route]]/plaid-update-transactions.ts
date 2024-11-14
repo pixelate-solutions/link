@@ -2,12 +2,18 @@ import { Hono } from 'hono';
 
 const app = new Hono();
 
-app.post('/', async (ctx) => {
-  if (ctx.req.header('Plaid-Webhook-Signature')) {
-    // Plaid webhook, handle without Clerk auth middleware
+app.post('/transactions', async (ctx) => {
+  const plaidWebhookSignature = ctx.req.header('Plaid-Webhook-Signature');
+  
+  if (plaidWebhookSignature) {
     try {
       const webhookData = await ctx.req.json();
       console.log('Received webhook:', webhookData);
+
+      if (webhookData.webhook_code === 'DEFAULT_UPDATE') {
+        console.log(`Item ID: ${webhookData.item_id}`);
+        console.log(`New Transactions: ${webhookData.new_transactions}`);
+      }
 
       return ctx.text('Webhook received', 200);
     } catch (error) {
@@ -15,9 +21,8 @@ app.post('/', async (ctx) => {
       return ctx.text('Internal Server Error', 500);
     }
   } else {
-    return ctx.text('Internal Server Error', 500);
+    return ctx.text('Webhook signature missing', 400);
   }
 });
-
 
 export default app;

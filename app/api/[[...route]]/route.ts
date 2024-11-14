@@ -40,7 +40,7 @@ const routes = app
   .route('/plaid/delete-data', deletePlaidData)
   .route('/plaid/account-totals', accountTotals)
   .route('/plaid/category-totals', categoryTotals)
-  .route('/plaid/update-transactions', plaidUpdateTransactions)
+  .route('/plaid/webhook', plaidUpdateTransactions)
   .route('/chat-access', chatAccess)
   .route('/plaid/recurring', recurringTransactions)
   .route('/apply-promo-code', promoCode)
