@@ -19,7 +19,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
     await plaidClient.itemWebhookUpdate({
       access_token: access_token,
-      webhook: `https://www.budgetwithlink.com/api/plaid-transaction-webhook`,
+      webhook: `https://www.budgetwithlink.com/api/plaid/update-transactions`,
     });
 
     // Check if this item_id already exists for the user
