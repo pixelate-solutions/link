@@ -161,6 +161,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
   const initialCursor = result[0]?.cursor || null;
 
   if (!accessToken) {
+    console.log("NO ACCESS TOKEN");
     return ctx.json({ error: "Access token not found" }, 404);
   }
 
