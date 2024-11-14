@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 
 const app = new Hono();
 
-app.post('/webhook', async (ctx) => {
+app.post('/', async (ctx) => {
   if (ctx.req.header('Plaid-Webhook-Signature')) {
     // Plaid webhook, handle without Clerk auth middleware
     try {

@@ -137,20 +137,6 @@ const TransactionsPage = () => {
 
         const data = await response.json();
         recurringTransactions = data.recurringTransactions as RecurringTransaction[];
-        const data2 = {
-          key1: "value1",  // Replace with your actual keys and values
-          key2: "value2",
-          key3: "value3"
-        };
-
-        const r = await fetch("/api/plaid/update-transactions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data2),  // Convert the data object to a JSON string
-        });
-
       } catch (err) {
         if (err instanceof Error) {
           setError(err.message);
