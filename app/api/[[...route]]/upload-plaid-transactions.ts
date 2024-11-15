@@ -181,9 +181,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     You MUST categorize each of these [${transactionCategories}] as one of these: [${categoryOptions.join(", ")}].
     Every value in your list response will be one of these values: [${categoryOptions.join(", ")}]. Again, respond as a list with 
     brackets "[]" and comma-separated values with NO other text than that list. And the only options you can use to make
-    the list are values from this list: [${categoryOptions.join(", ")}]. ONLY if this list of categories is empty, use 
-    the list instead to categorize each of these into one of the following categories: 
-    [Food & Drink, Transportation, Bills & Utilities, Fun, Other].
+    the list are values from this list: [${categoryOptions.join(", ")}].
   `;
 
   const data = {

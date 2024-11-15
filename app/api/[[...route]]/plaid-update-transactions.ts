@@ -259,7 +259,7 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
   const categorizedResults = await aiResponse.json();
   const categoriesArray = categorizedResults.slice(1, -1).split(','); // Assuming response format is "[cat1,cat2,...]"
 
-  // Insert transactions into the database
+  // Upsert only the new transactions
   await Promise.all(plaidTransactions.map(async (transaction, index) => {
     const accountId = accountIdMap[transaction.account_id];
     if (!accountId) return;
@@ -269,19 +269,82 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
       || null;
 
     if (accountId) {
-      await db.insert(transactions).values({
-        id: createId(),
-        userId: userId,
-        amount: transaction.amount.toString(),
-        payee: transaction.name,
-        date: new Date(transaction.date),
-        accountId: accountId,
-        categoryId: categoryId,
-        isFromPlaid: true,
-        plaidTransactionId: transaction.transaction_id,
-      }).execute();
+      const existingTransaction = await db
+        .select()
+        .from(transactions)
+        .where(and(eq(transactions.plaidTransactionId, transaction.transaction_id), eq(transactions.userId, userId)))
+        .limit(1)
+        .execute();
+
+      // If the transaction does not exist, insert it
+      if (existingTransaction.length === 0) {
+        await db.insert(transactions).values({
+          id: createId(),
+          userId: userId,
+          amount: transaction.amount.toString(),
+          payee: transaction.name,
+          date: new Date(transaction.date),
+          accountId: accountId,
+          categoryId: categoryId,
+          isFromPlaid: true,
+          plaidTransactionId: transaction.transaction_id,
+        }).execute();
+      }
     }
   }));
+
+  // Fetch all inserted transactions for the user to format for AI
+  const userTransactions = await db
+    .select({
+      id: transactions.id,
+      amount: transactions.amount,
+      payee: transactions.payee,
+      date: transactions.date,
+      accountId: transactions.accountId,
+      categoryId: transactions.categoryId,
+    })
+    .from(transactions)
+    .where(eq(transactions.userId, userId));
+
+  // Format transactions for upserting to AI
+  const formattedTransactions = userTransactions
+    .map((transaction) => {
+      const amount = transaction.amount ?? "0"; // Default to "0" if undefined
+      const payee = transaction.payee ?? "Unknown Payee"; // Default to "Unknown Payee" if undefined
+      const date = new Date(transaction.date);
+      const formattedDate = date.toLocaleDateString();
+
+      return `
+        A transaction was made in the amount of $${amount} by the user to the person or group named ${payee} on ${formattedDate}. 
+        No additional notes were provided for this transaction.
+      `;
+    }).join("\n").trim(); // Remove any leading or trailing whitespace
+
+  // Upsert transactions to AI endpoint
+  try {
+    if (formattedTransactions) { // Ensure there are formatted transactions
+      const aiResponse = await fetch(
+        `${AI_URL}/resource/upsert_text?user_id=${userId}&name=Transactions from ${accountIdMap[plaidTransactions[0].account_id]} for ${userId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+          },
+          body: formattedTransactions,
+        }
+      );
+
+      if (!aiResponse.ok) {
+        const errorText = await aiResponse.text();
+        throw new Error(`Upsert failed: ${errorText}`);
+      }
+
+      const responseData = await aiResponse.json();
+    }
+  } catch (error) {
+    console.error('Error upserting transactions:', error);
+    return new Response(JSON.stringify({ error: 'Failed to upsert transactions' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  }
 }
 
 app.get('/transactions', clerkMiddleware(), async (ctx) => {
