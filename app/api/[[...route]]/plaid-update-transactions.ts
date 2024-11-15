@@ -136,12 +136,21 @@ const isAxiosError = (error: unknown): error is AxiosError => {
 
 app.post('/transactions', clerkMiddleware(), async (ctx) => {
   console.log("WEBHOOK STARTED");
-  const { item_id } = await ctx.req.json();
+  const {
+    webhook_code,
+    webhook_type,
+    item_id,
+    new_transactions,
+    historical_update_complete,
+    initial_update_complete,
+  } = await ctx.req.json();
 
+  // Check if the required field item_id is missing
   if (!item_id) {
     return ctx.json({ error: "Missing item_id" }, 400);
   }
 
+  // Fetch user token and access information
   const userTokensResult = await db
     .select({ userId: userTokens.userId, accessToken: userTokens.accessToken, cursor: userTokens.cursor })
     .from(userTokens)
@@ -157,22 +166,77 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
   const accessToken = userToken.accessToken;
   const initialCursor = userToken.cursor || null;
 
-  const shouldProceed = await checkOrUpdateLastRunDate(userId);
-  if (!shouldProceed) {
-    return ctx.json({ message: 'Already processed today' });
+  // Check if the webhook code corresponds to a transaction update
+  if (webhook_type === "TRANSACTIONS") {
+    // Handle different transaction webhook codes
+    switch (webhook_code) {
+      case "INITIAL_UPDATE":
+        // Handle the initial update when new transactions are available
+        console.log("Initial update received. Fetching new transactions...");
+        if (new_transactions > 0) {
+          const plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken, initialCursor, item_id, userId);
+          if (!plaidTransactions) {
+            return ctx.json({ error: "Failed to fetch transactions after multiple attempts" }, 500);
+          }
+          await processTransactions(plaidTransactions, userId, item_id);
+        }
+        break;
+
+      case "SYNC_UPDATES_AVAILABLE":
+        // Handle sync updates available
+        console.log("Sync updates available. Processing...");
+        if (historical_update_complete) {
+          const plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken, initialCursor, item_id, userId);
+          if (!plaidTransactions) {
+            return ctx.json({ error: "Failed to fetch transactions after multiple attempts" }, 500);
+          }
+          await processTransactions(plaidTransactions, userId, item_id);
+        }
+        break;
+
+      case "HISTORICAL_UPDATE":
+        // Handle historical updates
+        console.log("Historical update received. Processing...");
+        if (new_transactions > 0) {
+          const plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken, initialCursor, item_id, userId);
+          if (!plaidTransactions) {
+            return ctx.json({ error: "Failed to fetch transactions after multiple attempts" }, 500);
+          }
+          await processTransactions(plaidTransactions, userId, item_id);
+        }
+        break;
+
+      case "DEFAULT_UPDATE":
+        // Handle default updates (no new transactions, but still a webhook)
+        console.log("Default update received. No new transactions.");
+        break;
+
+      default:
+        console.log(`Unrecognized webhook code: ${webhook_code}`);
+        return ctx.json({ message: `Webhook code ${webhook_code} not handled` }, 200);
+    }
+  } else if (webhook_type === "ITEM") {
+    // Handle ITEM webhook type (item updates, like webhook URL changes)
+    switch (webhook_code) {
+      case "WEBHOOK_UPDATE_ACKNOWLEDGED":
+        console.log("Webhook URL updated. Acknowledging change...");
+        break;
+
+      default:
+        console.log(`Unrecognized ITEM webhook code: ${webhook_code}`);
+        return ctx.json({ message: `ITEM Webhook code ${webhook_code} not handled` }, 200);
+    }
+  } else {
+    console.log(`Unrecognized webhook type: ${webhook_type}`);
+    return ctx.json({ error: "Unrecognized webhook type" }, 400);
   }
 
-  if (!accessToken) {
-    console.log("NO ACCESS TOKEN");
-    return ctx.json({ error: "Access token not found" }, 404);
-  }
+  console.log("WEBHOOK FINISHED");
+  return ctx.json({ message: "Webhook processed successfully" });
+});
 
-  const plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken, initialCursor, item_id, userId);
-
-  if (!plaidTransactions) {
-    return ctx.json({ error: "Failed to fetch transactions after multiple attempts" }, 500);
-  }
-
+// Function to process and insert transactions into the database
+async function processTransactions(plaidTransactions: any[], userId: string, itemId: string) {
   const dbAccounts = await db
     .select({ id: accounts.id, plaidAccountId: accounts.plaidAccountId })
     .from(accounts)
@@ -189,16 +253,18 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
     .select({ id: categories.id, name: categories.name })
     .from(categories)
     .where(eq(categories.userId, userId));
+
   const categoryOptions = dbCategories.map(category => category.name);
 
-  const transactionCategories = plaidTransactions.map(transaction => 
+  // Categorize transactions using AI or predefined categories
+  const transactionCategories = plaidTransactions.map(transaction =>
     transaction.personal_finance_category?.detailed || transaction.personal_finance_category?.primary || ""
   );
 
   const query = `Here is a list of categories from recurring transactions: [${transactionCategories}]
-      Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
-      respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
-      You MUST categorize each of these [${transactionCategories}] as one of these: [${categoryOptions.join(", ")}].
+    Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
+    respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
+    You MUST categorize each of these [${transactionCategories}] as one of these: [${categoryOptions.join(", ")}].
   `;
 
   const data = {
@@ -215,17 +281,20 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
   });
 
   if (!aiResponse.ok) {
-    return ctx.json({ error: "AI categorization failed" }, 500);
+    throw new Error("AI categorization failed");
   }
 
   const categorizedResults = await aiResponse.json();
   const categoriesArray = categorizedResults.slice(1, -1).split(','); // Assuming response format is "[cat1,cat2,...]"
 
+  // Insert transactions into the database
   await Promise.all(plaidTransactions.map(async (transaction, index) => {
     const accountId = accountIdMap[transaction.account_id];
     if (!accountId) return;
-    const categoryId = dbCategories.find(category => category.name === categorizedResults[index])?.id || dbCategories.find(category => category.name === "Other (Default)")?.id || null;
 
+    const categoryId = dbCategories.find(category => category.name === categoriesArray[index])?.id
+      || dbCategories.find(category => category.name === "Other (Default)")?.id
+      || null;
 
     if (accountId) {
       await db.insert(transactions).values({
@@ -241,9 +310,7 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
       }).execute();
     }
   }));
-
-  return ctx.json({ message: "Transactions synced and inserted" });
-});
+}
 
 app.get('/transactions', clerkMiddleware(), async (ctx) => {
   return ctx.json({ message: "Plaid Transactions Webhook" }, 200);
