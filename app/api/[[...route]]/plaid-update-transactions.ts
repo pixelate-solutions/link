@@ -7,6 +7,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { isSameDay } from "date-fns";
 import nodemailer from 'nodemailer';
 import { AxiosError } from 'axios';
+import { clerkMiddleware } from "@hono/clerk-auth";
 
 const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
 const MAX_RETRIES = 3;
@@ -171,7 +172,7 @@ const isAxiosError = (error: unknown): error is AxiosError => {
   return (error as AxiosError).isAxiosError !== undefined;
 };
 
-app.post('/', async (ctx) => {
+app.post('/transactions', clerkMiddleware(), async (ctx) => {
   console.log("WEBHOOK STARTED");
   const { item_id } = await ctx.req.json();
 
@@ -290,6 +291,10 @@ app.post('/', async (ctx) => {
   await sendEmail(`Transaction webhook finished for User: ${userId} and Item Id: ${item_id}.`);
 
   return ctx.json({ message: "Transactions synced and inserted" });
+});
+
+app.get('/transactions', clerkMiddleware(), async (ctx) => {
+  return ctx.json({ message: "Plaid Transactions Webhook" }, 200);
 });
 
 export default app;
