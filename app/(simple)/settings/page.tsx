@@ -256,7 +256,7 @@ const SettingsPage = () => {
       {plaidIsOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
           <div className="bg-white p-8 rounded-lg shadow-lg w-80 text-center">
-            <h2 className="text-2xl font-bold mb-4">Connecting Your Data</h2>
+            <h2 className="text-2xl font-bold mb-4">Connecting</h2>
             <p className="text-lg text-gray-600">
               <Typewriter
                 words={['This will take a few minutes...', 'Please be patient...', 'Waiting for Plaid connections...', 'Waiting for Plaid connections...', 'Waiting for Plaid connections...', 'Fetching your financial data...', 'Categorizing transactions...', 'Creating accounts...', 'Training virtual assistant...']}

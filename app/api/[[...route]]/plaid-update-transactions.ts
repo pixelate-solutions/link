@@ -366,7 +366,7 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
   try {
     if (formattedTransactions) { // Ensure there are formatted transactions
       const aiResponse = await fetch(
-        `${AI_URL}/resource/upsert_text?user_id=${userId}&name=Transactions from ${accountIdMap[plaidTransactions[0].account_id]} for ${userId}`,
+        `${AI_URL}/resource/upsert_text?user_id=${userId}&name=Transactions from ${accountIdMap[plaidTransactions[0].account_id] || "Unknown Payee"} for ${userId}`,
         {
           method: 'POST',
           headers: {
