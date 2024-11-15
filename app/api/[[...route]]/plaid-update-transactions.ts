@@ -302,16 +302,17 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
   }
 
   const categorizedResults = await aiResponse.json();
-  const categoriesArray = categorizedResults.slice(1, -1).split(','); // Assuming response format is "[cat1,cat2,...]"
 
   // Upsert only the new transactions
   await Promise.all(plaidTransactions.map(async (transaction, index) => {
     const accountId = accountIdMap[transaction.account_id];
     if (!accountId) return;
 
-    const categoryId = dbCategories.find(category => category.name === categoriesArray[index])?.id
-      || dbCategories.find(category => category.name === "Other (Default)")?.id
-      || null;
+    const categoryId = dbCategories.find(category => category.name === categorizedResults[index])?.id;
+
+    if (!categoryId) {
+        return;
+    }
     
     let amount;
     if (transaction.name.toLowerCase().includes("withdraw")) {
