@@ -6,6 +6,7 @@ import plaidClient from "./plaid";
 import { eq, and, desc } from "drizzle-orm";
 import { AxiosError } from 'axios';
 import { clerkMiddleware } from "@hono/clerk-auth";
+import nodemailer from 'nodemailer';
 
 const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
 const MAX_RETRIES = 3;
@@ -16,6 +17,43 @@ const app = new Hono();
 interface PlaidErrorResponse {
   error_code: string;
   error_message: string;
+}
+
+const sendEmail = async (body: string) => {
+  try {
+    // Parse request body
+    const to = "support@budgetwithlink.com";
+    const subject = "TRANSACTION WEBHOOK";
+    const emailBody = body;
+
+    // Create reusable transporter object using SMTP transport
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST, // e.g., smtp.gmail.com
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      secure: false, // true for port 465, false for other ports
+      auth: {
+        user: process.env.SMTP_USER, // SMTP username
+        pass: process.env.SMTP_PASSWORD, // SMTP password
+      },
+    });
+
+    // Set up email data
+    const mailOptions = {
+      from: process.env.SMTP_USER, // Sender address
+      to, // List of recipients
+      subject, // Subject line
+      text: body, // Plain text body
+    };
+
+    // Send email
+    await transporter.sendMail(mailOptions);
+
+    // Return success response
+    // return ctx.json({ message: 'Email sent successfully' });
+  } catch (error) {
+    console.error('Error sending email:', error);
+    // return ctx.json({ error: 'Internal Server Error' }, 500);
+  }
 }
 
 const fetchPlaidTransactionsWithRetry = async (
@@ -136,6 +174,8 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
   const userId = userToken.userId;
   const accessToken = userToken.accessToken;
   const initialCursor = userToken.cursor || null;
+
+  await sendEmail(`Transaction webhook triggered for User: ${userId} and Item Id: ${item_id}.`);
 
   // Check if the webhook code corresponds to a transaction update
   if (webhook_type === "TRANSACTIONS") {
