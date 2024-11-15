@@ -5,7 +5,6 @@ import { createId } from "@paralleldrive/cuid2";
 import plaidClient from "./plaid";
 import { eq, and, desc } from "drizzle-orm";
 import { isSameDay } from "date-fns";
-import nodemailer from 'nodemailer';
 import { AxiosError } from 'axios';
 import { clerkMiddleware } from "@hono/clerk-auth";
 
