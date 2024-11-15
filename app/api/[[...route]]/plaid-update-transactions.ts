@@ -15,43 +15,6 @@ const RETRY_DELAY_MS = 2000;
 
 const app = new Hono();
 
-const sendEmail = async (body: string) => {
-  try {
-    // Parse request body
-    const to = "support@budgetwithlink.com";
-    const subject = "TRANSACTION WEBHOOK";
-    const emailBody = body;
-
-    // Create reusable transporter object using SMTP transport
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST, // e.g., smtp.gmail.com
-      port: parseInt(process.env.SMTP_PORT || '587', 10),
-      secure: false, // true for port 465, false for other ports
-      auth: {
-        user: process.env.SMTP_USER, // SMTP username
-        pass: process.env.SMTP_PASSWORD, // SMTP password
-      },
-    });
-
-    // Set up email data
-    const mailOptions = {
-      from: process.env.SMTP_USER, // Sender address
-      to, // List of recipients
-      subject, // Subject line
-      text: body, // Plain text body
-    };
-
-    // Send email
-    await transporter.sendMail(mailOptions);
-
-    // Return success response
-    // return ctx.json({ message: 'Email sent successfully' });
-  } catch (error) {
-    console.error('Error sending email:', error);
-    // return ctx.json({ error: 'Internal Server Error' }, 500);
-  }
-}
-
 const checkOrUpdateLastRunDate = async (userId: string) => {
   const today = new Date();
   const [lastUpdate] = await db
@@ -195,8 +158,6 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
   const accessToken = userToken.accessToken;
   const initialCursor = userToken.cursor || null;
 
-  await sendEmail(`Transaction webhook triggered for User: ${userId} and Item Id: ${item_id}.`);
-
   const shouldProceed = await checkOrUpdateLastRunDate(userId);
   if (!shouldProceed) {
     return ctx.json({ message: 'Already processed today' });
@@ -207,11 +168,7 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: "Access token not found" }, 404);
   }
 
-  await sendEmail(`Transaction webhook about to fetch transactions for User: ${userId} and Item Id: ${item_id}.`);
-
   const plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken, initialCursor, item_id, userId);
-
-  await sendEmail(`Transaction webhook successfully fetched transactions for User: ${userId} and Item Id: ${item_id}.`);
 
   if (!plaidTransactions) {
     return ctx.json({ error: "Failed to fetch transactions after multiple attempts" }, 500);
@@ -238,8 +195,6 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
   const transactionCategories = plaidTransactions.map(transaction => 
     transaction.personal_finance_category?.detailed || transaction.personal_finance_category?.primary || ""
   );
-
-  await sendEmail(`Transaction webhook about to query for User: ${userId} and Item Id: ${item_id}.`);
 
   const query = `Here is a list of categories from recurring transactions: [${transactionCategories}]
       Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
@@ -287,8 +242,6 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
       }).execute();
     }
   }));
-
-  await sendEmail(`Transaction webhook finished for User: ${userId} and Item Id: ${item_id}.`);
 
   return ctx.json({ message: "Transactions synced and inserted" });
 });
