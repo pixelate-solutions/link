@@ -159,6 +159,17 @@ app.post('/', clerkMiddleware(), async (ctx) => {
         const lastAmount = stream.last_amount?.amount
           ? (stream.last_amount.amount * -1).toString()
           : "0";
+        
+        // Check if a transaction with the same streamId already exists
+        const existingTransaction = await db
+          .select({ id: recurringTransactions.id })
+          .from(recurringTransactions)
+          .where(and(eq(recurringTransactions.streamId, stream.stream_id), eq(recurringTransactions.userId, userId)))
+
+        if (existingTransaction.length > 0) {
+          console.log(`Skipping duplicate transaction for streamId: ${stream.stream_id}`);
+          return;
+        }
 
         return db.insert(recurringTransactions).values({
           id: createId(),
