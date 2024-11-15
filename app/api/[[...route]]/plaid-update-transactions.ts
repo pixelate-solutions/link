@@ -14,34 +14,6 @@ const RETRY_DELAY_MS = 2000;
 
 const app = new Hono();
 
-const checkOrUpdateLastRunDate = async (userId: string) => {
-  const today = new Date();
-  const [lastUpdate] = await db
-    .select({ lastUpdated: transactionUpdates.lastUpdated })
-    .from(transactionUpdates)
-    .where(eq(transactionUpdates.userId, userId))
-    .execute();
-
-  if (lastUpdate && isSameDay(new Date(lastUpdate.lastUpdated), today)) {
-    return false;
-  }
-
-  await db
-    .insert(transactionUpdates)
-    .values({
-      id: createId(),
-      userId: userId,
-      lastUpdated: today,
-    })
-    .onConflictDoUpdate({
-      target: transactionUpdates.userId,
-      set: { lastUpdated: today },
-    })
-    .execute();
-
-  return true;
-};
-
 interface PlaidErrorResponse {
   error_code: string;
   error_message: string;
