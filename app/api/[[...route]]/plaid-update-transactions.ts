@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { db } from "@/db/drizzle";
-import { accounts, transactions, userTokens, categories } from "@/db/schema";
+import { accounts, transactions, userTokens, categories, recurringTransactions } from "@/db/schema";
 import { createId } from "@paralleldrive/cuid2";
 import plaidClient from "./plaid";
 import { eq, and, desc } from "drizzle-orm";
@@ -267,7 +267,50 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
       || dbCategories.find(category => category.name === "Other (Default)")?.id
       || null;
 
-    if (accountId) {
+    if (transaction.recurring) {
+      // Handle recurring transactions
+      const recurringTransaction = await db
+        .select({ id: recurringTransactions.id })
+        .from(recurringTransactions)
+        .where(and(
+          eq(recurringTransactions.userId, userId),
+          eq(recurringTransactions.name, transaction.name),
+          eq(recurringTransactions.accountId, accountId)
+        ))
+        .execute();
+
+      if (recurringTransaction.length > 0) {
+        // Update existing recurring transaction
+        await db
+          .update(recurringTransactions)
+          .set({
+            averageAmount: transaction.amount.toString(),
+            lastAmount: transaction.amount.toString(),
+            date: transaction.date,
+            categoryId,
+            isActive: "true" // Assuming "true" for active status
+          })
+          .where(eq(recurringTransactions.id, recurringTransaction[0].id))
+          .execute();
+      } else {
+        // Insert new recurring transaction
+        await db.insert(recurringTransactions).values({
+          id: createId(),
+          userId,
+          name: transaction.name,
+          payee: transaction.merchant_name ?? null,
+          accountId,
+          categoryId,
+          frequency: "monthly", // Assuming "monthly"; adjust as needed
+          averageAmount: transaction.amount.toString(),
+          lastAmount: transaction.amount.toString(),
+          date: transaction.date,
+          isActive: "true",
+          streamId: createId() // New stream ID for this transaction
+        }).execute();
+      }
+    } else {
+      // Handle standard transactions
       const existingTransaction = await db
         .select()
         .from(transactions)
@@ -275,8 +318,8 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
         .limit(1)
         .execute();
 
-      // If the transaction does not exist, insert it
       if (existingTransaction.length === 0) {
+        // Insert new transaction
         await db.insert(transactions).values({
           id: createId(),
           userId: userId,
