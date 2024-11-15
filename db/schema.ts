@@ -128,6 +128,7 @@ export const insertRecurringTransactionSchema = createInsertSchema(recurringTran
 export const transactionUpdates = pgTable('transaction_updates', {
   id: text('id').primaryKey().unique(),
   userId: text('user_id').notNull().unique(),
+  itemId: text('item_id').notNull(),
   lastUpdated: timestamp('last_updated').defaultNow().notNull(),
 });
 

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 import { db } from "@/db/drizzle";
-import { accounts, transactions, userTokens, categories } from "@/db/schema";
+import { accounts, transactions, userTokens, categories, transactionUpdates } from "@/db/schema";
 import { createId } from "@paralleldrive/cuid2";
 import plaidClient from "./plaid";
 import { desc, eq, and } from "drizzle-orm";
@@ -425,6 +425,52 @@ app.post('/recategorize', clerkMiddleware(), async (ctx) => {
         .returning();
     })
   );
+
+  const results = await db
+    .select({ accessToken: userTokens.accessToken, cursor: userTokens.cursor, item_id: userTokens.itemId })
+    .from(userTokens)
+    .where(eq(userTokens.userId, userId))
+    .orderBy(desc(userTokens.createdAt));
+
+  if (results.length === 0) {
+    return;
+  }
+
+  // Loop through each result
+  for (const result of results) {
+    const { item_id } = result;
+
+    const existingEntry = await db
+      .select({ id: transactionUpdates.id })
+      .from(transactionUpdates)
+      .where(and(
+        eq(transactionUpdates.userId, userId),
+        eq(transactionUpdates.itemId, item_id || "")
+      ))
+      .orderBy(desc(transactionUpdates.lastUpdated))
+      .limit(1);
+
+    if (existingEntry.length > 0) {
+      // Update the existing row
+      await db
+        .update(transactionUpdates)
+        .set({ lastUpdated: new Date() })
+        .where(and(
+          eq(transactionUpdates.userId, userId),
+          eq(transactionUpdates.itemId, item_id || "")
+        ));
+    } else {
+      // Insert a new row
+      await db
+        .insert(transactionUpdates)
+        .values({
+          id: createId(),
+          userId,
+          itemId: item_id || "",
+          lastUpdated: new Date(),
+        });
+    }
+  }
 
   return ctx.json({ transactions: updatedTransactions.filter(Boolean) });
 });

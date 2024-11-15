@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { db } from "@/db/drizzle";
-import { accounts, transactions, userTokens, categories, recurringTransactions } from "@/db/schema";
+import { accounts, transactions, userTokens, categories, recurringTransactions, transactionUpdates } from "@/db/schema";
 import { createId } from "@paralleldrive/cuid2";
 import plaidClient from "./plaid";
 import { eq, and, desc } from "drizzle-orm";
@@ -189,11 +189,25 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: "Access token not found" }, 404);
   }
 
-  const userId = userToken.userId;
-  const accessToken = userToken.accessToken;
-  const initialCursor = userToken.cursor || null;
+  const { userId, accessToken, cursor: initialCursor } = userToken;
 
-  await sendEmail(`Transaction webhook triggered for User: ${userId} and Item Id: ${item_id}.`);
+  // Check for duplicate processing using transactionUpdates
+  const lastUpdate = await db
+    .select({ lastUpdated: transactionUpdates.lastUpdated })
+    .from(transactionUpdates)
+    .where(eq(transactionUpdates.userId, userId))
+    .orderBy(desc(transactionUpdates.lastUpdated))
+    .limit(1);
+
+  if (lastUpdate.length > 0) {
+    const timeSinceLastUpdate = Date.now() - new Date(lastUpdate[0].lastUpdated).getTime();
+    if (timeSinceLastUpdate < 60000) { // Skip if the last update was less than a minute ago
+      console.log(`Duplicate webhook detected for userId ${userId}. Skipping processing.`);
+      return ctx.json({ message: "Duplicate webhook ignored." });
+    }
+  }
+
+  // await sendEmail(`Transaction webhook triggered for User: ${userId} and Item Id: ${item_id}.`);
 
   // Check if the webhook code corresponds to a transaction update
   if (webhook_type === "TRANSACTIONS") {
@@ -247,8 +261,39 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: "Unrecognized webhook type" }, 400);
   }
 
-  console.log("WEBHOOK FINISHED");
-  return ctx.json({ message: "Webhook processed successfully" });
+  const existingEntry = await db
+    .select({ id: transactionUpdates.id })
+    .from(transactionUpdates)
+    .where(and(
+      eq(transactionUpdates.userId, userId),
+      eq(transactionUpdates.itemId, item_id)
+    ))
+    .orderBy(desc(transactionUpdates.lastUpdated))
+    .limit(1);
+
+  if (existingEntry.length > 0) {
+    // Update the existing row
+    await db
+      .update(transactionUpdates)
+      .set({ lastUpdated: new Date() })
+      .where(and(
+        eq(transactionUpdates.userId, userId),
+        eq(transactionUpdates.itemId, item_id)
+      ));
+  } else {
+    // Insert a new row
+    await db
+      .insert(transactionUpdates)
+      .values({
+        id: createId(),
+        userId,
+        itemId: item_id,
+        lastUpdated: new Date(),
+      });
+  }
+
+  return ctx.json({ message: "Webhook processed successfully." });
+
 });
 
 
