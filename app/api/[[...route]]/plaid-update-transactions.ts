@@ -203,11 +203,10 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
     const timeSinceLastUpdate = Date.now() - new Date(lastUpdate[0].lastUpdated).getTime();
     if (timeSinceLastUpdate < 60000) { // Skip if the last update was less than a minute ago
       console.log(`Duplicate webhook detected for userId ${userId}. Skipping processing.`);
+      await sendEmail(`Duplicate webhook detected for userId ${userId}. Skipping processing.`);
       return ctx.json({ message: "Duplicate webhook ignored." });
     }
   }
-
-  // await sendEmail(`Transaction webhook triggered for User: ${userId} and Item Id: ${item_id}.`);
 
   // Check if the webhook code corresponds to a transaction update
   if (webhook_type === "TRANSACTIONS") {
