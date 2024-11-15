@@ -324,8 +324,8 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
         await db
           .update(recurringTransactions)
           .set({
-            averageAmount: transaction.amount.toString(),
-            lastAmount: transaction.amount.toString(),
+            averageAmount: (transaction.amount * -1).toString(),
+            lastAmount: (transaction.amount * -1).toString(),
             date: transaction.date,
             categoryId,
             isActive: "true" // Assuming "true" for active status
@@ -342,8 +342,8 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
           accountId,
           categoryId,
           frequency: "monthly", // Assuming "monthly"; adjust as needed
-          averageAmount: transaction.amount.toString(),
-          lastAmount: transaction.amount.toString(),
+          averageAmount: (transaction.amount * -1).toString(),
+          lastAmount: (transaction.amount * -1).toString(),
           date: transaction.date,
           isActive: "true",
           streamId: createId() // New stream ID for this transaction
@@ -363,7 +363,7 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
         await db.insert(transactions).values({
           id: createId(),
           userId: userId,
-          amount: transaction.amount.toString(),
+          amount: (transaction.amount * -1).toString(),
           payee: transaction.name,
           date: new Date(transaction.date),
           accountId: accountId,
