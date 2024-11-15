@@ -233,8 +233,16 @@ app.post('/', clerkMiddleware(), async (ctx) => {
         return;
       }
 
-      // Convert amount to string
-      const amount = (transaction.amount * -1).toString();
+      let amount;
+      if (transaction.name.toLowerCase().includes("withdraw")) {
+        amount = Math.abs(transaction.amount) * -1; // Ensure negative
+      } else if (transaction.name.toLowerCase().includes("deposit")) {
+        amount = Math.abs(transaction.amount); // Ensure positive
+      } else {
+        amount = transaction.amount * -1; // Default to the original value
+      }
+
+      amount = amount.toString();
 
       await db.insert(transactions).values({
         id: createId(),
