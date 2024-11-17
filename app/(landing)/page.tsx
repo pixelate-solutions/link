@@ -98,7 +98,7 @@ const LandingPage = () => {
               <li className="mb-2">✖ Chat with Virtual Assistant</li>
             </ul>
             <Button onClick={() => {router.push("/overview")}} className="mt-auto w-full bg-gray-200 text-gray-700 hover:bg-gray-100 hover:scale-105 transition-all">
-              Get Started
+              {user ? "Dashboard" : "Get Started"}
             </Button>
           </motion.div>
 
