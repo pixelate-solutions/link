@@ -48,6 +48,7 @@ export const columns: ColumnDef<ResponseType>[] = [
     header: ({ column }) => {
       return (
         <Button
+          className="hidden lg:flex"
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
@@ -59,7 +60,7 @@ export const columns: ColumnDef<ResponseType>[] = [
     cell: ({ row }) => {
       const date = row.getValue("date") as Date;
 
-      return <span>{format(date, "MMMM d, yyyy")}</span>;
+      return <span className="hidden lg:flex">{format(date, "M/d/yy")}</span>;
     },
   },
   {
@@ -67,6 +68,7 @@ export const columns: ColumnDef<ResponseType>[] = [
     header: ({ column }) => {
       return (
         <Button
+          className="text-xs md:text-sm -ml-[10px] md:ml-0"
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
@@ -81,6 +83,7 @@ export const columns: ColumnDef<ResponseType>[] = [
     header: ({ column }) => {
       return (
         <Button
+          className="hidden lg:flex"
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
@@ -104,6 +107,7 @@ export const columns: ColumnDef<ResponseType>[] = [
     header: ({ column }) => {
       return (
         <Button
+          className="text-xs md:text-sm -ml-[10px] md:ml-0"
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
@@ -118,7 +122,7 @@ export const columns: ColumnDef<ResponseType>[] = [
       return (
         <Badge
           variant={parseFloat(amount) < 0 ? "destructive" : "primary"}
-          className="px-2.5 py-2.5 text-xs font-medium"
+          className="px-2.5 py-2.5 text-xs font-medium -ml-[10px] md:ml-0"
         >
           {formatCurrency(parseFloat(amount))}
         </Badge>
@@ -135,6 +139,7 @@ export const columns: ColumnDef<ResponseType>[] = [
     header: ({ column }) => {
       return (
         <Button
+          className="hidden lg:flex"
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
@@ -153,7 +158,8 @@ export const columns: ColumnDef<ResponseType>[] = [
     },
   },
   {
-    id: "actions",
-    cell: ({ row }) => <Actions id={row.original.id} />,
+    id: "actions-large",
+    cell: ({ row }) => <div className="-ml-[10px] lg:ml-0"><Actions id={row.original.id} /></div>,
+    meta: { className: "table-cell" },
   },
 ];

@@ -50,6 +50,7 @@ export const recurringColumns: ColumnDef<RecurringTransaction>[] = [
     accessorKey: "date", // Add the date field
     header: ({ column }) => (
       <Button
+        className="hidden lg:flex"
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
@@ -59,13 +60,14 @@ export const recurringColumns: ColumnDef<RecurringTransaction>[] = [
     ),
     cell: ({ row }) => {
       const date = row.getValue("date") as Date;
-      return <span>{format(date, "MMMM d, yyyy")}</span>; // Format date
+      return <span className="hidden lg:flex">{format(date, "M/d/yy")}</span>;
     },
   },
   {
     accessorKey: "name",
     header: ({ column }) => (
       <Button
+        className="text-xs md:text-sm"
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
@@ -78,6 +80,7 @@ export const recurringColumns: ColumnDef<RecurringTransaction>[] = [
     accessorKey: "accountName",
     header: ({ column }) => (
       <Button
+        className="hidden lg:flex"
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
@@ -87,13 +90,18 @@ export const recurringColumns: ColumnDef<RecurringTransaction>[] = [
     ),
     cell: ({ row }) => {
       const accountName = row.getValue("accountName") as string;
-      return accountName;
+      if (window.innerWidth >= 1024) {
+        return accountName;
+      } else {
+        return ""
+      }
     },
   },
   {
-    accessorKey: "categoryName", // Updated to show categoryName
+    accessorKey: "categoryName",
     header: ({ column }) => (
       <Button
+        className="hidden lg:flex"
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
@@ -101,11 +109,17 @@ export const recurringColumns: ColumnDef<RecurringTransaction>[] = [
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
+    cell: ({ row }) => {
+      if (window.innerWidth < 1024) {
+        return null;
+      }
+    },
   },
   {
     accessorKey: "frequency",
     header: ({ column }) => (
       <Button
+        className="hidden lg:flex"
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
@@ -113,15 +127,21 @@ export const recurringColumns: ColumnDef<RecurringTransaction>[] = [
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
+    cell: ({ row }) => {
+      if (window.innerWidth < 1024) {
+        return null;
+      }
+    },
   },
   {
     accessorKey: "averageAmount",
     header: ({ column }) => (
       <Button
+        className="text-xs md:text-sm -ml-[40px] lg:ml-0"
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        Average Amount
+        Avg. Amount
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
@@ -130,7 +150,7 @@ export const recurringColumns: ColumnDef<RecurringTransaction>[] = [
       return (
         <Badge
           variant={parseFloat(amount) < 0 ? "destructive" : "primary"}
-          className="px-2.5 py-2.5 text-xs font-medium"
+          className="px-2.5 py-2.5 text-xs font-medium -ml-[40px] lg:ml-0"
         >
           {formatCurrency(parseFloat(amount))}
         </Badge>
@@ -146,6 +166,7 @@ export const recurringColumns: ColumnDef<RecurringTransaction>[] = [
     accessorKey: "isActive",
     header: ({ column }) => (
       <Button
+        className="hidden lg:flex"
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
@@ -156,7 +177,7 @@ export const recurringColumns: ColumnDef<RecurringTransaction>[] = [
     cell: ({ row }) => (
       <Badge
         variant={row.getValue("isActive") === "true" ? "primary" : "outline"}
-        className="px-2.5 py-2.5 text-xs font-medium"
+        className="px-2.5 py-2.5 text-xs font-medium hidden lg:flex"
       >
         {row.getValue("isActive") === "true" ? "Active" : "Inactive"}
       </Badge>
@@ -164,6 +185,6 @@ export const recurringColumns: ColumnDef<RecurringTransaction>[] = [
   },
   {
     id: "actions",
-    cell: ({ row }) => <RecurringActions id={row.original.id} />,
+    cell: ({ row }) => <div className="-ml-[40px] lg:ml-0"><RecurringActions id={row.original.id} /></div>,
   },
 ];

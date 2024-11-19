@@ -151,6 +151,9 @@ const Chatbot = () => {
     fetchAllowAccessStatus();
   }, [userId]);
 
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const sendButtonRef = useRef<HTMLButtonElement | null>(null);
+
   const fetchChatHistory = useCallback(async (userId: string) => {
     try {
       const history = await historyAPI(userId);
@@ -219,6 +222,13 @@ const Chatbot = () => {
           ]);
           setIsLoading(false);
         }
+        if (textAreaRef.current) {
+          textAreaRef.current.style.height = 'auto';
+          textAreaRef.current.rows = 1;
+        }
+        if (sendButtonRef.current) {
+          sendButtonRef.current.style.height = 'auto';
+        }
       }
     }
   };
@@ -227,6 +237,28 @@ const Chatbot = () => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  const autoResize = () => {
+    if (textAreaRef.current) {
+      // Reset the height temporarily to get the correct scrollHeight
+      textAreaRef.current.style.height = 'auto';
+
+      // Calculate the max height based on row height
+      const lineHeight = parseInt(window.getComputedStyle(textAreaRef.current).lineHeight, 10);
+      const maxHeight = lineHeight * 10; // 10 rows max
+
+      // Adjust the height based on the content, up to the maximum
+      const newHeight = Math.min(textAreaRef.current.scrollHeight, maxHeight);
+
+      textAreaRef.current.style.height = `${newHeight}px`;
+      
+      // If the scrollHeight (content height) is greater than maxHeight, allow scrolling
+      textAreaRef.current.style.overflowY = textAreaRef.current.scrollHeight > maxHeight ? 'auto' : 'hidden';
+      if (sendButtonRef.current) {
+        sendButtonRef.current.style.height = `${newHeight}px`;
+      }
     }
   };
 
@@ -368,20 +400,25 @@ const Chatbot = () => {
       </div>
 
       <div className="p-4 pb-10 fixed bottom-0 rounded-t-2xl full-width-minus bg-white border-t border-gray-300">
-        <div className="flex">
+        <div className="flex h-full">
           <textarea
+            ref={textAreaRef}
             disabled={(subscriptionStatus === "Free" || subscriptionStatus === "Loading..." || !isLoaded || isClearLoading)}
-            className="flex-grow border border-gray-300 rounded-md p-2 mr-2 resize-none focus:border-blue-500 focus:outline-none text-sm lg:text-[16px]"
+            className="flex-grow border border-gray-300 rounded-md p-2 mr-2 resize-none focus:border-blue-500 focus:outline-none text-sm text-[16px]"
             placeholder="Type your message here..."
             rows={1}
             value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
+            onChange={(e) => {
+              setInputMessage(e.target.value)
+              autoResize();
+            }}
             onKeyDown={handleKeyPress}
           />
           <Button
+            ref={sendButtonRef}
             disabled={(subscriptionStatus === "Free" || subscriptionStatus === "Loading..." || !isLoaded || isClearLoading)}
             onClick={handleSendMessage}
-            className="bg-gradient-to-br from-blue-500 to-purple-500 text-white rounded-r-md p-2 lg:w-[100px] text-sm lg:text-[16px] hover:bg-blue-400">
+            className="bg-gradient-to-br from-blue-500 to-purple-500 text-white rounded-r-md p-2 lg:w-[100px] text-sm lg:text-[16px] hover:bg-blue-400 h-full">
             Send
           </Button>
         </div>

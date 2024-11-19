@@ -13,7 +13,7 @@ export const AccountColumn = ({ account, accountId }: AccountColumnProps) => {
   return (
     <button
       onClick={onClick}
-      className="flex cursor-pointer items-center hover:underline"
+      className="hidden lg:flex cursor-pointer items-center hover:underline"
     >
       {account}
     </button>

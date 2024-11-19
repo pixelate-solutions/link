@@ -18,20 +18,20 @@ const routes = [
     label: "Overview",
   },
   {
-    href: "/categories",
-    label: "Categories",
-  },
-  {
     href: "/transactions",
     label: "Transactions",
   },
   {
-    href: "/accounts",
-    label: "Accounts",
-  },
-  {
     href: "/chat",
     label: "Chat",
+  },
+  {
+    href: "/categories",
+    label: "Categories",
+  },
+  {
+    href: "/accounts",
+    label: "Accounts",
   },
   {
     href: "/settings",

@@ -48,7 +48,7 @@ export const Actions = ({ id }: ActionsProps) => {
       <ConfirmDialog />
       <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="size-8 p-0">
+          <Button variant="ghost" className="size-6 p-0">
             <MoreHorizontal className="size-4" />
           </Button>
         </DropdownMenuTrigger>
