@@ -192,12 +192,12 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
   const { userId, accessToken, cursor: initialCursor } = userToken;
 
   // Check for duplicate processing using transactionUpdates
-  const lastUpdate = await db
-    .select({ lastUpdated: transactionUpdates.lastUpdated })
-    .from(transactionUpdates)
-    .where(eq(transactionUpdates.userId, userId))
-    .orderBy(desc(transactionUpdates.lastUpdated))
-    .limit(1);
+  // const lastUpdate = await db
+  //   .select({ lastUpdated: transactionUpdates.lastUpdated })
+  //   .from(transactionUpdates)
+  //   .where(eq(transactionUpdates.userId, userId))
+  //   .orderBy(desc(transactionUpdates.lastUpdated))
+  //   .limit(1);
 
   // if (lastUpdate.length > 0) {
   //   const timeSinceLastUpdate = Date.now() - new Date(lastUpdate[0].lastUpdated).getTime();
@@ -262,36 +262,37 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: "Unrecognized webhook type" }, 400);
   }
 
-  const existingEntry = await db
-    .select({ id: transactionUpdates.id })
-    .from(transactionUpdates)
-    .where(and(
-      eq(transactionUpdates.userId, userId),
-      eq(transactionUpdates.itemId, item_id)
-    ))
-    .orderBy(desc(transactionUpdates.lastUpdated))
-    .limit(1);
+  // const existingEntry = await db
+  //   .select({ id: transactionUpdates.id })
+  //   .from(transactionUpdates)
+  //   .where(and(
+  //     eq(transactionUpdates.userId, userId),
+  //     eq(transactionUpdates.itemId, item_id)
+  //   ))
+  //   .orderBy(desc(transactionUpdates.lastUpdated))
+  //   .limit(1);
 
-  if (existingEntry.length > 0) {
-    // Update the existing row
-    await db
-      .update(transactionUpdates)
-      .set({ lastUpdated: new Date() })
-      .where(and(
-        eq(transactionUpdates.userId, userId),
-        eq(transactionUpdates.itemId, item_id)
-      ));
-  } else {
-    // Insert a new row
-    await db
-      .insert(transactionUpdates)
-      .values({
-        id: createId(),
-        userId,
-        itemId: item_id,
-        lastUpdated: new Date(),
-      });
-  }
+  // if (existingEntry.length > 0) {
+  //   // Update the existing row
+  //   await db
+  //     .update(transactionUpdates)
+  //     .set({ lastUpdated: new Date() })
+  //     .where(and(
+  //       eq(transactionUpdates.userId, userId),
+  //       eq(transactionUpdates.itemId, item_id)
+  //     ));
+  // } else {
+  //   // Insert a new row
+  //   console.log("First");
+  //   await db
+  //     .insert(transactionUpdates)
+  //     .values({
+  //       id: createId(),
+  //       userId,
+  //       itemId: item_id,
+  //       lastUpdated: new Date(),
+  //     });
+  // }
 
   return ctx.json({ message: "Webhook processed successfully." });
 
