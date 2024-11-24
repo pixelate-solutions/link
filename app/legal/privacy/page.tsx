@@ -8,7 +8,7 @@ const PrivacyPolicy = () => {
       
       <h2 className="text-2xl font-semibold mt-8">1. Introduction</h2>
       <p>
-        LinkLogic LLC ("we", "our", "us") is committed to protecting your privacy. This Privacy Policy outlines how we collect, use, store, and protect your personal information when you use our service, Link.
+        LinkLogic LLC (&quot;we&quot;, &quot;our&quot;, &quot;us&quot;) is committed to protecting your privacy. This Privacy Policy outlines how we collect, use, store, and protect your personal information when you use our service, Link.
       </p>
 
       <h2 className="text-2xl font-semibold mt-8">2. Information We Collect</h2>

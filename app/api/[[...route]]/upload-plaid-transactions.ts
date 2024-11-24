@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 import { db } from "@/db/drizzle";
-import { accounts, transactions, userTokens, categories, transactionUpdates } from "@/db/schema";
+import { accounts, transactions, userTokens, categories } from "@/db/schema";
 import { createId } from "@paralleldrive/cuid2";
 import plaidClient from "./plaid";
 import { desc, eq, and } from "drizzle-orm";
