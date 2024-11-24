@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { db } from "@/db/drizzle";
-import { accounts, transactions, userTokens, categories, recurringTransactions, transactionUpdates } from "@/db/schema";
+import { accounts, transactions, userTokens, categories, recurringTransactions } from "@/db/schema";
 import { createId } from "@paralleldrive/cuid2";
 import plaidClient from "./plaid";
 import { eq, and, desc } from "drizzle-orm";
