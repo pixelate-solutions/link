@@ -20,6 +20,23 @@ interface PlaidErrorResponse {
   error_message: string;
 }
 
+function stringToList(input: string): string[] {
+  // Remove any surrounding quotes and extra characters
+  const cleanedInput = input.trim();
+
+  // If the input is wrapped in quotes, remove them
+  if (cleanedInput.startsWith('"') && cleanedInput.endsWith('"')) {
+    return JSON.parse(cleanedInput);
+  }
+
+  // If it's still a valid list, just return the parsed JSON
+  try {
+    return JSON.parse(cleanedInput);
+  } catch (error) {
+    throw new Error("Invalid AI response format");
+  }
+}
+
 const fetchPlaidTransactionsWithRetry = async (
   accessToken: string,
   initialCursor: string | null = null,
@@ -206,12 +223,6 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: 'Failed to categorize transactions' }, 500);
   }
 
-  function stringToList(input: string): string[] {
-    const cleanedInput = input.slice(1, -1).trim();
-    const list = cleanedInput.split(',').map(item => item.trim());
-    return list;
-  }
-
   const aiData = await aiResponse.json();
   const categorizedResults = stringToList(aiData);
 
@@ -322,13 +333,11 @@ app.post('/recategorize', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: "Unauthorized" }, 401);
   }
 
-  // Fetch all transactions from the database for the user
+  // Fetch all transactions for the user
   const userTransactions = await db
     .select({
       id: transactions.id,
-      amount: transactions.amount,
       payee: transactions.payee,
-      date: transactions.date,
       accountId: transactions.accountId,
       categoryId: transactions.categoryId,
     })
@@ -339,7 +348,7 @@ app.post('/recategorize', clerkMiddleware(), async (ctx) => {
     return ctx.json({ message: "No transactions found for recategorization" }, 404);
   }
 
-  // Fetch all categories for the user from the database
+  // Fetch all categories for the user
   const dbCategories = await db
     .select({ id: categories.id, name: categories.name })
     .from(categories)
@@ -347,24 +356,20 @@ app.post('/recategorize', clerkMiddleware(), async (ctx) => {
 
   const categoryOptions = dbCategories.map(category => category.name);
 
-  // Use the payee name for categorization instead of the existing category
+  // Transaction payee names for categorization
   const payeeNames = userTransactions.map(transaction => transaction.payee || "");
 
-  // Construct the query for the AI API to recategorize transactions based on payee names
+  // Construct the query for the AI API
   const query = `
-    Here is a list of names from transactions: [${payeeNames}]
+    Here is a list of transaction payee names: [${payeeNames.join(", ")}].
     Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}].
-    ONLY if this list of categories is empty, use this list instead to categorize each of these into one
-       of the following categories: [Food & Drink, Transportation, Bills & Utilities, Fun, Other].
-    Return the result as a JavaScript dictionary (JSON object), where the key is the payee name and the value is the assigned category.
-    Use this format:
-    {
-      "payee_name_1": "Category_1",
-      "payee_name_2": "Category_2",
-      ...
-    }
-    EVERY transaction name must have a category assigned. If something cannot fit in a category, assign it as "Other".
-    ONLY return the dictionary with NO additional text or explanations.
+    Make sure EVERY one of those transactions is categorized into one of the categories so your
+    response list needs to be the same length as the length of the transactions list.
+    Return the result as a plain JavaScript array (list) in the same order as the payee names.
+    The format should be:
+    ["Category_1", "Category_2", ..., "Category_n"]
+    Ensure the response contains NO escape characters or additional text, explanations, or formatting.
+    If a transaction does not fit into any category, assign it to "Other (Default)".
   `;
 
   const data = {
@@ -389,21 +394,26 @@ app.post('/recategorize', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: 'Failed to recategorize transactions' }, 500);
   }
 
-  const aiData = await aiResponse.json();
-  
-  // Convert the AI response string into a JavaScript object (dictionary)
-  const categorizedResults: Record<string, string> = JSON.parse(aiData);
+  const aiData = await aiResponse.text();
+  const cleanedAiData = JSON.parse(aiData);
 
-  // Ensure every transaction has a category, assign "Other" if missing
-  const finalCategorizedResults: Record<string, string> = {};
-  payeeNames.forEach((payee) => {
-    finalCategorizedResults[payee] = categorizedResults[payee] || "Other";
-  });
+  // Ensure the AI API returns a valid list format
+  let categorizedResults: string[];
+  try {
+    categorizedResults = stringToList(cleanedAiData);
+  } catch (error) {
+    console.log('Failed to parse AI response:', error);
+    return ctx.json({ error: 'Invalid response format from AI API' }, 500);
+  }
+
+  // if (!Array.isArray(categorizedResults) || categorizedResults.length !== payeeNames.length) {
+  //   return ctx.json({ error: 'AI response does not match expected format or length' }, 500);
+  // }
 
   // Update transactions in the database with new categories
   const updatedTransactions = await Promise.all(
-    userTransactions.map(async (transaction) => {
-      const categoryName = finalCategorizedResults[transaction.payee || ""];
+    userTransactions.map(async (transaction, index) => {
+      const categoryName = categorizedResults[index] || "Other (Default)";
       const categoryId = dbCategories.find(category => category.name === categoryName)?.id;
 
       if (!categoryId) {
@@ -425,52 +435,6 @@ app.post('/recategorize', clerkMiddleware(), async (ctx) => {
         .returning();
     })
   );
-
-  const results = await db
-    .select({ accessToken: userTokens.accessToken, cursor: userTokens.cursor, item_id: userTokens.itemId })
-    .from(userTokens)
-    .where(eq(userTokens.userId, userId))
-    .orderBy(desc(userTokens.createdAt));
-
-  if (results.length === 0) {
-    return;
-  }
-
-  // Loop through each result
-  for (const result of results) {
-    const { item_id } = result;
-
-    const existingEntry = await db
-      .select({ id: transactionUpdates.id })
-      .from(transactionUpdates)
-      .where(and(
-        eq(transactionUpdates.userId, userId),
-        eq(transactionUpdates.itemId, item_id || "")
-      ))
-      .orderBy(desc(transactionUpdates.lastUpdated))
-      .limit(1);
-
-    if (existingEntry.length > 0) {
-      // Update the existing row
-      await db
-        .update(transactionUpdates)
-        .set({ lastUpdated: new Date() })
-        .where(and(
-          eq(transactionUpdates.userId, userId),
-          eq(transactionUpdates.itemId, item_id || "")
-        ));
-    } else {
-      // Insert a new row
-      await db
-        .insert(transactionUpdates)
-        .values({
-          id: createId(),
-          userId,
-          itemId: item_id || "",
-          lastUpdated: new Date(),
-        });
-    }
-  }
 
   return ctx.json({ transactions: updatedTransactions.filter(Boolean) });
 });

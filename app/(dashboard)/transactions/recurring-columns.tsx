@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { ArrowUpDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox"; // Import Checkbox
+import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency } from "@/lib/utils";
 import { RecurringActions } from "./recurring-actions";
 
@@ -20,12 +20,12 @@ export type RecurringTransaction = {
   averageAmount: string;
   lastAmount: string;
   isActive: string;
-  date: Date; // Add date field
+  date: Date;
 };
 
-export const recurringColumns: ColumnDef<RecurringTransaction>[] = [
+export const recurringColumns = (windowWidth: number): ColumnDef<RecurringTransaction>[] => [
   {
-    id: "select", // Checkbox column
+    id: "select",
     header: ({ table }) => (
       <Checkbox
         checked={
@@ -47,10 +47,10 @@ export const recurringColumns: ColumnDef<RecurringTransaction>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "date", // Add the date field
+    accessorKey: "date",
     header: ({ column }) => (
       <Button
-        className="hidden lg:flex"
+        className="text-xs md:text-sm"
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
@@ -60,7 +60,7 @@ export const recurringColumns: ColumnDef<RecurringTransaction>[] = [
     ),
     cell: ({ row }) => {
       const date = row.getValue("date") as Date;
-      return <span className="hidden lg:flex">{format(date, "M/d/yy")}</span>;
+      return <span className="ml-4 lg:ml-8">{format(date, "M/d/yy")}</span>;
     },
   },
   {
@@ -90,10 +90,10 @@ export const recurringColumns: ColumnDef<RecurringTransaction>[] = [
     ),
     cell: ({ row }) => {
       const accountName = row.getValue("accountName") as string;
-      if (window.innerWidth >= 1024) {
+      if (windowWidth >= 1024) {
         return accountName;
       } else {
-        return ""
+        return null
       }
     },
   },
@@ -110,8 +110,10 @@ export const recurringColumns: ColumnDef<RecurringTransaction>[] = [
       </Button>
     ),
     cell: ({ row }) => {
-      if (window.innerWidth < 1024) {
+      if (windowWidth < 1024) {
         return null;
+      } else {
+        return row.getValue("categoryName");
       }
     },
   },
@@ -128,8 +130,10 @@ export const recurringColumns: ColumnDef<RecurringTransaction>[] = [
       </Button>
     ),
     cell: ({ row }) => {
-      if (window.innerWidth < 1024) {
+      if (windowWidth < 1024) {
         return null;
+      } else {
+        return row.getValue("frequency");
       }
     },
   },
@@ -177,7 +181,7 @@ export const recurringColumns: ColumnDef<RecurringTransaction>[] = [
     cell: ({ row }) => (
       <Badge
         variant={row.getValue("isActive") === "true" ? "primary" : "outline"}
-        className="px-2.5 py-2.5 text-xs font-medium hidden lg:flex"
+        className="px-2.5 py-2.5 text-xs font-medium hidden lg:inline"
       >
         {row.getValue("isActive") === "true" ? "Active" : "Inactive"}
       </Badge>

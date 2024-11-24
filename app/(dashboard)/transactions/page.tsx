@@ -72,7 +72,6 @@ const INITIAL_IMPORT_RESULTS = {
 };
 
 const TransactionsPage = () => {
-  const [hasFetchedTransactions, setHasFetchedTransactions] = useState(false);
   const [variant, setVariant] = useState<VARIANTS>(VARIANTS.LIST);
   const [importResults, setImportResults] = useState(INITIAL_IMPORT_RESULTS);
   const [currentTab, setCurrentTab] = useState("transactions");
@@ -96,6 +95,19 @@ const TransactionsPage = () => {
   let recurringTransactions = recurringTransactionsData?.recurringTransactions || [];
 
   const transactions = transactionsQuery.data || [];
+
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchRecurringTransactions = async () => {
@@ -245,7 +257,7 @@ const TransactionsPage = () => {
     <div className={cn("mx-auto -mt-6 lg:-mt-12 w-full max-w-screen-2xl pb-10 bg-white rounded-2xl p-2", montserratP.className)}>
       {recategorizeLoading && (
         <div className="fixed inset-0 flex items-center justify-center w-full bg-black bg-opacity-50 min-h-screen z-50">
-          <BeatLoader color="#2196f3" margin={3} size={25} speedMultiplier={0.75} />
+          <BeatLoader color="#ffffff" margin={3} size={25} speedMultiplier={0.75} />
         </div>
       )}
       <Tabs defaultValue="transactions" onValueChange={setCurrentTab}>
@@ -279,8 +291,7 @@ const TransactionsPage = () => {
                 >
                   <Plus className="mr-2 size-4" /> Add new
                 </Button>
-
-                <UploadButton onUpload={onUpload} />
+                <div className="hidden"><UploadButton onUpload={onUpload} /></div>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button size="sm" className="w-full lg:w-auto">
@@ -371,7 +382,7 @@ const TransactionsPage = () => {
             <CardContent>
               <DataTable
                 filterKey="name"
-                columns={recurringColumns}
+                columns={recurringColumns(windowWidth)}
                 data={recurringTransactions.map((transaction: RecurringTransaction) => ({
                   ...transaction,
                   amount: transaction.averageAmount.toString(),

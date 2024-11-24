@@ -48,7 +48,7 @@ export const columns: ColumnDef<ResponseType>[] = [
     header: ({ column }) => {
       return (
         <Button
-          className="hidden lg:flex"
+          className=""
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
@@ -60,7 +60,7 @@ export const columns: ColumnDef<ResponseType>[] = [
     cell: ({ row }) => {
       const date = row.getValue("date") as Date;
 
-      return <span className="hidden lg:flex">{format(date, "M/d/yy")}</span>;
+      return <span className="lg:ml-4">{format(date, "M/d/yy")}</span>;
     },
   },
   {

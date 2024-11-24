@@ -199,16 +199,16 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
     .orderBy(desc(transactionUpdates.lastUpdated))
     .limit(1);
 
-  if (lastUpdate.length > 0) {
-    const timeSinceLastUpdate = Date.now() - new Date(lastUpdate[0].lastUpdated).getTime();
-    if (timeSinceLastUpdate < 1800000) { // Skip if the last update was less than 30 minutes ago
-      console.log(`Duplicate webhook detected for userId ${userId}. Skipping processing.`);
-      await sendEmail(`Skipping webhook for userId ${userId}. Last updated: ${lastUpdate}`);
-      return ctx.json({ message: "Duplicate webhook ignored." });
-    } else {
-      await sendEmail(`Webhook trigger successful for userId ${userId}.`);
-    }
-  }
+  // if (lastUpdate.length > 0) {
+  //   const timeSinceLastUpdate = Date.now() - new Date(lastUpdate[0].lastUpdated).getTime();
+  //   if (timeSinceLastUpdate < 1800000) { // Skip if the last update was less than 30 minutes ago
+  //     console.log(`Duplicate webhook detected for userId ${userId}. Skipping processing.`);
+  //     await sendEmail(`Skipping webhook for userId ${userId}. Last updated: ${lastUpdate}`);
+  //     return ctx.json({ message: "Duplicate webhook ignored." });
+  //   } else {
+  //     await sendEmail(`Webhook trigger successful for userId ${userId}.`);
+  //   }
+  // }
 
   // Check if the webhook code corresponds to a transaction update
   if (webhook_type === "TRANSACTIONS") {

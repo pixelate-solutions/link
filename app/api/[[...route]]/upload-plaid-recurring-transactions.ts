@@ -34,6 +34,23 @@ async function fetchRecurringTransactionsWithRetry(accessToken: string) {
   return null; // Return null if all retries failed
 }
 
+function stringToList(input: string): string[] {
+  // Remove any surrounding quotes and extra characters
+  const cleanedInput = input.trim();
+
+  // If the input is wrapped in quotes, remove them
+  if (cleanedInput.startsWith('"') && cleanedInput.endsWith('"')) {
+    return JSON.parse(cleanedInput);
+  }
+
+  // If it's still a valid list, just return the parsed JSON
+  try {
+    return JSON.parse(cleanedInput);
+  } catch (error) {
+    throw new Error("Invalid AI response format");
+  }
+}
+
 // Insert recurring transactions from Plaid
 app.post('/', clerkMiddleware(), async (ctx) => {
   const auth = getAuth(ctx);
@@ -100,8 +117,6 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       Here is a list of categories from recurring transactions: [${transactionCategories}]
       Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
       respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
-      ONLY if this list of categories is empty, use this list instead to categorize each of these into one
-       of the following categories: [Food & Drink, Transportation, Bills & Utilities, Fun, Other].
       You MUST categorize each of these [${transactionCategories}] as one of these: [${categoryOptions.join(", ")}].
     `;
 
@@ -125,11 +140,6 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       const errorText = await aiResponse.text();
       console.error('Error from AI API:', errorText);
       return ctx.json({ error: 'Failed to categorize recurring transactions' }, 500);
-    }
-
-    function stringToList(input: string): string[] {
-      const cleanedInput = input.slice(1, -1).trim();
-      return cleanedInput.split(',').map(item => item.trim());
     }
 
     const aiData = await aiResponse.json();
@@ -445,7 +455,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: "Unauthorized" }, 401);
   }
 
-  // Fetch all recurring transactions from the database for the user
+  // Fetch all recurring transactions for the user
   const userRecurringTransactions = await db
     .select({
       id: recurringTransactions.id,
@@ -460,7 +470,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     return ctx.json({ message: "No recurring transactions found for recategorization" }, 404);
   }
 
-  // Fetch all categories for the user from the database
+  // Fetch all categories for the user
   const dbCategories = await db
     .select({ id: categories.id, name: categories.name })
     .from(categories)
@@ -468,24 +478,20 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
   const categoryOptions = dbCategories.map(category => category.name);
 
-  // Use the name of the recurring transaction for categorization instead of the existing category
+  // Transaction names for categorization
   const recurringTransactionNames = userRecurringTransactions.map(transaction => transaction.name || "");
 
-  // Construct the query for the AI API to recategorize recurring transactions based on the name
+  // Construct the query for the AI API
   const query = `
-    Here is a list of transaction names: [${recurringTransactionNames}]
+    Here is a list of transaction names: [${recurringTransactionNames.join(", ")}]
     Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}].
-    ONLY if this list of categories is empty, use this list instead to categorize each of these into one
-       of the following categories: [Food & Drink, Transportation, Bills & Utilities, Fun, Other].
-    Return the result as a JavaScript dictionary (JSON object), where the key is the transaction name and the value is the assigned category.
+    Make sure EVERY one of those transactions is categorized into one of the categories so your
+    response list needs to be the same length as the length of the transactions list.
+    Return the result as a plain JavaScript array (list) in the same order as the transaction names.
     Use this format:
-    {
-      "transaction_name_1": "Category_1",
-      "transaction_name_2": "Category_2",
-      ...
-    }
-    EVERY transaction name must have a category assigned. If something cannot fit in a category, assign it as "Other".
-    ONLY return the dictionary with NO additional text or explanations.
+    ["Category_1", "Category_2", ..., "Category_n"]
+    Ensure the response contains NO escape characters or additional text, explanations, or formatting.
+    If a transaction does not fit into any category, assign it to "Other (Default)".
   `;
 
   const data = {
@@ -495,7 +501,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     using_user_id: true,
   };
 
-  // Call AI API to recategorize the recurring transactions
+  // Call AI API
   const aiResponse = await fetch(`${AI_URL}/finance/categorize`, {
     method: 'POST',
     headers: {
@@ -507,29 +513,34 @@ app.post('/', clerkMiddleware(), async (ctx) => {
   if (!aiResponse.ok) {
     const errorText = await aiResponse.text();
     console.error('Error from AI API:', errorText);
-    return ctx.json({ error: 'Failed to recategorize recurring transactions' }, 500);
+    return ctx.json({ error: 'Failed to recategorize transactions' }, 500);
   }
 
-  const aiData = await aiResponse.json();
-  
-  // Convert the AI response string into a JavaScript object (dictionary)
-  const categorizedResults: Record<string, string> = JSON.parse(aiData);
+  const aiData = await aiResponse.text();
+  const cleanedAiData = JSON.parse(aiData);
 
-  // Ensure every transaction has a category, assign "Other" if missing
-  const finalCategorizedResults: Record<string, string> = {};
-  recurringTransactionNames.forEach((name) => {
-    finalCategorizedResults[name] = categorizedResults[name] || "Other";
-  });
+  // Ensure the AI API returns a valid list format
+  let categorizedResults: string[];
+  try {
+    categorizedResults = stringToList(cleanedAiData);
+  } catch (error) {
+    console.log('Failed to parse AI response:', error);
+    return ctx.json({ error: 'Invalid response format from AI API' }, 500);
+  }
 
-  // Update recurring transactions in the database with new categories
+  // if (!Array.isArray(categorizedResults) || categorizedResults.length !== recurringTransactionNames.length) {
+  //   return ctx.json({ error: 'AI response does not match expected format or length' }, 500);
+  // }
+
+  // Update recurring transactions in the database
   const updatedRecurringTransactions = await Promise.all(
-    userRecurringTransactions.map(async (transaction) => {
-      const categoryName = finalCategorizedResults[transaction.name];
+    userRecurringTransactions.map(async (transaction, index) => {
+      const categoryName = categorizedResults[index] || "Other (Default)";
       const categoryId = dbCategories.find(category => category.name === categoryName)?.id;
 
       if (!categoryId) {
         // Assign "Other" category if no matching category found
-        const otherCategoryId = dbCategories.find(category => category.name === "Other")?.id;
+        const otherCategoryId = dbCategories.find(category => category.name === "Other (Default)")?.id;
         if (!otherCategoryId) return null; // Skip if "Other" category doesn't exist
         return db
           .update(recurringTransactions)
