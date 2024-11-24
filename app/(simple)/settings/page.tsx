@@ -353,7 +353,7 @@ const SettingsPage = () => {
                 />
               </div>
               <Button
-                disabled={subscriptionStatus !== "Free" || featureBugRequest === ""}
+                disabled={featureBugRequest === ""}
                 className="mt-4 md:mt-0 px-6 py-3 w-full md:w-[200px]"
                 onClick={handleFeatureBugSubmit}
                 variant="outline"
