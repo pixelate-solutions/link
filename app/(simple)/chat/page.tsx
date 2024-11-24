@@ -294,7 +294,7 @@ const Chatbot = () => {
               <Button disabled={subscriptionStatus === "Free" || subscriptionStatus === "Loading..."} onClick={() => {
                 if (allowAccess) { setIsRemoveDialogOpen(true) } else { setIsAllowDialogOpen(true); }
               }} className="text-blue-600 hover:bg-transparent hover:text-blue-400" variant="ghost">
-                {allowAccess ? "Remove Transaction Knowledge" : "Allow Transaction Knowledge"}
+                {allowAccess ? "Remove User Context" : "Allow User Context"}
               </Button>
               <Button disabled={subscriptionStatus === "Free" || subscriptionStatus === "Loading..."} onClick={() => setIsAlertDialogOpen(true)} className="bg-transparent text-red-500 rounded-md hover:text-red-300 hover:bg-transparent">
                 Clear History
@@ -325,9 +325,9 @@ const Chatbot = () => {
           <AlertDialog open={isAllowDialogOpen} onOpenChange={setIsAllowDialogOpen}>
           <AlertDialogContent className="rounded-2xl">
             <AlertDialogHeader>
-              <AlertDialogTitle>Allow Transaction Knowledge?</AlertDialogTitle>
+              <AlertDialogTitle>Allow User Context?</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to allow your virtual assistant to access your transaction knowledge?
+                Are you sure you want to allow your virtual assistant to access additional financial context?
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -346,9 +346,9 @@ const Chatbot = () => {
           <AlertDialog open={isRemoveDialogOpen} onOpenChange={setIsRemoveDialogOpen}>
             <AlertDialogContent className="rounded-2xl">
               <AlertDialogHeader>
-                <AlertDialogTitle>Remove Transaction Knowledge?</AlertDialogTitle>
+                <AlertDialogTitle>Remove User Context?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to remove your virtual assistant&apos;s access to your transaction knowledge?
+                  Are you sure you want to remove your virtual assistant&apos;s access to your context?
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
