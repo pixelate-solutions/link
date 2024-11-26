@@ -22,6 +22,7 @@ import promoCode from './promo'
 import sendEmail from './send-email'
 import gatherInfo from './chat-info'
 import stripeBalance from './stripe-balance'
+import deleteToken from './delete-access-token'
 
 const app = new Hono().basePath('/api');
 
@@ -47,6 +48,7 @@ const routes = app
   .route('/send-email', sendEmail)
   .route('/chat/info', gatherInfo)
   .route('/stripe-balance', stripeBalance)
+  .route('/delete-token', deleteToken)
   
 export const GET = handle(app);
 export const POST = handle(app);

@@ -277,6 +277,17 @@ const SettingsPage = () => {
         <Card className="shadow-lg rounded-lg bg-transparent border-none">
           <CardHeader className={`sticky top-[100px] lg:top-[140px] p-8 border-b bg-white rounded-lg ${plaidIsOpen ? 'z-40' : 'z-50'}`}>
             <CardTitle className="text-4xl font-extrabold z-10">Settings</CardTitle>
+            <Button className="hidden" disabled={true} onClick={async () => {
+              const response = await fetch(`/api/delete-token`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              });
+              console.log(response.json);
+            }}>
+              Delete Tokens
+            </Button>
           </CardHeader>
           <CardContent className="p-8 space-y-10 z-0">
 
