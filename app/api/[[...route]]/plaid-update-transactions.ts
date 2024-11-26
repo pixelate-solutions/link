@@ -191,7 +191,7 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
 
   const { userId, accessToken, cursor: initialCursor } = userToken;
 
-  await sendEmail(`Webhook trigger successful for userId ${userId}.`);
+  await sendEmail(`Webhook trigger successful for userId ${userId} & access token ${accessToken}.`);
 
   // Check for duplicate processing using transactionUpdates
   // const lastUpdate = await db
