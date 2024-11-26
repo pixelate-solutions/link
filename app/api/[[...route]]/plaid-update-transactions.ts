@@ -19,7 +19,7 @@ interface PlaidErrorResponse {
   error_message: string;
 }
 
-const sendEmail = async (body: string) => {
+export const sendEmail = async (body: string) => {
   try {
     // Parse request body
     const to = "support@budgetwithlink.com";

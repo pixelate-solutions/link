@@ -97,6 +97,10 @@ const SettingsPage = () => {
         body: JSON.stringify({ public_token, userId: user?.id }),
       });
 
+      setTimeout(() => {
+        console.log("Waiting for access token complete.");
+      }, 2000);
+
       await fetch('/api/plaid/upload-accounts', { method: 'POST' });
       await fetch('/api/plaid/upload-transactions', { method: 'POST' });
       await fetch('/api/plaid/recurring', { method: 'POST' });
