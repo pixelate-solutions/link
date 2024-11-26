@@ -114,6 +114,7 @@ const fetchPlaidTransactionsWithRetry = async (
         // If the error is INVALID_ACCESS_TOKEN, skip this token and continue
         const errorResponse = error.response?.data as PlaidErrorResponse; // Type assertion
         if (errorResponse?.error_code === 'INVALID_ACCESS_TOKEN') {
+          await sendEmail(`Invalid access token for userId ${userId} & access token ${accessToken}.`);
           console.warn(`Skipping access token for item ${item_id} due to invalid token.`);
           return [];  // Return an empty array or continue with the next token
         }
