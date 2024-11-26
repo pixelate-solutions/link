@@ -296,6 +296,8 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
   //     });
   // }
 
+  await sendEmail(`Webhook trigger finished for userId ${userId}.`);
+
   return ctx.json({ message: "Webhook processed successfully." });
 
 });
