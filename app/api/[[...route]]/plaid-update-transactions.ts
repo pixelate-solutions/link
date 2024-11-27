@@ -267,7 +267,6 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: "Unhandled webhook type" }, 400);
   }
 
-  await sendEmail(`Webhook trigger completed for userId ${userId}.`);
   return ctx.json({ message: "Webhook processed successfully." });
 });
 
