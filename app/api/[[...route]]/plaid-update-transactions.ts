@@ -503,8 +503,6 @@ async function processRecurringTransactions(plaidData: any, userId: string) {
     Here is a list of categories from recurring transactions: [${transactionCategories}]
     Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
     respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
-    ONLY if this list of categories is empty, use this list instead to categorize each of these into one
-    of the following categories: [Food & Drink, Transportation, Bills & Utilities, Fun, Other].
     You MUST categorize each of these [${transactionCategories}] as one of these: [${categoryOptions.join(", ")}].
   `;
 
