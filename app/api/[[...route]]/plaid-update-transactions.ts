@@ -3,7 +3,7 @@ import { db } from "@/db/drizzle";
 import { accounts, transactions, userTokens, categories, recurringTransactions } from "@/db/schema";
 import { createId } from "@paralleldrive/cuid2";
 import plaidClient from "./plaid";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { AxiosError } from 'axios';
 import { clerkMiddleware } from "@hono/clerk-auth";
 import nodemailer from 'nodemailer';
@@ -183,12 +183,11 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
     webhook_type,
     item_id,
     new_transactions,
-    removed,
     historical_update_complete,
     initial_update_complete,
   } = await ctx.req.json();
 
-  // Validate `item_id`
+  // Check if the required field item_id is missing
   if (!item_id) {
     return ctx.json({ error: "Missing item_id" }, 400);
   }
@@ -207,69 +206,64 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
 
   const { userId, accessToken, cursor: initialCursor } = userToken;
 
-  await sendEmail(`Webhook trigger started for userId ${userId} & item_id ${item_id}.\n\n Webhook Code: ${webhook_code}`);
+  await sendEmail(`Webhook trigger successful for userId ${userId} & access token ${accessToken}.\n\n User Token: ${userToken}`);
 
+  // Check if the webhook code corresponds to a transaction update
   if (webhook_type === "TRANSACTIONS") {
+    // Handle different transaction webhook codes
     switch (webhook_code) {
       case "INITIAL_UPDATE":
-      case "HISTORICAL_UPDATE":
       case "SYNC_UPDATES_AVAILABLE":
-        console.log(`Processing transactions for webhook_code: ${webhook_code}`);
-        
+      case "RECURRING_TRANSACTIONS_UPDATE":
+      case "HISTORICAL_UPDATE":
+        // Handle both recurring and non-recurring transactions
+        console.log(`Webhook Code: ${webhook_code}. Fetching transactions...`);
+
         if (new_transactions > 0 || historical_update_complete) {
+          // Fetch non-recurring transactions
           const plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken, initialCursor, item_id, userId);
           if (!plaidTransactions) {
             return ctx.json({ error: "Failed to fetch transactions after multiple attempts" }, 500);
           }
           await processTransactions(plaidTransactions, userId, item_id);
-        }
-        break;
 
-      case "TRANSACTIONS_REMOVED":
-        console.log("Handling TRANSACTIONS_REMOVED webhook...");
-        if (removed && removed.length > 0) {
-          await db
-            .delete(transactions)
-            .where(and(eq(transactions.userId, userId), inArray(transactions.id, removed)))
-            .execute();
-          console.log(`Removed ${removed.length} transactions for userId ${userId}`);
+          // Fetch recurring transactions
+          const plaidRecurringTransactions = await fetchRecurringTransactionsWithRetry(accessToken);
+          if (!plaidRecurringTransactions) {
+            return ctx.json({ error: "Failed to fetch recurring transactions after multiple attempts" }, 500);
+          }
+          await processRecurringTransactions(plaidRecurringTransactions, userId);
         }
         break;
 
       case "DEFAULT_UPDATE":
-        console.log("Default update received. No new actions required.");
-        break;
-
-      case "UPDATE":
-        console.log("Processing transaction updates...");
-        const plaidUpdatedTransactions = await fetchPlaidTransactionsWithRetry(accessToken, initialCursor, item_id, userId);
-        if (plaidUpdatedTransactions && plaidUpdatedTransactions.length > 0) {
-          await updateTransactions(plaidUpdatedTransactions, userId, item_id);
-        }
+        // Handle default updates (no new transactions, but still a webhook)
+        console.log("Default update received. No new transactions.");
         break;
 
       default:
-        console.log(`Unhandled webhook_code: ${webhook_code}`);
-        return ctx.json({ message: `Unhandled webhook code: ${webhook_code}` }, 200);
+        console.log(`Unrecognized webhook code: ${webhook_code}`);
+        return ctx.json({ message: `Webhook code ${webhook_code} not handled` }, 200);
     }
   } else if (webhook_type === "ITEM") {
+    // Handle ITEM webhook type (item updates, like webhook URL changes)
     switch (webhook_code) {
       case "WEBHOOK_UPDATE_ACKNOWLEDGED":
-        console.log("Webhook URL updated successfully.");
+        console.log("Webhook URL updated. Acknowledging change...");
         break;
 
       default:
-        console.log(`Unhandled ITEM webhook_code: ${webhook_code}`);
-        return ctx.json({ message: `Unhandled ITEM webhook code: ${webhook_code}` }, 200);
+        console.log(`Unrecognized ITEM webhook code: ${webhook_code}`);
+        return ctx.json({ message: `ITEM Webhook code ${webhook_code} not handled` }, 200);
     }
   } else {
-    console.log(`Unhandled webhook_type: ${webhook_type}`);
-    return ctx.json({ error: "Unhandled webhook type" }, 400);
+    console.log(`Unrecognized webhook type: ${webhook_type}`);
+    return ctx.json({ error: "Unrecognized webhook type" }, 400);
   }
 
   return ctx.json({ message: "Webhook processed successfully." });
-});
 
+});
 
 
 // Function to process and insert transactions into the database
