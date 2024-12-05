@@ -39,7 +39,8 @@ const SettingsPage = () => {
   const [openUpgradeDialog, setOpenUpgradeDialog] = useState<boolean>(false);
   const [plaidIsOpen, setPlaidIsOpen] = useState<boolean>(false);
   const [linkToken, setLinkToken] = useState<string | null>(null);
-  const [openPlaid, setOpenPlaid] = useState<() => void>(() => () => {});
+  const [openPlaid, setOpenPlaid] = useState<() => void>(() => () => { });
+  const [isBelowAccountLimit, setIsBelowAccountLimit] = useState<boolean>(false);
 
   const [promoCode, setPromoCode] = useState("");
   const [featureBugRequest, setFeatureBugRequest] = useState("");
@@ -80,8 +81,19 @@ const SettingsPage = () => {
         console.error("Error fetching Stripe balance:", error);
       }
     };
+
+    const fetchPlaidAccountCount = async () => {
+      try {
+        const response = await fetch("/api/plaid/account-count");
+        const data = await response.json();
+        setIsBelowAccountLimit(data.count < 10);
+      } catch (error) {
+        console.error("Error fetching account count:", error);
+      }
+    };
     
     if (user?.id) {
+      fetchPlaidAccountCount();
       fetchLinkToken();
       fetchStripeBalance();
     }
@@ -318,7 +330,7 @@ const SettingsPage = () => {
                 <p className="text-gray-500">Sync transactions automatically.</p>
               </div>
               <Button
-                disabled={subscriptionStatus === "Loading..."}
+                disabled={subscriptionStatus === "Loading..." || !isBelowAccountLimit}
                 className={cn("bg-gradient-to-br from-blue-500 to-purple-500 hover:opacity-85 text-white font-bold mt-4 md:mt-0 px-6 py-3 w-full md:w-[200px]", montserratH.className)}
                 onClick={() => {
                   if (subscriptionStatus !== "Free") {
@@ -329,7 +341,7 @@ const SettingsPage = () => {
                   }
                 }}
               >
-                {subscriptionStatus === "Loading..." ? "Loading..." : "Link"}
+                {subscriptionStatus === "Loading..." ? "Loading..." : isBelowAccountLimit ? "Link" : "Limit Reached"}
               </Button>
             </div>
 

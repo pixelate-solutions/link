@@ -23,6 +23,7 @@ import sendEmail from './send-email'
 import gatherInfo from './chat-info'
 import stripeBalance from './stripe-balance'
 import deleteToken from './delete-access-token'
+import accountCount from './get-plaid-account-count'
 
 const app = new Hono().basePath('/api');
 
@@ -49,6 +50,7 @@ const routes = app
   .route('/chat/info', gatherInfo)
   .route('/stripe-balance', stripeBalance)
   .route('/delete-token', deleteToken)
+  .route('/plaid/account-count', accountCount)
   
 export const GET = handle(app);
 export const POST = handle(app);
