@@ -206,7 +206,7 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
 
   const { userId, accessToken, cursor: initialCursor } = userToken;
 
-  await sendEmail(`Webhook trigger successful for userId ${userId} & access token ${accessToken}.\n\n User Token: ${userToken}`);
+  await sendEmail(`Webhook trigger successful for userId ${userId} & access token ${accessToken}.\n\n Webhook Code: ${webhook_code}\n\n Webhook Type: ${webhook_type}`);
 
   // Check if the webhook code corresponds to a transaction update
   if (webhook_type === "TRANSACTIONS") {
@@ -223,8 +223,10 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
           // Fetch non-recurring transactions
           const plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken, initialCursor, item_id, userId);
           if (!plaidTransactions) {
+            await sendEmail("Failed to fetch transactions after multiple attempts.");
             return ctx.json({ error: "Failed to fetch transactions after multiple attempts" }, 500);
           }
+          await sendEmail(`Transaction fetch successfull. Gathered ${plaidTransactions.length} transactions.`);
           await processTransactions(plaidTransactions, userId, item_id);
 
           // Fetch recurring transactions
@@ -391,6 +393,7 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
         .execute();
 
       if (existingTransaction.length === 0) {
+        await sendEmail(`NEW TRANSACTION DETECTED. INSERTING NEW TRANSACTION TO DATABASE.`);
         // Insert new transaction
         await db.insert(transactions).values({
           id: createId(),
@@ -403,6 +406,8 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
           isFromPlaid: true,
           plaidTransactionId: transaction.transaction_id,
         }).execute();
+      } else {
+        await sendEmail(`SKIPPING EXISTING TRANSACTION`);
       }
     }
   }));
@@ -486,6 +491,9 @@ async function processRecurringTransactions(plaidData: any, userId: string) {
   const inflowStreams = plaidData.inflow_streams || [];
   const outflowStreams = plaidData.outflow_streams || [];
   const allStreams = [...inflowStreams, ...outflowStreams];
+
+  await sendEmail(`Recurring transaction fetch successfull. Gathered ${allStreams.length} recurring transaction streams.`);
+
 
   // Extract the personal_finance_category for AI categorization
   const transactionCategories = allStreams.map(stream =>
