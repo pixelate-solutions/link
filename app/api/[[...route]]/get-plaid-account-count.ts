@@ -6,7 +6,7 @@ import { eq, and } from "drizzle-orm";
 
 const app = new Hono();
 
-app.post('/', clerkMiddleware(), async (ctx) => {
+app.get('/', clerkMiddleware(), async (ctx) => {
   const auth = getAuth(ctx);
   const userId = auth?.userId;
 
