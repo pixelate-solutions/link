@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowBigLeftDash, Calendar, Home, Inbox, Search, Settings } from "lucide-react";
+import { ArrowBigLeftDash, Calendar, Inbox, Search, Settings } from "lucide-react";
 
 import {
   Sidebar,

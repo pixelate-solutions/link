@@ -22,8 +22,8 @@ const routes = [
     label: "Transactions",
   },
   {
-    href: "/logic",
-    label: "Logic",
+    href: "/chat",
+    label: "Chat",
   },
   {
     href: "/categories",
