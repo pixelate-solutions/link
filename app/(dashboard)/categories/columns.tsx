@@ -156,7 +156,8 @@ export const columns: ColumnDef<ResponseType>[] = [
           variant={amountLeft > 0 ? "success" : "secondary"} // Conditionally set the variant
           className="px-2.5 py-2.5 text-xs font-medium"
         >
-          {amountLeft > 0 ? formatCurrency(amountLeft) : formatCurrency(0)} {/* Ensure it's formatted */}
+          {/* {amountLeft > 0 ? formatCurrency(amountLeft) : formatCurrency(0)}  */}
+          {formatCurrency(amountLeft)}
         </Badge>
       );
     },

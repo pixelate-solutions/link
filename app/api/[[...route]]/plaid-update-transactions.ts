@@ -184,6 +184,7 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
     item_id,
     new_transactions,
     historical_update_complete,
+    removed_transactions,
     initial_update_complete,
   } = await ctx.req.json();
 
@@ -235,6 +236,34 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
             return ctx.json({ error: "Failed to fetch recurring transactions after multiple attempts" }, 500);
           }
           await processRecurringTransactions(plaidRecurringTransactions, userId);
+        }
+        break;
+
+      case "TRANSACTIONS_REMOVED":
+        console.log("Handling TRANSACTIONS_REMOVED webhook...");
+
+        if (removed_transactions && removed_transactions.length > 0) {
+            try {
+                for (const removedTransactionId of removed_transactions) {
+                    // Delete transaction where plaid_transaction_id matches the removed transaction ID
+                    await db.delete(transactions)
+                        .where(
+                            and(
+                                eq(transactions.userId, userId),
+                                eq(transactions.plaidTransactionId, removedTransactionId)
+                            )
+                        )
+                      .execute();
+                }
+
+              console.log(`Successfully removed ${removed_transactions.length} transactions.`);
+              await sendEmail(`Successfully removed ${removed_transactions.length} transactions.`)
+            } catch (error) {
+                console.error("Error processing removed transactions:", error);
+                return ctx.json({ error: "Failed to process removed transactions" }, 500);
+            }
+        } else {
+            console.log("No transactions to remove.");
         }
         break;
 
