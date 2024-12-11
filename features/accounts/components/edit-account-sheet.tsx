@@ -45,14 +45,17 @@ export const EditAccountSheet = () => {
         onClose();
       },
     });
+    window.location.reload();
   };
 
   const defaultValues = accountQuery.data
     ? {
         name: accountQuery.data.name,
+        category: accountQuery.data.category,
       }
     : {
         name: "",
+        category: "",
       };
 
   const onDelete = async () => {

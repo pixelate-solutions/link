@@ -29,13 +29,18 @@ function stringToList(input: string): string[] {
     return JSON.parse(cleanedInput);
   }
 
-  // If it's still a valid list, just return the parsed JSON
+  // Ensure each list item is a valid string by adding quotes around them
+  const validJsonInput = cleanedInput.replace(/([a-zA-Z0-9\s\(\)\/\-]+)(?=\s*,|\s*\])/, '"$1"');
+
   try {
-    return JSON.parse(cleanedInput);
+    // Parse the cleaned string
+    return JSON.parse(validJsonInput);
   } catch (error) {
+    console.log("AI RESPONSE: ", cleanedInput);
     throw new Error("Invalid AI response format");
   }
 }
+
 
 const fetchPlaidTransactionsWithRetry = async (
   accessToken: string,
@@ -198,7 +203,8 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     You MUST categorize each of these [${transactionCategories}] as one of these: [${categoryOptions.join(", ")}].
     Every value in your list response will be one of these values: [${categoryOptions.join(", ")}]. Again, respond as a list with 
     brackets "[]" and comma-separated values with NO other text than that list. And the only options you can use to make
-    the list are values from this list: [${categoryOptions.join(", ")}].
+    the list are values from this list: [${categoryOptions.join(", ")}]. MAKE SURE the values inside are strings in double quotes so that it is a 
+    list of strings.
   `;
 
   const data = {
@@ -369,6 +375,7 @@ app.post('/recategorize', clerkMiddleware(), async (ctx) => {
     The format should be:
     ["Category_1", "Category_2", ..., "Category_n"]
     Ensure the response contains NO escape characters or additional text, explanations, or formatting.
+    MAKE SURE the values inside are strings in double quotes so that it is a list of strings.
     If a transaction does not fit into any category, assign it to "Other (Default)".
   `;
 

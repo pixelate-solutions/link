@@ -116,7 +116,6 @@ const SettingsPage = () => {
       await fetch('/api/plaid/upload-accounts', { method: 'POST' });
       await fetch('/api/plaid/upload-transactions', { method: 'POST' });
       await fetch('/api/plaid/recurring', { method: 'POST' });
-      await fetch('/api/')
 
       setPlaidIsOpen(false);
 

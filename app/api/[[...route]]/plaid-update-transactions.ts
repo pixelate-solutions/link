@@ -327,6 +327,7 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
     Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
     respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
     You MUST categorize each of these [${transactionCategories}] as one of these: [${categoryOptions.join(", ")}].
+    MAKE SURE the values inside are strings in double quotes so that it is a list of strings.
   `;
 
   const data = {
@@ -535,6 +536,7 @@ async function processRecurringTransactions(plaidData: any, userId: string) {
     Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
     respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
     You MUST categorize each of these [${transactionCategories}] as one of these: [${categoryOptions.join(", ")}].
+    MAKE SURE the values inside are strings in double quotes so that it is a list of strings.
   `;
 
   const data = {

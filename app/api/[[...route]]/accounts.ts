@@ -103,6 +103,7 @@ const app = new Hono()
         .select({
           id: accounts.id,
           name: accounts.name,
+          category: accounts.category,
         })
         .from(accounts)
         .where(and(eq(accounts.userId, auth.userId), eq(accounts.id, id)));
@@ -121,6 +122,7 @@ const app = new Hono()
       "json",
       insertAccountSchema.pick({
         name: true,
+        category: true,
         isFromPlaid: true,  // Ensure that isFromPlaid is included
       })
     ),
@@ -265,6 +267,7 @@ const app = new Hono()
       "json",
       insertAccountSchema.pick({
         name: true,
+        category: true,
         isFromPlaid: true,  // Ensure isFromPlaid can be updated if needed
       })
     ),

@@ -118,6 +118,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
       respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
       You MUST categorize each of these [${transactionCategories}] as one of these: [${categoryOptions.join(", ")}].
+      MAKE SURE the values inside are strings in double quotes so that it is a list of strings.
     `;
 
     const data = {
@@ -490,6 +491,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     Return the result as a plain JavaScript array (list) in the same order as the transaction names.
     Use this format:
     ["Category_1", "Category_2", ..., "Category_n"]
+    MAKE SURE the values inside are strings in double quotes so that it is a list of strings.
     Ensure the response contains NO escape characters or additional text, explanations, or formatting.
     If a transaction does not fit into any category, assign it to "Other (Default)".
   `;

@@ -24,7 +24,6 @@ export const NewAccountSheet = () => {
   const mutation = useCreateAccount();
 
   const onSubmit = (values: FormValues) => {
-    // Default isFromPlaid to false
     const accountData = {
       ...values,
       isFromPlaid: false,
@@ -38,18 +37,20 @@ export const NewAccountSheet = () => {
   };
 
   return (
-    <Sheet open={isOpen || mutation.isPending} onOpenChange={(open) => {
+    <Sheet
+      open={isOpen || mutation.isPending}
+      onOpenChange={(open) => {
         onClose();
         setTimeout(() => {
           if (!open) {
-            document.body.style.pointerEvents = ''
+            document.body.style.pointerEvents = "";
           }
-        }, 100)
-      }}>
+        }, 100);
+      }}
+    >
       <SheetContent className="space-y-4">
         <SheetHeader>
           <SheetTitle>New Account</SheetTitle>
-
           <SheetDescription>
             Create a new account to track your transactions.
           </SheetDescription>
@@ -58,6 +59,7 @@ export const NewAccountSheet = () => {
         <AccountForm
           defaultValues={{
             name: "",
+            category: "",
           }}
           onSubmit={onSubmit}
           disabled={mutation.isPending}

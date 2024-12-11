@@ -17,6 +17,8 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: "Unauthorized" }, 401);
   }
 
+  const { category } = await ctx.req.json<{ category?: string }>();
+
   // Fetch the first access token for the user
   const accessTokenResult = await db
     .select({ accessToken: userTokens.accessToken })
@@ -79,6 +81,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
         userId: userId,
         plaidAccountId: account.account_id,
         plaidAccessToken: accessToken,
+        category: category,
         name: account.name,
         isFromPlaid: true,
     });

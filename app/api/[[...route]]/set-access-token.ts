@@ -49,6 +49,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     return ctx.json({
       success: true,
       message: 'Access token stored successfully.',
+      token: access_token,
     });
   } catch (error) {
     console.error('Error exchanging public token:', error);

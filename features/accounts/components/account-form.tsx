@@ -14,9 +14,11 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { insertAccountSchema } from "@/db/schema";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const formSchema = insertAccountSchema.pick({
   name: true,
+  category: true,
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -28,6 +30,8 @@ type AccountFormProps = {
   onDelete?: () => void;
   disabled?: boolean;
 };
+
+const categories = ["Credit cards", "Depository", "Investments", "Loans", "Real estate", "Others"];
 
 export const AccountForm = ({
   id,
@@ -48,6 +52,7 @@ export const AccountForm = ({
   const handleDelete = () => {
     onDelete?.();
   };
+
   return (
     <Form {...form}>
       <form
@@ -63,11 +68,39 @@ export const AccountForm = ({
           render={({ field }) => (
             <FormItem>
               <FormLabel>Name</FormLabel>
-
               <FormControl>
                 <Input placeholder="e.g. Cash, Bank, Credit Card" {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
+        <FormField
+          name="category"
+          control={form.control}
+          disabled={disabled}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Category</FormLabel>
+              <FormControl>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value || ""}
+                  disabled={disabled}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
