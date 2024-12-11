@@ -144,7 +144,7 @@ const LandingPage = () => {
             className="bg-gradient-to-br from-blue-500 to-purple-500 text-white shadow-lg rounded-lg p-6 hover:shadow-xl transition-shadow duration-300 border border-gray-200 w-full max-w-md mx-auto flex flex-col justify-between"
           >
             <h3 className="text-xl font-semibold">Yearly Plan</h3>
-            <p className="text-4xl font-bold my-4">$99.00</p>
+            <p className="text-4xl font-bold my-4">$90.00</p>
             <p className="mb-4">/year</p>
             <ul className="text-left mb-6 flex-grow">
               <li className="mb-2">✔ Everything in Free Plan</li>

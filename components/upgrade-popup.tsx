@@ -192,7 +192,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
           {/* ANNUAL */}
           <div className="flex items-center border-b pb-4">
             <div className="ml-[10%] w-1/3 font-semibold">Annual</div>
-            <div className="hidden md:inline w-1/3 text-gray-500">$99.00/yr</div>
+            <div className="hidden md:inline w-1/3 text-gray-500">$90.00/yr</div>
             {(currentSubscription !== "Annual") && (
               <AlertDialogAction asChild className="w-1/3">
                 <Button variant="ghost" onClick={() => {

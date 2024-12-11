@@ -355,7 +355,7 @@ const AccountsPage = () => {
           </CardHeader>
           <CardContent>
           {categories.map((category) => (
-            <div>
+            <div key={category}>
               <div className={`${groupedPlaidAccounts[category].length === 0 ? "hidden" : ""}`} key={category}>
                 <h3 className="text-lg font-semibold mt-4">{category}</h3>
                 <DataTable
@@ -395,7 +395,7 @@ const AccountsPage = () => {
         </CardHeader>
         <CardContent>
           {categories.map((category) => (
-            <div>
+            <div key={category}>
               <div className={`${groupedManualAccounts[category].length === 0 ? "hidden" : ""}`} key={category}>
                 <h3 className="text-lg font-semibold mt-4">{category}</h3>
                 <DataTable
