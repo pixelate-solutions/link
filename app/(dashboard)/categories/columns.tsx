@@ -153,7 +153,7 @@ export const columns: ColumnDef<ResponseType>[] = [
 
       return (
         <Badge
-          variant={amountLeft > 0 ? "success" : "secondary"} // Conditionally set the variant
+          variant={amountLeft > 0 ? "success" : amountLeft < 0 ? "destructive" : "secondary"}
           className="px-2.5 py-2.5 text-xs font-medium"
         >
           {/* {amountLeft > 0 ? formatCurrency(amountLeft) : formatCurrency(0)}  */}
