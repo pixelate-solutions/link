@@ -195,6 +195,7 @@ const app = new Hono().get(
 
     return ctx.json({
       data: {
+        monthlyBudget: totalMonthlyBudget,
         remainingAmount: currentPeriod.remaining,
         remainingChange,
         incomeAmount: currentPeriod.income,

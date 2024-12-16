@@ -1,8 +1,10 @@
 import { XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid, Area, AreaChart } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { format, parseISO, differenceInDays } from 'date-fns';
+import { format, parseISO, differenceInDays, isSameMonth, getDate, isFirstDayOfMonth, isLastDayOfMonth, subDays } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { FileSearch } from 'lucide-react';
+import { CountUp } from './count-up';
+import { formatCurrency } from "@/lib/utils";
 
 type BudgetVsSpendingChartProps = {
   data: {
@@ -10,10 +12,47 @@ type BudgetVsSpendingChartProps = {
     spending: number;
     budget: number;
   }[];
+  fullData?: {
+    monthlyBudget: number;
+    incomeAmount: number;
+    expensesAmount: number;
+    remainingAmount: number;
+    categories: {
+      value: number;
+      name: string | null;
+    }[];
+    days: {
+      income: number;
+      expenses: number;
+      budget: number;
+      date: string;
+    }[];
+    remainingChange: number;
+    incomeChange: number;
+    expensesChange: number;
+  };
 };
 
-export const BudgetVsSpendingChart = ({ data }: BudgetVsSpendingChartProps) => {
+export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartProps) => {
   const [isLargeScreen, setIsLargeScreen] = useState<boolean>(false);
+  const mainCumulativeSpending = fullData?.expensesAmount || 0;
+  let isFullMonth;
+  if (data.length === 0) {
+    isFullMonth = false
+  } else {
+    const isSameDayOfMonth = getDate(new Date(data[0].date)) === getDate(new Date(data[data.length - 1].date));
+    isFullMonth = 
+    isSameDayOfMonth || 
+    (isSameMonth(subDays(new Date(data[0].date), 1), subDays(new Date(data[data.length - 1].date), 1)) &&
+      isFirstDayOfMonth(subDays(new Date(data[0].date), 1)) &&
+    isLastDayOfMonth(subDays(new Date(data[data.length - 1].date), 1)));
+  }
+
+  const cumulativeBudget = isFullMonth ? fullData?.monthlyBudget || 0 : data.reduce((sum, entry) => 0 + entry.budget, 0);
+
+  // Calculate the remaining budget
+  const budgetLeft = (cumulativeBudget + mainCumulativeSpending) > 0 ? cumulativeBudget + mainCumulativeSpending : 0;
+
 
   // Check screen size on mount and resize
   useEffect(() => {
@@ -88,6 +127,33 @@ export const BudgetVsSpendingChart = ({ data }: BudgetVsSpendingChartProps) => {
     <Card className="border-none drop-shadow-sm">
       <CardHeader>
         <CardTitle className="line-clamp-1 text-xl">Budget vs Spending</CardTitle>
+        <div className="w-full text-center justify-items-center">
+          <div className='justify-items-center p-4 rounded-2xl shadow-md'>
+          <div className="flex w-20 text-center justify-center">
+            <CountUp
+              className="font-bold text-lg text-blue-600"
+              preserveValue
+              start={0}
+              end={budgetLeft}
+              decimals={2}
+              formattingFn={formatCurrency}
+            />
+            <h2 className="font-bold text-lg ml-1">left</h2>
+          </div>
+          <div className="flex w-full text-center justify-center">
+            <h2 className="text-[12px] text-gray-500 mr-1">out of</h2>
+            <CountUp
+              className="text-[12px] text-gray-500"
+              preserveValue
+              start={0}
+              end={cumulativeBudget}
+              decimals={2}
+              formattingFn={formatCurrency}
+            />
+            <h2 className="text-[12px] text-gray-500 ml-1">budgeted</h2>
+            </div>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className='-ml-5 w-full'>
         {data.length === 0 ? (

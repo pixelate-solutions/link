@@ -33,11 +33,13 @@ export const DataCharts = () => {
     budget: day.budget,
   })) || [];
 
+  const fullData = data;
+
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-6">
       {/* New budget vs spending chart */}
       <div className="col-span-1 lg:col-span-6">
-        <BudgetVsSpendingChart data={budgetVsSpendingData} />
+        <BudgetVsSpendingChart fullData={data} data={budgetVsSpendingData} />
       </div>
 
       <div className="col-span-1 lg:col-span-3 xl:col-span-4">
