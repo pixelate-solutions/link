@@ -93,7 +93,8 @@ export const DataCard = ({
           className={cn(
             "line-clamp-1 text-sm text-muted-foreground",
             percentageChange > 0 && "text-emerald-500",
-            percentageChange < 0 && "text-rose-500"
+            percentageChange < 0 && "text-rose-500",
+            percentageChange === 12345 && "hidden"
           )}
         >
           {formatPercentage(percentageChange, { addPrefix: true })} from last
@@ -144,7 +145,8 @@ export const ExpensesDataCard = ({
           className={cn(
             "line-clamp-1 text-sm text-muted-foreground",
             percentageChange < 0 && "text-emerald-500",
-            percentageChange > 0 && "text-rose-500"
+            percentageChange > 0 && "text-rose-500",
+            percentageChange === 12345 && "hidden"
           )}
         >
           {formatPercentage(percentageChange, { addPrefix: true })} from last

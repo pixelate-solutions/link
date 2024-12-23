@@ -33,8 +33,6 @@ export const DataCharts = () => {
     budget: day.budget,
   })) || [];
 
-  const fullData = data;
-
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-6">
       {/* New budget vs spending chart */}

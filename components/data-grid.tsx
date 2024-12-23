@@ -28,15 +28,14 @@ export const DataGrid = () => {
 
   return (
     <div className="mb-8 grid grid-cols-1 gap-8 pb-2 lg:grid-cols-3">
-      <DataCard
-        title="Net"
-        value={data?.remainingAmount}
-        percentageChange={data?.remainingChange}
-        icon={FaPiggyBank}
-        variant="default"
+      <ExpensesDataCard
+        title="Expenses"
+        value={data?.expensesAmount}
+        percentageChange={data?.expensesChange}
+        icon={FaArrowTrendDown}
+        variant="danger"
         dateRange={dateRangeLabel}
       />
-
       <DataCard
         title="Income"
         value={data?.incomeAmount}
@@ -45,13 +44,12 @@ export const DataGrid = () => {
         variant="success"
         dateRange={dateRangeLabel}
       />
-
-      <ExpensesDataCard
-        title="Expenses"
-        value={data?.expensesAmount}
-        percentageChange={data?.expensesChange}
-        icon={FaArrowTrendDown}
-        variant="danger"
+      <DataCard
+        title="Net"
+        value={data?.remainingAmount}
+        percentageChange={data?.remainingChange}
+        icon={FaPiggyBank}
+        variant="default"
         dateRange={dateRangeLabel}
       />
     </div>

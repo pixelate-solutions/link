@@ -51,7 +51,7 @@ export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartP
   const cumulativeBudget = isFullMonth ? fullData?.monthlyBudget || 0 : data.reduce((sum, entry) => 0 + entry.budget, 0);
 
   // Calculate the remaining budget
-  const budgetLeft = (cumulativeBudget + mainCumulativeSpending) > 0 ? cumulativeBudget + mainCumulativeSpending : 0;
+  const budgetLeft = cumulativeBudget + mainCumulativeSpending;
 
 
   // Check screen size on mount and resize
@@ -131,14 +131,15 @@ export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartP
           <div className='justify-items-center p-4 rounded-2xl shadow-md'>
           <div className="flex w-20 text-center justify-center">
             <CountUp
-              className="font-bold text-lg text-blue-600"
+              className={`font-bold text-lg ${budgetLeft >= 0 ? "text-blue-600" : "text-red-500"}`}
               preserveValue
               start={0}
-              end={budgetLeft}
+              end={Math.abs(budgetLeft)}
               decimals={2}
               formattingFn={formatCurrency}
             />
-            <h2 className="font-bold text-lg ml-1">left</h2>
+            <h2 className={`${budgetLeft >= 0 ? "" : "hidden"} font-bold text-lg ml-1`}>left</h2>
+            <h2 className={`${budgetLeft >= 0 ? "hidden" : ""} font-bold text-lg ml-1`}>over</h2>
           </div>
           <div className="flex w-full text-center justify-center">
             <h2 className="text-[12px] text-gray-500 mr-1">out of</h2>
