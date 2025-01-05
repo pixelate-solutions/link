@@ -385,7 +385,7 @@ const TransactionsPage = () => {
                 columns={recurringColumns(windowWidth)}
                 data={recurringTransactions.map((transaction: RecurringTransaction) => ({
                   ...transaction,
-                  amount: transaction.averageAmount.toString(),
+                  amount: transaction.lastAmount.toString(),
                   category: transaction.categoryName, // Include category name in the displayed data
                 }))}
                 onDelete={(row) => {

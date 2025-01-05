@@ -33,7 +33,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
   const accessToken = accessTokenResult[0]?.accessToken;
 
-  await sendEmail(`Plaid Account Access token: ${accessToken}`);
+  // await sendEmail(`Plaid Account Access token: ${accessToken}`);
 
   // Fetch accounts from Plaid using the first access token
   const plaidResponse = await plaidClient.accountsGet({ access_token: accessToken });

@@ -138,19 +138,19 @@ export const recurringColumns = (windowWidth: number): ColumnDef<RecurringTransa
     },
   },
   {
-    accessorKey: "averageAmount",
+    accessorKey: "amount",
     header: ({ column }) => (
       <Button
         className="text-xs md:text-sm -ml-[40px] lg:ml-0"
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        Avg. Amount
+        Last Amount
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
     cell: ({ row }) => {
-      const amount = (row.getValue("averageAmount") || "0").toString();
+      const amount = (row.getValue("amount") || "0").toString();
       return (
         <Badge
           variant={parseFloat(amount) < 0 ? "destructive" : "primary"}
