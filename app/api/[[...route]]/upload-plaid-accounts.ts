@@ -5,7 +5,7 @@ import { desc, eq } from "drizzle-orm";
 import { accounts, userTokens, transactions } from "@/db/schema";
 import plaidClient from "./plaid";
 import { createId } from "@paralleldrive/cuid2";
-import { sendEmail } from "./plaid-update-transactions";
+// import { sendEmail } from "./plaid-update-transactions";
 
 const app = new Hono();
 

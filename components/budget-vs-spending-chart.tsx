@@ -1,10 +1,13 @@
 import { XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid, Area, AreaChart } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { format, parseISO, differenceInDays, isSameMonth, getDate, isFirstDayOfMonth, isLastDayOfMonth, subDays } from 'date-fns';
+import { format, parseISO, differenceInDays, isSameMonth, getDate, isFirstDayOfMonth, isLastDayOfMonth, subDays, endOfToday, isSameDay, subMonths, lastDayOfMonth } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { FileSearch } from 'lucide-react';
 import { CountUp } from './count-up';
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDateRange } from "@/lib/utils";
+import { useSearchParams } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { useGetCategories } from '@/features/categories/api/use-get-categories';
 
 type BudgetVsSpendingChartProps = {
   data: {
@@ -33,7 +36,85 @@ type BudgetVsSpendingChartProps = {
   };
 };
 
+interface CategoryTotal {
+  categoryId: string;
+  categoryName: string;
+  totalCost: number;
+  totalIncome: number;
+  budgetAmount: string | null; // Optional
+  amountLeftToSpend: string | null; // Optional, computed based on the budget
+}
+
 export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartProps) => {
+  const searchParams = useSearchParams();
+  let from = searchParams.get("from") || "";
+  let to = searchParams.get("to") || "";
+
+  let dateRange;
+
+  const fetchCategoryTotals = async (from: string, to: string): Promise<CategoryTotal[]> => {
+    const response = await fetch(`/api/plaid/category-totals?from=${from}&to=${to}`);
+    if (!response.ok) throw new Error("Failed to fetch category totals.");
+    return response.json();
+  };
+  
+  const categoriesQuery = useGetCategories();
+  const categories = categoriesQuery.data || [];
+
+  const totalsQuery = useQuery({
+    queryKey: ["categoryTotals", { from, to }],
+    queryFn: () => fetchCategoryTotals(from, to),
+    enabled: true, // Ensure the query runs on every page load
+  });
+
+  const categoriesWithTotals = categories.map((category: any) => {
+    if (to === "" || from === "") {
+      const today = endOfToday();  // Get today's date
+      const previousMonthSameDay = subMonths(today, 1);  // Get the same day in the previous month
+
+      const newFrom = previousMonthSameDay.toISOString();  // Convert to ISO format
+      const newTo = today.toISOString();  // Today's date in ISO format
+
+      from = newFrom;
+      to = newTo;
+    }
+    const fromDate = subDays(parseISO(from), 0);
+    const toDate = subDays(parseISO(to), 0); // Subtract one day from toDate
+
+    dateRange = formatDateRange({ to: toDate, from: fromDate });
+
+    // Check if fromDate is the first day and toDate is the last day of the same month
+    const isFullMonth = (isFirstDayOfMonth(fromDate) && isSameDay(toDate, lastDayOfMonth(toDate)) || fromDate.getDate() === toDate.getDate());
+
+    // If it's a full month, don't adjust the budgetAmount, just show the monthly value
+    const adjustedBudgetAmount = isFullMonth
+      ? parseFloat(category.budgetAmount || "0")
+      : (parseFloat(category.budgetAmount || "0") * (differenceInDays(toDate, fromDate) + 1) / 30.44);
+
+    // Find the total based on categoryId
+    const total = totalsQuery.data?.find(total => total.categoryId === category.id) || { totalIncome: 0, totalCost: 0 };
+
+    return {
+      id: category.id,
+      name: category.name,
+      totalIncome: total.totalIncome.toFixed(2), // Convert to string with 2 decimal places
+      totalCost: total.totalCost.toFixed(2), // Convert to string with 2 decimal places
+      budgetAmount: adjustedBudgetAmount.toFixed(2), // Adjusted budget per the precise number of months
+      amountLeftToSpend: (adjustedBudgetAmount + total.totalCost).toFixed(2), // Ensure this is a number and convert to string
+    };
+  });
+
+  const transformedData = categoriesWithTotals.map((category: any) => ({
+    ...category,
+    budgetAmount: category.budgetAmount ?? "0", // Ensure budgetAmount is included
+  }));
+
+  const sumBudgetAmount = transformedData.reduce(
+    (sum: any, item: any) => sum + parseFloat(item.budgetAmount),
+    0
+  );
+
+
   const [isLargeScreen, setIsLargeScreen] = useState<boolean>(false);
   const mainCumulativeSpending = fullData?.expensesAmount || 0;
   let isFullMonth;
@@ -48,7 +129,7 @@ export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartP
     isLastDayOfMonth(subDays(new Date(data[data.length - 1].date), 1)));
   }
 
-  const cumulativeBudget = isFullMonth ? fullData?.monthlyBudget || 0 : data.reduce((sum, entry) => 0 + entry.budget, 0);
+  const cumulativeBudget = sumBudgetAmount;
 
   // Calculate the remaining budget
   const budgetLeft = cumulativeBudget + mainCumulativeSpending;
