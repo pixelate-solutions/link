@@ -26,7 +26,7 @@ async function fetchRecurringTransactionsWithRetry(accessToken: string) {
       if (attempts >= MAX_RETRIES - 1) {
         throw new Error("Failed to fetch recurring transactions after multiple attempts.");
       }
-      console.log(`Retrying recurring transaction fetch... Attempt ${attempts + 1}`);
+      // console.log(`Retrying recurring transaction fetch... Attempt ${attempts + 1}`);
       await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS)); // Wait before retrying
       attempts++;
     }
@@ -178,7 +178,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
           .where(and(eq(recurringTransactions.streamId, stream.stream_id), eq(recurringTransactions.userId, userId)))
 
         if (existingTransaction.length > 0) {
-          console.log(`Skipping duplicate transaction for streamId: ${stream.stream_id}`);
+          // console.log(`Skipping duplicate transaction for streamId: ${stream.stream_id}`);
           return;
         }
 
@@ -526,7 +526,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
   try {
     categorizedResults = stringToList(cleanedAiData);
   } catch (error) {
-    console.log('Failed to parse AI response:', error);
+    // console.log('Failed to parse AI response:', error);
     return ctx.json({ error: 'Invalid response format from AI API' }, 500);
   }
 

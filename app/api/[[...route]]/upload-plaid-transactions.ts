@@ -36,7 +36,7 @@ function stringToList(input: string): string[] {
     // Parse the cleaned string
     return JSON.parse(validJsonInput);
   } catch (error) {
-    console.log("AI RESPONSE: ", cleanedInput);
+    // console.log("AI RESPONSE: ", cleanedInput);
     throw new Error("Invalid AI response format");
   }
 }
@@ -115,7 +115,7 @@ const fetchPlaidTransactionsWithRetry = async (
         throw new Error('An unknown error occurred.');
       }
 
-      console.log(`Retrying transaction sync... Attempt ${attempts + 1}`);
+      // console.log(`Retrying transaction sync... Attempt ${attempts + 1}`);
       await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
       attempts++;
     }
@@ -161,7 +161,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
   // Wait for all the fetches to complete
   const plaidTransactions = (await Promise.all(plaidTransactionsPromises)).flat();
   
-  console.log("TRANSACTIONS LENGTH (non-transfer): ", plaidTransactions?.length);
+  // console.log("TRANSACTIONS LENGTH (non-transfer): ", plaidTransactions?.length);
 
   if (!plaidTransactions) {
     return ctx.json({ error: 'Failed to fetch transactions after retries' }, 500);
@@ -409,7 +409,7 @@ app.post('/recategorize', clerkMiddleware(), async (ctx) => {
   try {
     categorizedResults = stringToList(cleanedAiData);
   } catch (error) {
-    console.log('Failed to parse AI response:', error);
+    // console.log('Failed to parse AI response:', error);
     return ctx.json({ error: 'Invalid response format from AI API' }, 500);
   }
 

@@ -109,9 +109,7 @@ const SettingsPage = () => {
         body: JSON.stringify({ public_token, userId: user?.id }),
       });
 
-      setTimeout(() => {
-        console.log("Waiting for access token complete.");
-      }, 2000);
+      setTimeout(() => {}, 2000);
 
       await fetch('/api/plaid/upload-accounts', { method: 'POST' });
       await fetch('/api/plaid/upload-transactions', { method: 'POST' });
@@ -170,7 +168,6 @@ const SettingsPage = () => {
       .then(response => response.json())
       .then(data => {
         if (data.message) {
-          console.log("Default category setting successful.")
         }
       })
       .catch((error) => {
@@ -299,7 +296,7 @@ const SettingsPage = () => {
                   "Content-Type": "application/json",
                 },
               });
-              console.log(response.json);
+              // console.log(response.json);
             }}>
               Delete Tokens
             </Button>

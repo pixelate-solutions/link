@@ -123,9 +123,7 @@ const AccountsPage = () => {
         body: JSON.stringify({ public_token, userId: user?.id }),
       });
 
-      setTimeout(() => {
-        console.log("Waiting for access token complete.");
-      }, 2000);
+      setTimeout(() => {}, 2000);
 
       await fetch('/api/plaid/upload-accounts', {
         method: 'POST',
@@ -243,7 +241,6 @@ const AccountsPage = () => {
 
   const groupedManualAccounts = groupByCategory(manualAccountsWithTotals);
   const groupedPlaidAccounts = groupByCategory(plaidAccountsWithTotals);
-  console.log(groupedPlaidAccounts);
 
   if (manualAccountsQuery.isLoading || plaidAccountsQuery.isLoading || totalsQuery.isLoading) {
     return (

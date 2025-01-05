@@ -130,7 +130,7 @@ const fetchPlaidTransactionsWithRetry = async (
         throw new Error('An unknown error occurred.');
       }
 
-      console.log(`Retrying transaction sync... Attempt ${attempts + 1}`);
+      // console.log(`Retrying transaction sync... Attempt ${attempts + 1}`);
       await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
       attempts++;
     }
@@ -149,7 +149,7 @@ async function fetchRecurringTransactionsWithRetry(accessToken: string) {
       if (attempts >= MAX_RETRIES - 1) {
         throw new Error("Failed to fetch recurring transactions after multiple attempts.");
       }
-      console.log(`Retrying recurring transaction fetch... Attempt ${attempts + 1}`);
+      // console.log(`Retrying recurring transaction fetch... Attempt ${attempts + 1}`);
       await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS)); // Wait before retrying
       attempts++;
     }
@@ -167,7 +167,7 @@ async function updateTransactions(transactionsList: any[], userId: string, item_
       .set({ amount, date, payee, categoryId })
       .where(and(eq(transactions.userId, userId), eq(transactions.id, id)));
   }
-  console.log(`Updated ${transactionsList.length} transactions for userId ${userId}.`);
+  // console.log(`Updated ${transactionsList.length} transactions for userId ${userId}.`);
 }
 
 
@@ -177,7 +177,7 @@ const isAxiosError = (error: unknown): error is AxiosError => {
 };
 
 app.post('/transactions', clerkMiddleware(), async (ctx) => {
-  console.log("WEBHOOK STARTED");
+  // console.log("WEBHOOK STARTED");
   const {
     webhook_code,
     webhook_type,
@@ -218,7 +218,7 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
       case "RECURRING_TRANSACTIONS_UPDATE":
       case "HISTORICAL_UPDATE":
         // Handle both recurring and non-recurring transactions
-        console.log(`Webhook Code: ${webhook_code}. Fetching transactions...`);
+        // console.log(`Webhook Code: ${webhook_code}. Fetching transactions...`);
 
         if (new_transactions > 0 || historical_update_complete) {
           // Fetch non-recurring transactions
@@ -240,7 +240,7 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
         break;
 
       case "TRANSACTIONS_REMOVED":
-        console.log("Handling TRANSACTIONS_REMOVED webhook...");
+        // console.log("Handling TRANSACTIONS_REMOVED webhook...");
 
         if (removed_transactions && removed_transactions.length > 0) {
             try {
@@ -256,39 +256,42 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
                       .execute();
                 }
 
-              console.log(`Successfully removed ${removed_transactions.length} transactions.`);
+              // console.log(`Successfully removed ${removed_transactions.length} transactions.`);
               // await sendEmail(`Successfully removed ${removed_transactions.length} transactions.`)
             } catch (error) {
                 console.error("Error processing removed transactions:", error);
                 return ctx.json({ error: "Failed to process removed transactions" }, 500);
             }
         } else {
-            console.log("No transactions to remove.");
+            // console.log("No transactions to remove.");
         }
         break;
 
       case "DEFAULT_UPDATE":
         // Handle default updates (no new transactions, but still a webhook)
-        console.log("Default update received. No new transactions.");
+        // console.log("Default update received. No new transactions.");
         break;
 
       default:
-        console.log(`Unrecognized webhook code: ${webhook_code}`);
+        await sendEmail(`Unrecognized webhook code: ${webhook_code}`);
+        // console.log(`Unrecognized webhook code: ${webhook_code}`);
         return ctx.json({ message: `Webhook code ${webhook_code} not handled` }, 200);
     }
   } else if (webhook_type === "ITEM") {
     // Handle ITEM webhook type (item updates, like webhook URL changes)
     switch (webhook_code) {
       case "WEBHOOK_UPDATE_ACKNOWLEDGED":
-        console.log("Webhook URL updated. Acknowledging change...");
+        // console.log("Webhook URL updated. Acknowledging change...");
         break;
 
       default:
-        console.log(`Unrecognized ITEM webhook code: ${webhook_code}`);
+        await sendEmail(`Unrecognized ITEM webhook code: ${webhook_code}`);
+        // console.log(`Unrecognized ITEM webhook code: ${webhook_code}`);
         return ctx.json({ message: `ITEM Webhook code ${webhook_code} not handled` }, 200);
     }
   } else {
-    console.log(`Unrecognized webhook type: ${webhook_type}`);
+    await sendEmail(`Unrecognized webhook type: ${webhook_type}`);
+    // console.log(`Unrecognized webhook type: ${webhook_type}`);
     return ctx.json({ error: "Unrecognized webhook type" }, 400);
   }
 

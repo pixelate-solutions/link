@@ -33,13 +33,12 @@ async function cleanUpUserTokens(userId: string) {
       try {
         // Remove the Plaid item using the access token
         await plaidClient.itemRemove({ access_token: accessToken || "" });
-        console.log(`Removed Plaid item for access token: ${accessToken}`);
+        // console.log(`Removed Plaid item for access token: ${accessToken}`);
 
         // Now, delete the user token from the user_tokens table
         await db
           .delete(userTokens)
           .where(and(eq(userTokens.userId, userId), eq(userTokens.accessToken, accessToken))); // Use eq() for deletion condition
-        console.log(`Deleted user token for userId: ${userId}, access token: ${accessToken}`);
       } catch (error) {
         console.error(`Error removing Plaid item or deleting user token for userId: ${userId}, access token: ${accessToken}`, error);
       }

@@ -86,7 +86,7 @@ const Chatbot = () => {
           throw new Error('Failed to upsert chat info');
         }
 
-        console.log('Chat info upserted successfully');
+        // console.log('Chat info upserted successfully');
       } catch (error) {
         console.error("Error upserting chat info:", error);
       }
