@@ -462,11 +462,11 @@ const LandingPage = () => {
                 Manage Your Finances Effortlessly
               </h2>
               <p className="hidden lg:flex text-gray-500 text-center font-bold mt-4 p-4 lg:mx-[20%]">
-                Reaching your financial goals doesn&apos;t have to be hard. Link offers intuitive tools and AI insights to give you the full picture and control over your finances. Budget, save, and stay on track—all while giving back, with 5% of all proceeds going to charity.
+                Reaching your financial goals doesn&apos;t have to be hard. Link offers intuitive tools and AI insights to give you the full picture and control over your finances. Budget, save, and stay on track to reach your goals!
               </p>
-              <p className="flex lg:hidden text-gray-500 text-center font-bold mt-4 p-4 lg:mx-[20%]">
+              {/* <p className="flex lg:hidden text-gray-500 text-center font-bold mt-4 p-4 lg:mx-[20%]">
                 Budget your finances with charts, graphs, and AI analysis. Also, Link gives 5% of all proceeds to charity!
-              </p>
+              </p> */}
               <div className="grid grid-cols-1 gap-y-5 sm:gap-y-0 sm:flex gap-x-5 w-full justify-items-center justify-center mt-10 xs:mt-20 sm:mt-10">
                 <Button onClick={() => {router.push("/#features")}} className="px-8 py-6 lg:text-md rounded-full" variant="outline">
                   Features

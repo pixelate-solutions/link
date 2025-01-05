@@ -5,7 +5,7 @@ import { clerkMiddleware } from "@hono/clerk-auth";
 const app = new Hono();
 
 app.post("/", clerkMiddleware(), async (ctx) => {
-    await plaidClient.itemRemove({ access_token: "access-production-c19ac662-cc0a-4b55-be9a-c6bf499c1f56" });
+    await plaidClient.itemRemove({ access_token: "access-production-dec42db6-ec88-4d5f-803f-b31b13a185f7" });
     return ctx.json({ message: "Deletion Successful" }, 200);
 });
 
