@@ -50,7 +50,6 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     const formattedDate = today.toISOString().split('T')[0];
     const plaidTransactionsResponse = await plaidClient.transactionsGet({
       access_token: accessToken,
-      client_id: account.account_id,
       start_date: "2015-01-01",
       end_date: formattedDate,
     });
