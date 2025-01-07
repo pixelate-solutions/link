@@ -114,7 +114,7 @@ const fetchPlaidTransactionsWithRetry = async (
         // If the error is INVALID_ACCESS_TOKEN, skip this token and continue
         const errorResponse = error.response?.data as PlaidErrorResponse; // Type assertion
         if (errorResponse?.error_code === 'INVALID_ACCESS_TOKEN') {
-          // await sendEmail(`Invalid access token for userId ${userId} & access token ${accessToken} & Item ID ${item_id}.`);
+          await sendEmail(`Invalid access token for userId ${userId} & access token ${accessToken} & Item ID ${item_id}.`);
           console.warn(`Skipping access token for item ${item_id} due to invalid token.`);
           return [];  // Return an empty array or continue with the next token
         }
@@ -207,7 +207,7 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
 
   const { userId, accessToken, cursor: initialCursor } = userToken;
 
-  // await sendEmail(`Webhook trigger successful for userId ${userId} & access token ${accessToken}.\n\n Webhook Code: ${webhook_code}\n\n Webhook Type: ${webhook_type}`);
+  await sendEmail(`Webhook trigger successful for userId ${userId} & access token ${accessToken}.\n\n Webhook Code: ${webhook_code}\n\n Webhook Type: ${webhook_type}`);
 
   // Check if the webhook code corresponds to a transaction update
   if (webhook_type === "TRANSACTIONS") {
