@@ -208,31 +208,31 @@ export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartP
     <Card className="border-none drop-shadow-sm">
       <CardHeader>
         <CardTitle className="line-clamp-1 text-xl">Budget vs Spending</CardTitle>
-        <div className="w-full text-center justify-items-center">
-          <div className='justify-items-center p-4 rounded-2xl shadow-md'>
-          <div className="flex w-20 text-center justify-center">
-            <CountUp
-              className={`font-bold text-lg ${budgetLeft >= 0 ? "text-blue-600" : "text-red-500"}`}
-              preserveValue
-              start={0}
-              end={Math.abs(budgetLeft)}
-              decimals={2}
-              formattingFn={formatCurrency}
-            />
-            <h2 className={`${budgetLeft >= 0 ? "" : "hidden"} font-bold text-lg ml-1`}>left</h2>
-            <h2 className={`${budgetLeft >= 0 ? "hidden" : ""} font-bold text-lg ml-1`}>over</h2>
-          </div>
-          <div className="flex w-full text-center justify-center">
-            <h2 className="text-[12px] text-gray-500 mr-1">out of</h2>
-            <CountUp
-              className="text-[12px] text-gray-500"
-              preserveValue
-              start={0}
-              end={cumulativeBudget}
-              decimals={2}
-              formattingFn={formatCurrency}
-            />
-            <h2 className="text-[12px] text-gray-500 ml-1">budgeted</h2>
+        <div className="w-full text-center flex justify-center">
+          <div className="p-4 rounded-2xl shadow-md text-center">
+            <div className="flex items-center justify-center text-center">
+              <CountUp
+                className={`font-bold text-lg ${budgetLeft >= 0 ? "text-blue-600" : "text-red-500"}`}
+                preserveValue
+                start={0}
+                end={Math.abs(budgetLeft)}
+                decimals={2}
+                formattingFn={formatCurrency}
+              />
+              <h2 className={`${budgetLeft >= 0 ? "" : "hidden"} font-bold text-lg ml-1`}>left</h2>
+              <h2 className={`${budgetLeft >= 0 ? "hidden" : ""} font-bold text-lg ml-1`}>over</h2>
+            </div>
+            <div className="flex items-center justify-center">
+              <h2 className="text-[12px] text-gray-500 mr-1">out of</h2>
+              <CountUp
+                className="text-[12px] text-gray-500"
+                preserveValue
+                start={0}
+                end={cumulativeBudget}
+                decimals={2}
+                formattingFn={formatCurrency}
+              />
+              <h2 className="text-[12px] text-gray-500 ml-1">budgeted</h2>
             </div>
           </div>
         </div>
