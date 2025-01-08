@@ -346,11 +346,11 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
     const accountId = accountIdMap[transaction.account_id];
     if (!accountId) return;
 
-    const categoryId = dbCategories.find(category => category.name === categorizedResults[index])?.id;
+    let categoryId = dbCategories.find(category => category.name === categorizedResults[index])?.id;
 
-    // if (!categoryId) {
-    //     return;
-    // }
+    if (!categoryId) {
+        categoryId = dbCategories.find(category => category.name === "Other (Default)")?.id;
+    }
     
     let amount;
     if (transaction.name.toLowerCase().includes("withdraw")) {
