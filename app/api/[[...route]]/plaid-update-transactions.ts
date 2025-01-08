@@ -227,7 +227,7 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
             await sendEmail("Failed to fetch transactions after multiple attempts.");
             return ctx.json({ error: "Failed to fetch transactions after multiple attempts" }, 500);
           }
-          // await sendEmail(`Transaction fetch successfull. Gathered ${plaidTransactions.length} transactions.`);
+          await sendEmail(`Transaction fetch successfull. Gathered ${plaidTransactions.length} transactions.`);
           await processTransactions(plaidTransactions, userId, item_id);
 
           // Fetch recurring transactions
@@ -257,7 +257,7 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
                 }
 
               // console.log(`Successfully removed ${removed_transactions.length} transactions.`);
-              // await sendEmail(`Successfully removed ${removed_transactions.length} transactions.`)
+              await sendEmail(`Successfully removed ${removed_transactions.length} transactions.`)
             } catch (error) {
                 console.error("Error processing removed transactions:", error);
                 return ctx.json({ error: "Failed to process removed transactions" }, 500);
@@ -426,7 +426,7 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
         .execute();
 
       if (existingTransaction.length === 0) {
-        // await sendEmail(`NEW TRANSACTION DETECTED. INSERTING NEW TRANSACTION TO DATABASE.`);
+        await sendEmail(`NEW TRANSACTION DETECTED. INSERTING NEW TRANSACTION TO DATABASE.`);
         // Insert new transaction
         await db.insert(transactions).values({
           id: createId(),
@@ -440,7 +440,7 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
           plaidTransactionId: transaction.transaction_id,
         }).execute();
       } else {
-        // await sendEmail(`SKIPPING EXISTING TRANSACTION`);
+        await sendEmail(`SKIPPING EXISTING TRANSACTION`);
       }
     }
   }));
@@ -525,7 +525,7 @@ async function processRecurringTransactions(plaidData: any, userId: string) {
   const outflowStreams = plaidData.outflow_streams || [];
   const allStreams = [...inflowStreams, ...outflowStreams];
 
-  // await sendEmail(`Recurring transaction fetch successfull. Gathered ${allStreams.length} recurring transaction streams.`);
+  await sendEmail(`Recurring transaction fetch successfull. Gathered ${allStreams.length} recurring transaction streams.`);
 
 
   // Extract the personal_finance_category for AI categorization
