@@ -219,7 +219,6 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
         }
         await sendEmail(`Transaction fetch successfull. Gathered ${plaidTransactions.length} transactions.`);
         await processTransactions(plaidTransactions, userId, item_id);
-        await sendEmail("PROCESSING SUCCESSFUL");
 
         // Fetch recurring transactions
         const plaidRecurringTransactions = await fetchRecurringTransactionsWithRetry(accessToken);
@@ -292,7 +291,6 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
 
 // Function to process and insert transactions into the database
 async function processTransactions(plaidTransactions: any[], userId: string, itemId: string) {
-  await sendEmail("PROCESSING TRANSACTIONS");
   const dbAccounts = await db
     .select({ id: accounts.id, plaidAccountId: accounts.plaidAccountId })
     .from(accounts)
@@ -408,6 +406,7 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
         }).execute();
       }
     } else {
+      await sendEmail("HANDLING NON-RECURRING");
       // Handle standard transactions
       const existingTransaction = await db
         .select()
