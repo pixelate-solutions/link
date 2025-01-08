@@ -212,7 +212,7 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
       case "SYNC_UPDATES_AVAILABLE":
       case "RECURRING_TRANSACTIONS_UPDATE":
         // Fetch non-recurring transactions
-        const plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken, null, item_id, userId);
+        const plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken, initialCursor, item_id, userId);
         if (!plaidTransactions) {
           await sendEmail("Failed to fetch transactions after multiple attempts.");
           return ctx.json({ error: "Failed to fetch transactions after multiple attempts" }, 500);
