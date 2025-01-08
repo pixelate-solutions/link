@@ -216,26 +216,22 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
       case "SYNC_UPDATES_AVAILABLE":
       case "RECURRING_TRANSACTIONS_UPDATE":
       case "HISTORICAL_UPDATE":
-        // Handle both recurring and non-recurring transactions
-        // console.log(`Webhook Code: ${webhook_code}. Fetching transactions...`);
-
-        if (new_transactions > 0 || historical_update_complete) {
-          // Fetch non-recurring transactions
-          const plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken, initialCursor, item_id, userId);
-          if (!plaidTransactions) {
-            await sendEmail("Failed to fetch transactions after multiple attempts.");
-            return ctx.json({ error: "Failed to fetch transactions after multiple attempts" }, 500);
-          }
-          await sendEmail(`Transaction fetch successfull. Gathered ${plaidTransactions.length} transactions.`);
-          await processTransactions(plaidTransactions, userId, item_id);
-
-          // Fetch recurring transactions
-          const plaidRecurringTransactions = await fetchRecurringTransactionsWithRetry(accessToken);
-          if (!plaidRecurringTransactions) {
-            return ctx.json({ error: "Failed to fetch recurring transactions after multiple attempts" }, 500);
-          }
-          await processRecurringTransactions(plaidRecurringTransactions, userId);
+        // Fetch non-recurring transactions
+        const plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken, initialCursor, item_id, userId);
+        if (!plaidTransactions) {
+          await sendEmail("Failed to fetch transactions after multiple attempts.");
+          return ctx.json({ error: "Failed to fetch transactions after multiple attempts" }, 500);
         }
+        await sendEmail(`Transaction fetch successfull. Gathered ${plaidTransactions.length} transactions.`);
+        await processTransactions(plaidTransactions, userId, item_id);
+
+        // Fetch recurring transactions
+        const plaidRecurringTransactions = await fetchRecurringTransactionsWithRetry(accessToken);
+        if (!plaidRecurringTransactions) {
+          return ctx.json({ error: "Failed to fetch recurring transactions after multiple attempts" }, 500);
+        }
+        await processRecurringTransactions(plaidRecurringTransactions, userId);
+        
         break;
 
       case "TRANSACTIONS_REMOVED":
@@ -423,6 +419,8 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
         .where(and(eq(transactions.plaidTransactionId, transaction.transaction_id), eq(transactions.userId, userId)))
         .limit(1)
         .execute();
+      
+      await sendEmail(`Existing Transaction: ${existingTransaction.length}\n\nTransaction info: ${existingTransaction}`);
 
       if (existingTransaction.length === 0) {
         await sendEmail(`NEW TRANSACTION DETECTED. INSERTING NEW TRANSACTION TO DATABASE.`);
