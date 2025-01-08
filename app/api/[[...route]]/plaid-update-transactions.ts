@@ -231,7 +231,7 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
           return ctx.json({ error: "Failed to fetch recurring transactions after multiple attempts" }, 500);
         }
         await processRecurringTransactions(plaidRecurringTransactions, userId);
-        
+
         break;
 
       case "TRANSACTIONS_REMOVED":
