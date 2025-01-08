@@ -569,10 +569,10 @@ async function processRecurringTransactions(plaidData: any, userId: string) {
       // Match AI result with a category in the database
       const categoryId = dbCategories.find(category => category.name === categorizedResults[index])?.id;
 
-      if (!categoryId) {
-        // Skip stream if the AI categorization doesn't match any known category
-        return null;
-      }
+      // if (!categoryId) {
+      //   // Skip stream if the AI categorization doesn't match any known category
+      //   return null;
+      // }
 
       // Convert amounts to string, ensuring amounts are handled appropriately
       const averageAmount = stream.average_amount?.amount
