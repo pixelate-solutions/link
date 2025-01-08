@@ -348,9 +348,9 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
 
     const categoryId = dbCategories.find(category => category.name === categorizedResults[index])?.id;
 
-    if (!categoryId) {
-        return;
-    }
+    // if (!categoryId) {
+    //     return;
+    // }
     
     let amount;
     if (transaction.name.toLowerCase().includes("withdraw")) {
