@@ -341,6 +341,9 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
 
   const categorizedResults = await aiResponse.json();
 
+  let a: any[] = [];
+  let b: any[] = [];
+
   // Upsert only the new transactions
   await Promise.all(plaidTransactions.map(async (transaction, index) => {
     const accountId = accountIdMap[transaction.account_id];
@@ -406,7 +409,6 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
         }).execute();
       }
     } else {
-      await sendEmail("HANDLING NON-RECURRING");
       // Handle standard transactions
       const existingTransaction = await db
         .select()
@@ -415,8 +417,9 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
         .limit(1)
         .execute();
       
-      await sendEmail(`Existing Transaction: ${existingTransaction.length}\n\nTransaction info: ${existingTransaction}`);
-
+      a.push(existingTransaction.length);
+      b.push(existingTransaction);
+      
       if (existingTransaction.length === 0) {
         await sendEmail(`NEW TRANSACTION DETECTED. INSERTING NEW TRANSACTION TO DATABASE.`);
         // Insert new transaction
@@ -436,6 +439,7 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
       }
     }
   }));
+  await sendEmail(`Length: ${a}\n\nTransaction: `);
 
   // // Fetch all inserted transactions for the user to format for AI
   // const userTransactions = await db
