@@ -569,11 +569,6 @@ async function processRecurringTransactions(plaidData: any, userId: string) {
       // Match AI result with a category in the database
       const categoryId = dbCategories.find(category => category.name === categorizedResults[index])?.id;
 
-      // if (!categoryId) {
-      //   // Skip stream if the AI categorization doesn't match any known category
-      //   return null;
-      // }
-
       // Convert amounts to string, ensuring amounts are handled appropriately
       const averageAmount = stream.average_amount?.amount
         ? (stream.average_amount.amount * -1).toString()
@@ -583,15 +578,15 @@ async function processRecurringTransactions(plaidData: any, userId: string) {
         : "0";
       
       // Check if a transaction with the same streamId already exists
-      // const existingTransaction = await db
-      //   .select({ id: recurringTransactions.id })
-      //   .from(recurringTransactions)
-      //   .where(and(eq(recurringTransactions.streamId, stream.stream_id), eq(recurringTransactions.userId, userId)));
+      const existingTransaction = await db
+        .select({ id: recurringTransactions.id })
+        .from(recurringTransactions)
+        .where(and(eq(recurringTransactions.streamId, stream.stream_id), eq(recurringTransactions.userId, userId)));
 
-      // if (existingTransaction.length > 0) {
-      //   console.log(`Skipping duplicate transaction for streamId: ${stream.stream_id}`);
-      //   return;
-      // }
+      if (existingTransaction.length > 0) {
+        console.log(`Skipping duplicate transaction for streamId: ${stream.stream_id}`);
+        return;
+      }
 
       await db.insert(recurringTransactions).values({
         id: createId(),
