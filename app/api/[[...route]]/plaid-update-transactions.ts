@@ -170,7 +170,6 @@ async function updateTransactions(transactionsList: any[], userId: string, item_
   // console.log(`Updated ${transactionsList.length} transactions for userId ${userId}.`);
 }
 
-
 // Type guard to check if the error is an AxiosError
 const isAxiosError = (error: unknown): error is AxiosError => {
   return (error as AxiosError).isAxiosError !== undefined;
@@ -445,58 +444,58 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
     }
   }));
 
-  // Fetch all inserted transactions for the user to format for AI
-  const userTransactions = await db
-    .select({
-      id: transactions.id,
-      amount: transactions.amount,
-      payee: transactions.payee,
-      date: transactions.date,
-      accountId: transactions.accountId,
-      categoryId: transactions.categoryId,
-    })
-    .from(transactions)
-    .where(eq(transactions.userId, userId));
+  // // Fetch all inserted transactions for the user to format for AI
+  // const userTransactions = await db
+  //   .select({
+  //     id: transactions.id,
+  //     amount: transactions.amount,
+  //     payee: transactions.payee,
+  //     date: transactions.date,
+  //     accountId: transactions.accountId,
+  //     categoryId: transactions.categoryId,
+  //   })
+  //   .from(transactions)
+  //   .where(eq(transactions.userId, userId));
 
-  // Format transactions for upserting to AI
-  const formattedTransactions = userTransactions
-    .map((transaction) => {
-      const amount = transaction.amount ?? "0"; // Default to "0" if undefined
-      const payee = transaction.payee ?? "Unknown Payee"; // Default to "Unknown Payee" if undefined
-      const date = new Date(transaction.date);
-      const formattedDate = date.toLocaleDateString();
+  // // Format transactions for upserting to AI
+  // const formattedTransactions = userTransactions
+  //   .map((transaction) => {
+  //     const amount = transaction.amount ?? "0"; // Default to "0" if undefined
+  //     const payee = transaction.payee ?? "Unknown Payee"; // Default to "Unknown Payee" if undefined
+  //     const date = new Date(transaction.date);
+  //     const formattedDate = date.toLocaleDateString();
 
-      return `
-        A transaction was made in the amount of $${amount} by the user to the person or group named ${payee} on ${formattedDate}. 
-        No additional notes were provided for this transaction.
-      `;
-    }).join("\n").trim(); // Remove any leading or trailing whitespace
+  //     return `
+  //       A transaction was made in the amount of $${amount} by the user to the person or group named ${payee} on ${formattedDate}. 
+  //       No additional notes were provided for this transaction.
+  //     `;
+  //   }).join("\n").trim(); // Remove any leading or trailing whitespace
 
-  // Upsert transactions to AI endpoint
-  try {
-    if (formattedTransactions) { // Ensure there are formatted transactions
-      const aiResponse = await fetch(
-        `${AI_URL}/resource/upsert_text?user_id=${userId}&name=Transactions from ${accountIdMap[plaidTransactions[0].account_id] || "Unknown Payee"} for ${userId}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'text/plain',
-          },
-          body: formattedTransactions,
-        }
-      );
+  // // Upsert transactions to AI endpoint
+  // try {
+  //   if (formattedTransactions) { // Ensure there are formatted transactions
+  //     const aiResponse = await fetch(
+  //       `${AI_URL}/resource/upsert_text?user_id=${userId}&name=Transactions from ${accountIdMap[plaidTransactions[0].account_id] || "Unknown Payee"} for ${userId}`,
+  //       {
+  //         method: 'POST',
+  //         headers: {
+  //           'Content-Type': 'text/plain',
+  //         },
+  //         body: formattedTransactions,
+  //       }
+  //     );
 
-      if (!aiResponse.ok) {
-        const errorText = await aiResponse.text();
-        throw new Error(`Upsert failed: ${errorText}`);
-      }
+  //     if (!aiResponse.ok) {
+  //       const errorText = await aiResponse.text();
+  //       throw new Error(`Upsert failed: ${errorText}`);
+  //     }
 
-      const responseData = await aiResponse.json();
-    }
-  } catch (error) {
-    console.error('Error upserting transactions:', error);
-    return new Response(JSON.stringify({ error: 'Failed to upsert transactions' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
-  }
+  //     const responseData = await aiResponse.json();
+  //   }
+  // } catch (error) {
+  //   console.error('Error upserting transactions:', error);
+  //   return new Response(JSON.stringify({ error: 'Failed to upsert transactions' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  // }
 }
 
 async function processRecurringTransactions(plaidData: any, userId: string) {
