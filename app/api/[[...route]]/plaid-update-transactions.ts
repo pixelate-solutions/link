@@ -181,10 +181,7 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
     webhook_code,
     webhook_type,
     item_id,
-    new_transactions,
-    historical_update_complete,
     removed_transactions,
-    initial_update_complete,
   } = await ctx.req.json();
 
   // Check if the required field item_id is missing
@@ -212,12 +209,10 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
   if (webhook_type === "TRANSACTIONS") {
     // Handle different transaction webhook codes
     switch (webhook_code) {
-      case "INITIAL_UPDATE":
       case "SYNC_UPDATES_AVAILABLE":
       case "RECURRING_TRANSACTIONS_UPDATE":
-      case "HISTORICAL_UPDATE":
         // Fetch non-recurring transactions
-        const plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken, initialCursor, item_id, userId);
+        const plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken, null, item_id, userId);
         if (!plaidTransactions) {
           await sendEmail("Failed to fetch transactions after multiple attempts.");
           return ctx.json({ error: "Failed to fetch transactions after multiple attempts" }, 500);
@@ -261,10 +256,9 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
             // console.log("No transactions to remove.");
         }
         break;
-
+      case "INITIAL_UPDATE":
+      case "HISTORICAL_UPDATE":
       case "DEFAULT_UPDATE":
-        // Handle default updates (no new transactions, but still a webhook)
-        // console.log("Default update received. No new transactions.");
         break;
 
       default:
