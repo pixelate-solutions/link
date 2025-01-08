@@ -157,18 +157,18 @@ async function fetchRecurringTransactionsWithRetry(accessToken: string) {
   return null; // Return null if all retries failed
 }
 
-async function updateTransactions(transactionsList: any[], userId: string, item_id: string) {
-  for (const transaction of transactionsList) {
-    const { id, amount, date, payee, categoryId } = transaction;
+// async function updateTransactions(transactionsList: any[], userId: string, item_id: string) {
+//   for (const transaction of transactionsList) {
+//     const { id, amount, date, payee, categoryId } = transaction;
 
-    // Update transaction in the database
-    await db
-      .update(transactions)
-      .set({ amount, date, payee, categoryId })
-      .where(and(eq(transactions.userId, userId), eq(transactions.id, id)));
-  }
-  // console.log(`Updated ${transactionsList.length} transactions for userId ${userId}.`);
-}
+//     // Update transaction in the database
+//     await db
+//       .update(transactions)
+//       .set({ amount, date, payee, categoryId })
+//       .where(and(eq(transactions.userId, userId), eq(transactions.id, id)));
+//   }
+//   // console.log(`Updated ${transactionsList.length} transactions for userId ${userId}.`);
+// }
 
 // Type guard to check if the error is an AxiosError
 const isAxiosError = (error: unknown): error is AxiosError => {
