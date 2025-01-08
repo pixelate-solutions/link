@@ -558,22 +558,21 @@ async function processRecurringTransactions(plaidData: any, userId: string) {
   const categorizedResults = stringToList(aiData);
 
   // Insert recurring transactions into the database with categorized results
-  await sendEmail("PROMISING RECURRING");
   await Promise.all(
     allStreams.map(async (stream, index) => {
       const accountId = accountIdMap[stream.account_id];
-      // if (!accountId) {
-      //   // Skip stream if account is not in the database
-      //   return null;
-      // }
+      if (!accountId) {
+        // Skip stream if account is not in the database
+        return null;
+      }
 
       // Match AI result with a category in the database
       const categoryId = dbCategories.find(category => category.name === categorizedResults[index])?.id;
 
-      // if (!categoryId) {
-      //   // Skip stream if the AI categorization doesn't match any known category
-      //   return null;
-      // }
+      if (!categoryId) {
+        // Skip stream if the AI categorization doesn't match any known category
+        return null;
+      }
 
       // Convert amounts to string, ensuring amounts are handled appropriately
       const averageAmount = stream.average_amount?.amount
