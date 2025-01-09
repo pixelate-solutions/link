@@ -324,6 +324,7 @@ export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartP
                 fill="url(#colorSpending)"
                 name="Spending"
                 fillOpacity={0.3} // Gradient fill for spending line
+                activeDot={false}
               />
               
               {/* Budget Line */}
@@ -334,6 +335,7 @@ export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartP
                 fill="url(#colorBudget)"
                 name="Budget"
                 fillOpacity={0.3} // Gradient fill for budget line
+                activeDot={false}
               />
               
               {/* Gradient for Spending */}
