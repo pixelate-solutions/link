@@ -77,7 +77,6 @@ Link/
     |-- query-provider.tsx
     |-- sheet-provider.tsx
   |- public/
-    |-- data.csv
     |-- github.svg
     |-- logo.svg
   |- scripts/
