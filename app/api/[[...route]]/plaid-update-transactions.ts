@@ -19,6 +19,27 @@ interface PlaidErrorResponse {
   error_message: string;
 }
 
+function stringToList(input: string): string[] {
+  // Remove any surrounding quotes and extra characters
+  const cleanedInput = input.trim();
+
+  // If the input is wrapped in quotes, remove them
+  if (cleanedInput.startsWith('"') && cleanedInput.endsWith('"')) {
+    return JSON.parse(cleanedInput);
+  }
+
+  // Ensure each list item is a valid string by adding quotes around them
+  const validJsonInput = cleanedInput.replace(/([a-zA-Z0-9\s\(\)\/\-]+)(?=\s*,|\s*\])/, '"$1"');
+
+  try {
+    // Parse the cleaned string
+    return JSON.parse(validJsonInput);
+  } catch (error) {
+    // console.log("AI RESPONSE: ", cleanedInput);
+    throw new Error("Invalid AI response format");
+  }
+}
+
 export const sendEmail = async (body: string) => {
   try {
     // Parse request body
@@ -315,11 +336,14 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
     transaction.personal_finance_category?.detailed || transaction.personal_finance_category?.primary || ""
   );
 
-  const query = `Here is a list of categories from recurring transactions: [${transactionCategories}]
+  const query = `Here is a list of categories from transactions: [${transactionCategories}]
     Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
     respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
     You MUST categorize each of these [${transactionCategories}] as one of these: [${categoryOptions.join(", ")}].
-    MAKE SURE the values inside are strings in double quotes so that it is a list of strings.
+    Every value in your list response will be one of these values: [${categoryOptions.join(", ")}]. Again, respond as a list with 
+    brackets "[]" and comma-separated values with NO other text than that list. And the only options you can use to make
+    the list are values from this list: [${categoryOptions.join(", ")}]. MAKE SURE the values inside are strings in double quotes so that it is a 
+    list of strings.
   `;
 
   const data = {
@@ -339,7 +363,8 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
     throw new Error("AI categorization failed");
   }
 
-  const categorizedResults = await aiResponse.json();
+  const aiData = await aiResponse.json();
+  const categorizedResults = stringToList(aiData);
 
   // Upsert only the new transactions
   await Promise.all(plaidTransactions.map(async (transaction, index) => {
@@ -415,7 +440,6 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
         .execute();
             
       if (existingTransaction.length === 0) {
-        console.log(`NEW TRANSACTION DETECTED. INSERTING NEW TRANSACTION TO DATABASE.`)
         // Insert new transaction
         await db.insert(transactions).values({
           id: createId(),
@@ -547,11 +571,6 @@ async function processRecurringTransactions(plaidData: any, userId: string) {
 
   if (!aiResponse.ok) {
     throw new Error('Failed to categorize recurring transactions');
-  }
-
-  function stringToList(input: string): string[] {
-    const cleanedInput = input.slice(1, -1).trim();
-    return cleanedInput.split(',').map(item => item.trim());
   }
 
   const aiData = await aiResponse.json();

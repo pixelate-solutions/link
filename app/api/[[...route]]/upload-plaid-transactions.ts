@@ -243,11 +243,10 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       }
 
       // Match AI result with a category in the database
-      const categoryId = dbCategories.find(category => category.name === categorizedResults[index])?.id;
+      let categoryId = dbCategories.find(category => category.name === categorizedResults[index])?.id;
 
       if (!categoryId) {
-        // Skip transaction if the AI categorization doesn't match any known category
-        return;
+        categoryId = dbCategories.find(category => category.name === "Other (Default)")?.id;
       }
 
       let amount;
@@ -421,17 +420,10 @@ app.post('/recategorize', clerkMiddleware(), async (ctx) => {
   const updatedTransactions = await Promise.all(
     userTransactions.map(async (transaction, index) => {
       const categoryName = categorizedResults[index] || "Other (Default)";
-      const categoryId = dbCategories.find(category => category.name === categoryName)?.id;
+      let categoryId = dbCategories.find(category => category.name === categoryName)?.id;
 
       if (!categoryId) {
-        // Assign "Other" category if no matching category found
-        const otherCategoryId = dbCategories.find(category => category.name === "Other (Default)")?.id || null;
-        if (!otherCategoryId) return null; // Skip if "Other" category doesn't exist
-        return db
-          .update(transactions)
-          .set({ categoryId: otherCategoryId })
-          .where(eq(transactions.id, transaction.id))
-          .returning();
+        categoryId = dbCategories.find(category => category.name === "Other (Default)")?.id;
       }
 
       // Update with found category ID
