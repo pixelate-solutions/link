@@ -51,6 +51,7 @@ type DataCardProps = BoxVariants &
     value?: number;
     dateRange: string;
     percentageChange?: number;
+    available?: string;
 };
 
 export const DataCard = ({
@@ -89,7 +90,7 @@ export const DataCard = ({
           />
         </h1>
 
-        <p
+        {percentageChange !== 0 && <p
           className={cn(
             "line-clamp-1 text-sm text-muted-foreground",
             percentageChange > 0 && "text-emerald-500",
@@ -99,7 +100,7 @@ export const DataCard = ({
         >
           {formatPercentage(percentageChange, { addPrefix: true })} from last
           period.
-        </p>
+        </p>}
       </CardContent>
     </Card>
   );
@@ -152,6 +153,50 @@ export const ExpensesDataCard = ({
           {formatPercentage(percentageChange, { addPrefix: true })} from last
           period.
         </p>
+      </CardContent>
+    </Card>
+  );
+};
+
+export const AccountsDataCard = ({
+  title,
+  value = 0,
+  available = "0",
+  icon: Icon,
+  variant,
+  dateRange,
+}: DataCardProps) => {
+  return (
+    <Card className="border-none drop-shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between gap-x-4">
+        <div className="space-y-2">
+          <CardTitle className="line-clamp-1 text-2xl">{title}</CardTitle>
+
+          <CardDescription className="line-clamp-1">
+            {dateRange}
+          </CardDescription>
+        </div>
+
+        <div className={cn(boxVariant({ variant }))}>
+          <Icon className={cn(iconVariant({ variant }))} />
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        <h1 className={`mb-2 line-clamp-1 break-all text-2xl font-bold ${value < 0 ? "text-red-600" : ""}`}>
+          <CountUp
+            preserveValue
+            start={0}
+            end={value}
+            decimals={2}
+            decimalPlaces={2}
+            formattingFn={formatCurrency}
+          />
+        </h1>
+
+        {Number(available) > 0 && <p className="line-clamp-1 text-sm text-muted-foreground">
+          {formatCurrency(Number(available))} available
+        </p>}
       </CardContent>
     </Card>
   );

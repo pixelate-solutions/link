@@ -31,6 +31,7 @@ import { insertAccountSchema } from "@/db/schema";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AccountsGrid } from "@/components/accounts-grid";
 
 const montserratP = Montserrat({
   weight: "500",
@@ -245,6 +246,7 @@ const AccountsPage = () => {
   if (manualAccountsQuery.isLoading || plaidAccountsQuery.isLoading || totalsQuery.isLoading) {
     return (
       <div className={cn("mx-auto -mt-6 w-full max-w-screen-2xl pb-10", montserratP.className)}>
+        <AccountsGrid />
         <Card className="border-none drop-shadow-sm">
           <CardHeader>
             <Skeleton className="h-8 w-48" />
@@ -273,6 +275,7 @@ const AccountsPage = () => {
 
   return (
     <div className={cn(`mx-auto -mt-6 w-full max-w-screen-2xl pb-10 ${plaidIsOpen ? "plaid-open" : ""}`, montserratP.className)}>
+      <AccountsGrid />
       {plaidIsOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
           <div className="bg-white p-8 rounded-lg shadow-lg w-80 text-center">

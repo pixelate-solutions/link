@@ -193,9 +193,33 @@ const app = new Hono().get(
       };
     });
 
+    const { liabilities, assets, availableAssets } = await db
+      .select({
+        liabilities: sql`
+          SUM(CAST(CASE WHEN ${accounts.currentBalance} < '0' THEN ${accounts.currentBalance} ELSE '0' END AS numeric))
+        `.mapWith(Number),
+        assets: sql`
+          SUM(CAST(CASE WHEN ${accounts.currentBalance} >= '0' THEN ${accounts.currentBalance} ELSE '0' END AS numeric))
+        `.mapWith(Number),
+        availableAssets: sql`
+          SUM(CAST(CASE WHEN ${accounts.currentBalance} >= '0' THEN ${accounts.availableBalance} ELSE '0' END AS numeric))
+        `.mapWith(Number),
+      })
+      .from(accounts)
+      .where(eq(accounts.userId, auth.userId))
+      .then(([result]) => ({
+        liabilities: (result.liabilities || 0).toString(),
+        assets: (result.assets || 0).toString(),
+        availableAssets: (result.availableAssets || 0).toString(),
+      }));
+
+
     return ctx.json({
       data: {
         monthlyBudget: totalMonthlyBudget,
+        liabilities: liabilities,
+        assets: assets,
+        availableAssets: availableAssets,
         remainingAmount: currentPeriod.remaining,
         remainingChange,
         incomeAmount: currentPeriod.income,

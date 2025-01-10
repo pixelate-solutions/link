@@ -435,6 +435,13 @@
       "when": 1733943448245,
       "tag": "0061_minor_ultimatum",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "6",
+      "when": 1736472861332,
+      "tag": "0062_lethal_khan",
+      "breakpoints": true
     }
   ]
 }
