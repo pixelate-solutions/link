@@ -68,7 +68,13 @@ const app = new Hono()
       .select({
         id: accounts.id,
         name: accounts.name,
-        isFromPlaid: accounts.isFromPlaid,  // Select this for debugging
+        userId: accounts.userId,
+        isFromPlaid: accounts.isFromPlaid,
+        category: accounts.category,
+        plaidAccountId: accounts.plaidAccountId,
+        plaidAccessToken: accounts.plaidAccessToken,
+        currentBalance: accounts.currentBalance,
+        availableBalance: accounts.availableBalance,
       })
       .from(accounts)
       .where(
@@ -103,6 +109,8 @@ const app = new Hono()
           id: accounts.id,
           name: accounts.name,
           category: accounts.category,
+          currentBalance: accounts.currentBalance,
+          availableBalance: accounts.availableBalance,
         })
         .from(accounts)
         .where(and(eq(accounts.userId, auth.userId), eq(accounts.id, id)));
@@ -122,7 +130,9 @@ const app = new Hono()
       insertAccountSchema.pick({
         name: true,
         category: true,
-        isFromPlaid: true,  // Ensure that isFromPlaid is included
+        currentBalance: true,
+        availableBalance: true,
+        isFromPlaid: true,
       })
     ),
     async (ctx) => {
@@ -267,6 +277,8 @@ const app = new Hono()
       insertAccountSchema.pick({
         name: true,
         category: true,
+        currentBalance: true,
+        availableBalance: true,
         isFromPlaid: true,  // Ensure isFromPlaid can be updated if needed
       })
     ),

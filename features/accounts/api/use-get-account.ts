@@ -5,6 +5,8 @@ type Account = {
   id: string;
   name: string;
   category: string;
+  currentBalance: string;
+  availableBalance: string;
 };
 
 export const useGetAccount = (id?: string) => {

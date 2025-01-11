@@ -14,6 +14,7 @@ type AmountInputProps = {
   onChange: (value: string | undefined) => void;
   placeholder?: string;
   disabled?: boolean;
+  isAccount?: boolean;
 };
 
 export const AmountInput = ({
@@ -21,6 +22,7 @@ export const AmountInput = ({
   onChange,
   placeholder,
   disabled,
+  isAccount = false,
 }: AmountInputProps) => {
   const parsedValue = parseFloat(value);
   const isIncome = parsedValue > 0;
@@ -70,10 +72,14 @@ export const AmountInput = ({
         disabled={disabled}
       />
 
-      <p className="mt-2 text-xs text-muted-foreground">
+      {!isAccount && <p className="mt-2 text-xs text-muted-foreground">
         {isIncome && "This will count as an income."}
         {isExpense && "This will count as an expense."}
-      </p>
+      </p>}
+      {isAccount && <p className="mt-2 text-xs text-muted-foreground">
+        {isIncome && "This will count as an asset."}
+        {isExpense && "This will count as a liability."}
+      </p>}
     </div>
   );
 };

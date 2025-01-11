@@ -53,17 +53,58 @@ export const columns: ColumnDef<ResponseType>[] = [
     },
   },
   {
-    accessorKey: "balance",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+    accessorKey: "currentBalance",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Balance
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => {
+      const balance = parseFloat(row.getValue("currentBalance") as string) || 0;
+      return <Badge
+          variant={balance < 0 ? "destructive" : balance === 0 ? "outline" : "primary"}
+          className="px-2.5 py-2.5 text-xs font-medium"
         >
-          Balance
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
+          {formatCurrency(balance)}
+        </Badge>;
+    },
+    sortingFn: (rowA, rowB, columnId) => {
+      const balanceA = parseFloat(rowA.getValue(columnId) as string) || 0;
+      const balanceB = parseFloat(rowB.getValue(columnId) as string) || 0;
+      return balanceA - balanceB;
+    },
+  },
+  {
+    accessorKey: "availableBalance",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Available Balance
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => {
+      const availableBalance =
+        parseFloat(row.getValue("availableBalance") as string) || 0;
+      return <Badge
+        variant={availableBalance < 0 ? "destructive" : availableBalance === 0 ? "outline" : "primary"}
+        className="px-2.5 py-2.5 text-xs font-medium"
+      >
+        {formatCurrency(availableBalance)}
+      </Badge>;
+    },
+    sortingFn: (rowA, rowB, columnId) => {
+      const availableBalanceA =
+        parseFloat(rowA.getValue(columnId) as string) || 0;
+      const availableBalanceB =
+        parseFloat(rowB.getValue(columnId) as string) || 0;
+      return availableBalanceA - availableBalanceB;
     },
   },
   {

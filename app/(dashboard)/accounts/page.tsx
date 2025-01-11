@@ -27,7 +27,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { insertAccountSchema } from "@/db/schema";
+import { insertAccountSchema, transactionUpdates } from "@/db/schema";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -69,13 +69,15 @@ const AccountsPage = () => {
   const formSchema = insertAccountSchema.pick({
     name: true,
     category: true,
+    currentBalance: true,
+    availableBalance: true,
   });
 
   type FormValues = z.infer<typeof formSchema>;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {name: "", category: ""},
+    defaultValues: {name: "", category: "", currentBalance: ""},
   });
   
   useEffect(() => {
@@ -216,6 +218,8 @@ const AccountsPage = () => {
     isFromPlaid: boolean;
     plaidAccountId: string;
     plaidAccessToken: string;
+    currentBalance: string;
+    availableBalance: string;
     [key: string]: any; // Add additional dynamic fields if needed
   };
 
@@ -230,16 +234,32 @@ const AccountsPage = () => {
     }, {} as Record<string, Account[]>);
   };
 
-  const manualAccountsWithTotals = manualAccounts.map((account) => ({
-    ...account,
-    ...(totalsQuery.data?.find((total) => total.id === account.id) || {}),
-  }));
+  const manualAccountsWithTotals = manualAccounts.map((account) => {
+    return {
+      ...account,
+      ...(totalsQuery.data?.find((total) => total.id === account.id) || {}),
+      userId: account.userId || "",
+      category: account.category || "Others",
+      plaidAccountId: account.plaidAccountId || "",
+      plaidAccessToken: account.plaidAccessToken || "",
+      currentBalance: account.currentBalance || "0",
+      availableBalance: account.availableBalance || "0",
+    };
+  });
 
-  const plaidAccountsWithTotals = plaidAccounts.map((account) => ({
-    ...account,
-    ...(totalsQuery.data?.find((total) => total.id === account.id) || {}),
-  }));
-
+  const plaidAccountsWithTotals = plaidAccounts.map((account) => {
+    return {
+      ...account,
+      ...(totalsQuery.data?.find((total) => total.id === account.id) || {}),
+      userId: account.userId || "",
+      category: account.category || "Others",
+      plaidAccountId: account.plaidAccountId || "",
+      plaidAccessToken: account.plaidAccessToken || "",
+      currentBalance: account.currentBalance || "0",
+      availableBalance: account.availableBalance || "0",
+    };
+  });
+    
   const groupedManualAccounts = groupByCategory(manualAccountsWithTotals);
   const groupedPlaidAccounts = groupByCategory(plaidAccountsWithTotals);
 

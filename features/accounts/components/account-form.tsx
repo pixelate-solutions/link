@@ -15,10 +15,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { insertAccountSchema } from "@/db/schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AmountInput } from "@/components/amount-input";
 
 const formSchema = insertAccountSchema.pick({
   name: true,
   category: true,
+  currentBalance: true,
+  availableBalance: true,
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -100,6 +103,46 @@ export const AccountForm = ({
                     ))}
                   </SelectContent>
                 </Select>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          name="currentBalance"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Balance</FormLabel>
+              <FormControl>
+                <AmountInput
+                  {...field}
+                  value={field.value || ""}
+                  disabled={disabled}
+                  placeholder="Enter account balance"
+                  isAccount={true}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          name="availableBalance"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Available Balance</FormLabel>
+              <FormControl>
+                <AmountInput
+                  {...field}
+                  value={field.value || ""}
+                  disabled={disabled}
+                  placeholder="Enter available balance"
+                  isAccount={true}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

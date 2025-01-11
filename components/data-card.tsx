@@ -183,7 +183,7 @@ export const AccountsDataCard = ({
       </CardHeader>
 
       <CardContent>
-        <h1 className={`mb-2 line-clamp-1 break-all text-2xl font-bold ${value < 0 ? "text-red-600" : ""}`}>
+        <h1 className={`mb-2 line-clamp-1 break-all text-2xl font-bold ${value < 0 ? "text-red-600" : "text-green-600"}`}>
           <CountUp
             preserveValue
             start={0}
@@ -195,7 +195,14 @@ export const AccountsDataCard = ({
         </h1>
 
         {Number(available) > 0 && <p className="line-clamp-1 text-sm text-muted-foreground">
-          {formatCurrency(Number(available))} available
+          {<CountUp
+            preserveValue
+            start={0}
+            end={Number(available)}
+            decimals={2}
+            decimalPlaces={2}
+            formattingFn={formatCurrency}
+          />} available
         </p>}
       </CardContent>
     </Card>

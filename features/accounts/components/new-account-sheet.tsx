@@ -15,6 +15,8 @@ import { AccountForm } from "./account-form";
 
 const formSchema = insertAccountSchema.pick({
   name: true,
+  category: true,
+  currentBalance: true,
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -60,6 +62,8 @@ export const NewAccountSheet = () => {
           defaultValues={{
             name: "",
             category: "",
+            currentBalance: "",
+            availableBalance: "",
           }}
           onSubmit={onSubmit}
           disabled={mutation.isPending}

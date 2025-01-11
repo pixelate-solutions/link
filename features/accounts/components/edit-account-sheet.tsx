@@ -52,10 +52,14 @@ export const EditAccountSheet = () => {
     ? {
         name: accountQuery.data.name,
         category: accountQuery.data.category,
+        currentBalance: accountQuery.data.currentBalance,
+        availableBalance: accountQuery.data.availableBalance,
       }
     : {
         name: "",
         category: "",
+        currentBalance: "",
+        availableBalance: "",
       };
 
   const onDelete = async () => {
