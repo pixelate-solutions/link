@@ -27,7 +27,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { insertAccountSchema, transactionUpdates } from "@/db/schema";
+import { insertAccountSchema } from "@/db/schema";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
