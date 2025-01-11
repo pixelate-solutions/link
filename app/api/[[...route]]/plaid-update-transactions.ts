@@ -97,7 +97,35 @@ const fetchPlaidTransactionsWithRetry = async (
           cursor: cursor ?? undefined,
         });
 
-        const { added, modified, removed, next_cursor, has_more } = response.data;
+        const { added, modified, removed, next_cursor, has_more, accounts: plaidAccounts } = response.data;
+
+        for (const account of plaidAccounts) {
+          const { account_id, balances, type, subtype } = account;
+          let { current, available } = balances;
+
+          // Update the balance in your database if the account_id matches plaidAccountId
+          if (type === 'credit' || (type === 'loan' && subtype !== 'student')) {
+            // Credit and non-student loan accounts: Positive balance indicates debt
+            current = -Math.abs(current || 0);
+            available = available !== null ? Math.abs(available) : null; // Available balance stays positive or null
+          } else if (type === 'loan' && subtype === 'student' && account.official_name?.includes('Sallie Mae')) {
+            // Student loan account for Sallie Mae: current includes principal + interest
+            current = -Math.abs(current || 0);
+          } else {
+            // Asset accounts (e.g., depository, investment): Balance remains positive
+            current = Math.abs(current || 0);
+            available = available !== null ? Math.abs(available) : null;
+          }
+
+          // Update the balances in the database
+          await db.update(accounts)
+            .set({
+              currentBalance: current.toString() || "0",
+              availableBalance: available?.toString() || "0",
+            })
+            .where(eq(accounts.plaidAccountId, account_id))
+            .execute();
+        }
 
         const newTransactions = added
           .concat(modified)
