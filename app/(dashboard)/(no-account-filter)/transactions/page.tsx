@@ -12,7 +12,7 @@ import { useSelectAccount } from "@/features/accounts/hooks/use-select-account";
 import { useBulkCreateTransactions } from "@/features/transactions/api/use-bulk-create-transactions";
 import { useBulkDeleteTransactions } from "@/features/transactions/api/use-bulk-delete-transactions";
 import { useGetTransactions } from "@/features/transactions/api/use-get-transactions";
-import { RecurringTransaction } from "@/app/(dashboard)/transactions/recurring-columns";
+import { RecurringTransaction } from "@/app/(dashboard)/(no-account-filter)/transactions/recurring-columns";
 import { useQuery } from "@tanstack/react-query";
 import { UploadButton } from "./upload-button";
 import { ImportCard } from "./import-card";
