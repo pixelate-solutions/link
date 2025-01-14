@@ -118,11 +118,11 @@ const CategoriesPage = () => {
     isFullMonth =
       isSameDayOfMonth ||
       (isSameMonth(
-        subDays(new Date(firstDay.date), 1),
-        subDays(new Date(lastDay.date), 1)
+        new Date(firstDay.date),
+        new Date(lastDay.date)
       ) &&
-        isFirstDayOfMonth(subDays(new Date(firstDay.date), 1)) &&
-        isLastDayOfMonth(subDays(new Date(lastDay.date), 1)));
+        isFirstDayOfMonth(new Date(firstDay.date)) &&
+        isLastDayOfMonth(new Date(lastDay.date)));
   }
 
   const cumulativeBudget = isFullMonth
@@ -146,7 +146,7 @@ const CategoriesPage = () => {
   const categories = categoriesQuery.data || [];
 
   const subtractDayFromDate = (dateString: string): string => {
-    let date = subDays(parseISO(dateString), 1);
+    let date = parseISO(dateString);
     let newDate = new Date(date);
 
     // Format the adjusted date back to YYYY-MM-DD
@@ -200,8 +200,8 @@ const CategoriesPage = () => {
       from = newFrom;
       to = newTo;
     }
-    const fromDate = subDays(parseISO(from), 0);
-    const toDate = subDays(parseISO(to), 0); // Subtract one day from toDate
+    const fromDate = parseISO(from);
+    const toDate = parseISO(to);
 
     dateRange = formatDateRange({ to: toDate, from: fromDate });
 

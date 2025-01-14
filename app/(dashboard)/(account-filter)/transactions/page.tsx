@@ -333,6 +333,7 @@ const TransactionsPage = () => {
                 columns={columns}
                 data={transactions.map((transaction) => ({
                   ...transaction,
+                  date: new Date(transaction.date).toISOString().split('T')[0],
                   amount: transaction.amount.toString(),
                 }))}
                 onDelete={(row) => {
@@ -385,6 +386,7 @@ const TransactionsPage = () => {
                 columns={recurringColumns(windowWidth)}
                 data={recurringTransactions.map((transaction: RecurringTransaction) => ({
                   ...transaction,
+                  date: new Date(transaction.date).toISOString().split('T')[0],
                   amount: transaction.lastAmount.toString(),
                   category: transaction.categoryName, // Include category name in the displayed data
                 }))}

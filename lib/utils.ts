@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { eachDayOfInterval, format, isSameDay, subDays } from "date-fns";
+import { eachDayOfInterval, format, isSameDay, parse, subDays } from "date-fns";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -71,21 +71,24 @@ export function formatDateRange(period?: Period) {
   const defaultTo = new Date();
   const defaultFrom = subDays(defaultTo, 30);
 
+  const parseDate = (date: string | Date | undefined): Date => {
+    if (typeof date === "string") {
+      return parse(date, "yyyy-MM-dd", new Date());
+    } else if (date instanceof Date) {
+      return date;
+    }
+    throw new Error("Invalid date format");
+  };
+
   if (!period?.from) {
-    return `${format(defaultFrom, "LLL dd")} - ${format(
-      defaultTo,
-      "LLL dd, y"
-    )}`;
+    return `${format(defaultFrom, "LLL dd")} - ${format(defaultTo, "LLL dd, y")}`;
   }
 
   if (period?.to) {
-    return `${format(period.from, "LLL dd")} - ${format(
-      period.to,
-      "LLL dd, y"
-    )}`;
+    return `${format(parseDate(period.from), "LLL dd")} - ${format(parseDate(period.to), "LLL dd, y")}`;
   }
 
-  return format(period.from, "LLL dd, y");
+  return format(parseDate(period.from), "LLL dd, y");
 }
 
 export function formatPercentage(

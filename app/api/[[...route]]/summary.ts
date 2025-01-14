@@ -1,6 +1,6 @@
 import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 import { zValidator } from "@hono/zod-validator";
-import { differenceInDays, parse, subDays, isSameDay } from "date-fns";
+import { differenceInDays, parse, subDays, isSameDay, addDays } from "date-fns";
 import { and, desc, eq, gte, lte, sql, sum } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -23,18 +23,27 @@ const app = new Hono().get(
   async (ctx) => {
     const auth = getAuth(ctx);
     const { from, to, accountId } = ctx.req.valid("query");
-
-    if (!auth?.userId) {
+      if (!auth?.userId) {
       return ctx.json({ error: "Unauthorized." }, 401);
     }
 
-    const defaultTo = new Date();
+    const defaultTo = subDays(new Date(), 1);
+    defaultTo.setUTCHours(23, 59, 59, 999);
     const defaultFrom = subDays(defaultTo, 30);
+    defaultFrom.setUTCHours(0, 0, 0, 0);
 
     const startDate = from
       ? parse(from, "yyyy-MM-dd", new Date())
       : defaultFrom;
     const endDate = to ? parse(to, "yyyy-MM-dd", new Date()) : defaultTo;
+
+
+    const normalizedStartDate = new Date(startDate);
+    normalizedStartDate.setUTCHours(0, 0, 0, 0); // Start of the day in UTC
+
+    const normalizedEndDate = new Date(endDate);
+    normalizedEndDate.setUTCHours(23, 59, 59, 999); // End of the day in UTC
+
 
     const periodLength = differenceInDays(endDate, startDate) + 1;
     const lastPeriodStart = subDays(startDate, periodLength);
@@ -64,8 +73,8 @@ const app = new Hono().get(
           and(
             accountId ? eq(transactions.accountId, accountId) : undefined,
             eq(accounts.userId, userId),
-            gte(transactions.date, startDate),
-            lte(transactions.date, endDate)
+            gte(sql`DATE(${transactions.date})`, sql`DATE(${normalizedStartDate.toISOString()})`),
+            lte(sql`DATE(${transactions.date})`, sql`DATE(${normalizedEndDate.toISOString()})`)
           )
         );
     }
@@ -116,12 +125,16 @@ const app = new Hono().get(
     const daysInRange = differenceInDays(endDate, startDate) + 1;
 
     const dailyBudgets = Array.from({ length: daysInRange }).map((_, index) => {
-      const date = subDays(endDate, daysInRange - index - 1);
+     
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + index);
+      
       return {
-        date,
+        date: date.toISOString().split("T")[0],
         budget: budgetPerDay * (index + 1),
       };
     });
+
 
     // Fetch category spending and group by categories
     const category = await db
@@ -138,8 +151,8 @@ const app = new Hono().get(
         and(
           accountId ? eq(transactions.accountId, accountId) : undefined,
           eq(accounts.userId, auth.userId),
-          gte(transactions.date, startDate),
-          lte(transactions.date, endDate),
+          gte(sql`DATE(${transactions.date})`, sql`DATE(${normalizedStartDate.toISOString()})`),
+          lte(sql`DATE(${transactions.date})`, sql`DATE(${normalizedEndDate.toISOString()})`),
           sql`CAST(${transactions.amount} AS numeric) < 0`
         )
       )
@@ -175,8 +188,8 @@ const app = new Hono().get(
         and(
           accountId ? eq(transactions.accountId, accountId) : undefined,
           eq(accounts.userId, auth.userId),
-          gte(transactions.date, startDate),
-          lte(transactions.date, endDate)
+          gte(sql`DATE(${transactions.date})`, sql`DATE(${normalizedStartDate.toISOString()})`),
+          lte(sql`DATE(${transactions.date})`, sql`DATE(${normalizedEndDate.toISOString()})`)
         )
       )
       .groupBy(transactions.date)

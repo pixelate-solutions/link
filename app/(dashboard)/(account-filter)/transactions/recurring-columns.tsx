@@ -1,7 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { addDays, format } from "date-fns";
+import { format, parse } from "date-fns";
 import { ArrowUpDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,9 +59,10 @@ export const recurringColumns = (windowWidth: number): ColumnDef<RecurringTransa
       </Button>
     ),
     cell: ({ row }) => {
-      let date = row.getValue("date") as Date;
-      date = addDays(date, 1);
-      return <span className="ml-4 lg:ml-8">{format(date, "M/d/yy")}</span>;
+      const stringDate = row.getValue("date") as string;
+      const date = parse(stringDate, "yyyy-MM-dd", new Date())
+
+      return <span className="lg:ml-4">{format(date, "M/d/yy")}</span>;
     },
   },
   {

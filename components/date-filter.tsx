@@ -1,6 +1,6 @@
 "use client";
 
-import { format, subDays, addDays } from "date-fns";
+import { format, subDays } from "date-fns";
 import { ChevronDown } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import qs from "query-string";
@@ -30,6 +30,19 @@ export const DateFilter = () => {
   const defaultTo = new Date();
   const defaultFrom = subDays(defaultTo, 30);
 
+  type Period = {
+    from: string | Date | undefined;
+    to: string | Date | undefined;
+  };
+
+  function convertDateRangeToPeriod(dateRange: DateRange | undefined): Period {
+    return {
+      from: dateRange?.from ?? undefined,
+      to: dateRange?.to ?? undefined,
+    };
+  }
+
+
   const paramState = {
     from: from ? new Date(from) : defaultFrom,
     to: to ? new Date(to) : defaultTo,
@@ -40,8 +53,8 @@ export const DateFilter = () => {
   const isSmallScreen = useMediaQuery({ maxWidth: '640px' }); // Tailwind's `sm` screen size is 640px
 
   const pushToUrl = (dateRange: DateRange | undefined) => {
-    const adjustedFrom = dateRange?.from ? addDays(dateRange.from, 1) : defaultFrom;
-    const adjustedTo = dateRange?.to ? addDays(dateRange.to, 1) : defaultTo;
+    const adjustedFrom = dateRange?.from ? dateRange.from : defaultFrom;
+    const adjustedTo = dateRange?.to ? dateRange.to : defaultTo;
 
     const query = {
       from: format(adjustedFrom, "yyyy-MM-dd"),
@@ -74,7 +87,7 @@ export const DateFilter = () => {
           variant="outline"
           className="h-9 w-full rounded-md border-none bg-white/10 px-3 font-normal text-white outline-none transition hover:bg-white/30 hover:text-white focus:bg-white/30 focus:ring-transparent focus:ring-offset-0 lg:w-auto"
         >
-          <span>{formatDateRange(paramState)}</span>
+          <span>{formatDateRange(convertDateRangeToPeriod(date))}</span>
 
           <ChevronDown className="ml-2 size-4 opacity-50" />
         </Button>
@@ -105,7 +118,9 @@ export const DateFilter = () => {
 
           <PopoverClose asChild>
             <Button
-              onClick={() => pushToUrl(date)}
+              onClick={() => {
+                pushToUrl(date);
+              }}
               disabled={!date?.from || !date?.to}
               className="w-full"
             >

@@ -78,8 +78,8 @@ export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartP
       from = newFrom;
       to = newTo;
     }
-    const fromDate = subDays(parseISO(from), 0);
-    const toDate = subDays(parseISO(to), 0); // Subtract one day from toDate
+    const fromDate = parseISO(from);
+    const toDate = parseISO(to);
 
     dateRange = formatDateRange({ to: toDate, from: fromDate });
 
@@ -124,9 +124,9 @@ export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartP
     const isSameDayOfMonth = getDate(new Date(data[0].date)) === getDate(new Date(data[data.length - 1].date));
     isFullMonth = 
     isSameDayOfMonth || 
-    (isSameMonth(subDays(new Date(data[0].date), 1), subDays(new Date(data[data.length - 1].date), 1)) &&
-      isFirstDayOfMonth(subDays(new Date(data[0].date), 1)) &&
-    isLastDayOfMonth(subDays(new Date(data[data.length - 1].date), 1)));
+    (isSameMonth(new Date(data[0].date), new Date(data[data.length - 1].date)) &&
+      isFirstDayOfMonth(new Date(data[0].date)) &&
+    isLastDayOfMonth(new Date(data[data.length - 1].date)));
   }
 
   const cumulativeBudget = sumBudgetAmount;
