@@ -1,7 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { format } from "date-fns";
+import { addDays, format } from "date-fns";
 import { InferResponseType } from "hono";
 import { ArrowUpDown } from "lucide-react";
 
@@ -58,7 +58,8 @@ export const columns: ColumnDef<ResponseType>[] = [
       );
     },
     cell: ({ row }) => {
-      const date = row.getValue("date") as Date;
+      let date = row.getValue("date") as Date;
+      date = addDays(date, 1);
 
       return <span className="lg:ml-4">{format(date, "M/d/yy")}</span>;
     },
