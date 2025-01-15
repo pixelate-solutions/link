@@ -1,6 +1,6 @@
 import { XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid, Area, AreaChart } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { format, parseISO, differenceInDays, isSameMonth, getDate, isFirstDayOfMonth, isLastDayOfMonth, subDays, endOfToday, isSameDay, subMonths, lastDayOfMonth } from 'date-fns';
+import { format, parseISO, differenceInDays, isSameMonth, getDate, isFirstDayOfMonth, isLastDayOfMonth, endOfToday, isSameDay, subMonths, lastDayOfMonth } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { FileSearch } from 'lucide-react';
 import { CountUp } from './count-up';
@@ -87,9 +87,12 @@ export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartP
     const isFullMonth = (isFirstDayOfMonth(fromDate) && isSameDay(toDate, lastDayOfMonth(toDate)) || fromDate.getDate() === toDate.getDate());
 
     // If it's a full month, don't adjust the budgetAmount, just show the monthly value
-    const adjustedBudgetAmount = isFullMonth
-      ? parseFloat(category.budgetAmount || "0")
-      : (parseFloat(category.budgetAmount || "0") * (differenceInDays(toDate, fromDate) + 1) / 30.44);
+    const adjustedBudgetAmount = isSameDay(fromDate, toDate)
+    ? parseFloat(category.budgetAmount || "0") / 30.44 // Single day's budget
+    : isFullMonth
+    ? parseFloat(category.budgetAmount || "0") // Full monthly budget
+    : (parseFloat(category.budgetAmount || "0") * (differenceInDays(toDate, fromDate) + 1) / 30.44); // Adjusted budget for the date range
+
 
     // Find the total based on categoryId
     const total = totalsQuery.data?.find(total => total.categoryId === category.id) || { totalIncome: 0, totalCost: 0 };
@@ -114,7 +117,6 @@ export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartP
     0
   );
 
-
   const [isLargeScreen, setIsLargeScreen] = useState<boolean>(false);
   const mainCumulativeSpending = fullData?.expensesAmount || 0;
   let isFullMonth;
@@ -134,7 +136,6 @@ export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartP
   // Calculate the remaining budget
   const budgetLeft = cumulativeBudget + mainCumulativeSpending;
 
-
   // Check screen size on mount and resize
   useEffect(() => {
     const checkScreenSize = () => {
@@ -151,19 +152,29 @@ export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartP
 
   // Format data for cumulative spending
   let cumulativeSpending = 0;
-  const processedData = data.map((entry) => {
-    cumulativeSpending += entry.spending; // Add to the cumulative total
+  const processedData = data.map((entry, index) => {
+    const adjustedDate = new Date(entry.date);
+    adjustedDate.setDate(adjustedDate.getDate() + 1); // Adjust date if needed
+
+    cumulativeSpending += entry.spending; // Add to cumulative spending
+
+    // Calculate the cumulative budget for the current day
+    const totalDays = data.length;
+    const cumulativeBudgetForDay = (cumulativeBudget / totalDays) * (index + 1); // Proportional budget
+
     return {
       ...entry,
+      date: adjustedDate.toISOString(), // Update date to adjusted value
       cumulativeSpending,
+      budget: cumulativeBudgetForDay, // Proportional cumulative budget
     };
   });
 
     // Determine the date range, ensuring the data array is not empty
     let daysSpan = 0
     if (data.length > 0) {
-        const startDate = parseISO(data[0].date);
-        const endDate = parseISO(data[data.length - 1].date);
+        const startDate = parseISO(data[0].date).setUTCHours(0, 0, 0, 0);
+        const endDate = parseISO(data[data.length - 1].date).setUTCHours(23, 59, 59, 999);
         daysSpan = differenceInDays(endDate, startDate);
     }
 

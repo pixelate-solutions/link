@@ -33,7 +33,6 @@ export const AccountsGrid = () => {
         value={Number(data?.liabilities)}
         icon={FaArrowTrendDown}
         variant="danger"
-        dateRange={dateRangeLabel}
       />
       <AccountsDataCard
         title="Assets"
@@ -41,14 +40,12 @@ export const AccountsGrid = () => {
         available={data?.availableAssets}
         icon={FaArrowTrendUp}
         variant="success"
-        dateRange={dateRangeLabel}
       />
       <DataCard
         title="Net Worth"
         value={Number(data?.assets) + Number(data?.liabilities)}
         icon={FaPiggyBank}
         variant="default"
-        dateRange={dateRangeLabel}
       />
     </div>
   );

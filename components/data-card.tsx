@@ -49,10 +49,10 @@ type DataCardProps = BoxVariants &
     icon: IconType;
     title: string;
     value?: number;
-    dateRange: string;
+    dateRange?: string;
     percentageChange?: number;
     available?: string;
-};
+  };
 
 export const DataCard = ({
   title,
@@ -68,9 +68,11 @@ export const DataCard = ({
         <div className="space-y-2">
           <CardTitle className={`line-clamp-1 text-2xl`}>{title}</CardTitle>
 
-          <CardDescription className="line-clamp-1">
-            {dateRange}
-          </CardDescription>
+          {dateRange &&
+            <CardDescription className="line-clamp-1">
+              {dateRange}
+            </CardDescription>
+          }
         </div>
 
         <div className={cn(boxVariant({ variant }))}>
@@ -79,7 +81,7 @@ export const DataCard = ({
       </CardHeader>
 
       <CardContent>
-        <h1 className={`mb-2 line-clamp-1 break-all text-2xl font-bold ${value > 0 ? "text-green-600" : ""} ${value < 0 ? "text-red-600" : ""}`}>
+        <h1 className={`mb-2 line-clamp-1 break-all text-2xl font-bold ${!dateRange ? "-mt-[10px]" : ""} ${value > 0 ? "text-green-600" : ""} ${value < 0 ? "text-red-600" : ""}`}>
           <CountUp
             preserveValue
             start={0}
@@ -172,9 +174,11 @@ export const AccountsDataCard = ({
         <div className="space-y-2">
           <CardTitle className="line-clamp-1 text-2xl">{title}</CardTitle>
 
-          <CardDescription className="line-clamp-1">
-            {dateRange}
-          </CardDescription>
+          {dateRange &&
+            <CardDescription className="line-clamp-1">
+              {dateRange}
+            </CardDescription>
+          }
         </div>
 
         <div className={cn(boxVariant({ variant }))}>
@@ -183,7 +187,7 @@ export const AccountsDataCard = ({
       </CardHeader>
 
       <CardContent>
-        <h1 className={`mb-2 line-clamp-1 break-all text-2xl font-bold ${value < 0 ? "text-red-600" : "text-green-600"}`}>
+        <h1 className={`mb-2 line-clamp-1 break-all text-2xl font-bold ${!dateRange ? "-mt-[10px]" : ""} ${value < 0 ? "text-red-600" : "text-green-600"}`}>
           <CountUp
             preserveValue
             start={0}
@@ -194,7 +198,7 @@ export const AccountsDataCard = ({
           />
         </h1>
 
-        {Number(available) > 0 && <p className="line-clamp-1 text-sm text-muted-foreground">
+        {Number(available) > 0 && <p className={`line-clamp-1 text-sm text-muted-foreground`}>
           {<CountUp
             preserveValue
             start={0}

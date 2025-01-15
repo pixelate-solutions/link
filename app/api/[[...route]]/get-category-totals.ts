@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 import { zValidator } from "@hono/zod-validator";
-import { subDays, startOfDay, endOfDay, parse } from "date-fns";
+import { subDays, parse } from "date-fns";
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -31,10 +31,33 @@ const app = new Hono()
       const defaultFrom = subDays(defaultTo, 30);
 
       const startDate = from
-        ? startOfDay(parse(from, "yyyy-MM-dd", new Date()))
-        : startOfDay(defaultFrom);
+      ? new Date(Date.UTC(
+          parse(from, "yyyy-MM-dd", new Date()).getFullYear(),
+          parse(from, "yyyy-MM-dd", new Date()).getMonth(),
+          parse(from, "yyyy-MM-dd", new Date()).getDate(),
+          0, 0, 0, 0 // Start of the day in UTC
+        ))
+      : new Date(Date.UTC(
+          defaultFrom.getFullYear(),
+          defaultFrom.getMonth(),
+          defaultFrom.getDate(),
+          0, 0, 0, 0 // Start of the day in UTC
+        ));
 
-      const endDate = to ? endOfDay(parse(to, "yyyy-MM-dd", new Date())) : endOfDay(defaultTo);
+    const endDate = to
+      ? new Date(Date.UTC(
+          parse(to, "yyyy-MM-dd", new Date()).getFullYear(),
+          parse(to, "yyyy-MM-dd", new Date()).getMonth(),
+          parse(to, "yyyy-MM-dd", new Date()).getDate(),
+          23, 59, 59, 999 // End of the day in UTC
+        ))
+      : new Date(Date.UTC(
+          defaultTo.getFullYear(),
+          defaultTo.getMonth(),
+          defaultTo.getDate(),
+          23, 59, 59, 999 // End of the day in UTC
+        ));
+
 
       try {
         const results = await db
@@ -48,8 +71,8 @@ const app = new Hono()
           .leftJoin(transactions, eq(transactions.categoryId, categories.id))  // Ensure proper join condition
           .where(
             and(
-              gte(transactions.date, startDate),
-              lte(transactions.date, endDate)
+              gte(sql`DATE(${transactions.date})`, sql`DATE(${startDate.toISOString()})`),
+              lte(sql`DATE(${transactions.date})`, sql`DATE(${endDate.toISOString()})`)
             )
           )
           .groupBy(categories.id, categories.name);

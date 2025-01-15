@@ -1,7 +1,7 @@
 import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 import { zValidator } from "@hono/zod-validator";
 import { createId } from "@paralleldrive/cuid2";
-import { parse, subDays, startOfDay, endOfDay } from "date-fns";
+import { parse, subDays } from "date-fns";
 import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -40,10 +40,33 @@ const app = new Hono()
       const defaultFrom = subDays(defaultTo, 30);
 
       const startDate = from
-        ? startOfDay(parse(from, "yyyy-MM-dd", new Date()))
-        : startOfDay(defaultFrom);
+      ? new Date(Date.UTC(
+          parse(from, "yyyy-MM-dd", new Date()).getFullYear(),
+          parse(from, "yyyy-MM-dd", new Date()).getMonth(),
+          parse(from, "yyyy-MM-dd", new Date()).getDate(),
+          0, 0, 0, 0
+        ))
+      : new Date(Date.UTC(
+          defaultFrom.getFullYear(),
+          defaultFrom.getMonth(),
+          defaultFrom.getDate(),
+          0, 0, 0, 0
+        ));
 
-      const endDate = to ? endOfDay(parse(to, "yyyy-MM-dd", new Date())) : endOfDay(defaultTo);
+    const endDate = to
+      ? new Date(Date.UTC(
+          parse(to, "yyyy-MM-dd", new Date()).getFullYear(),
+          parse(to, "yyyy-MM-dd", new Date()).getMonth(),
+          parse(to, "yyyy-MM-dd", new Date()).getDate(),
+          23, 59, 59, 999
+        ))
+      : new Date(Date.UTC(
+          defaultTo.getFullYear(),
+          defaultTo.getMonth(),
+          defaultTo.getDate(),
+          23, 59, 59, 999
+        ));
+
 
       const data = await db
         .select({
@@ -64,13 +87,18 @@ const app = new Hono()
           and(
             accountId ? eq(transactions.accountId, accountId) : undefined,
             eq(accounts.userId, auth.userId),
-            gte(transactions.date, startDate),
-            lte(transactions.date, endDate)
+            gte(sql`DATE(${transactions.date})`, sql`DATE(${startDate.toISOString()})`),
+            lte(sql`DATE(${transactions.date})`, sql`DATE(${endDate.toISOString()})`)
           )
         )
         .orderBy(desc(transactions.date));
 
-      return ctx.json({ data });
+      return ctx.json({
+        data: data.map((transaction) => ({
+          ...transaction,
+          date: new Date(transaction.date).toISOString().split("T")[0], // Ensure correct UTC date
+        })),
+      });
     }
   )
   .get(

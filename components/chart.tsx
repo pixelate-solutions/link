@@ -33,6 +33,18 @@ export const Chart = ({ data = [] }: ChartProps) => {
   type ChartType = "area" | "bar" | "line";
   const [chartType, setChartType] = useState<ChartType>("area");
 
+  const processedData = data.map((entry) => {
+    const adjustedDate = new Date(entry.date);
+    adjustedDate.setUTCHours(12);
+
+    return {
+      ...entry,
+      date: adjustedDate.toISOString(),
+    };
+  });
+
+  data = processedData;
+
   const onTypeChange = (type: ChartType) => {
     setChartType(type);
   };

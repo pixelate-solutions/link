@@ -60,7 +60,7 @@ export const recurringColumns = (windowWidth: number): ColumnDef<RecurringTransa
     ),
     cell: ({ row }) => {
       const stringDate = row.getValue("date") as string;
-      const date = parse(stringDate, "yyyy-MM-dd", new Date())
+      const date = parse(stringDate, "yyyy-MM-dd", new Date());
 
       return <span className="lg:ml-4">{format(date, "M/d/yy")}</span>;
     },

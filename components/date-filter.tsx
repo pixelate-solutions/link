@@ -5,7 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import qs from "query-string";
 import { useState } from "react";
-import { useMediaQuery } from 'react-responsive'; // Import for media query
+import { useMediaQuery } from 'react-responsive';
 import { type DateRange } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
@@ -44,8 +44,12 @@ export const DateFilter = () => {
 
 
   const paramState = {
-    from: from ? new Date(from) : defaultFrom,
-    to: to ? new Date(to) : defaultTo,
+    from: from
+      ? new Date(`${from}T12:00:00`) 
+      : new Date(defaultFrom.setHours(12, 0, 0, 0)),
+    to: to
+      ? new Date(`${to}T12:00:00`) 
+      : new Date(defaultTo.setHours(12, 0, 0, 0)),
   };
 
   const [date, setDate] = useState<DateRange | undefined>(paramState);
@@ -53,8 +57,12 @@ export const DateFilter = () => {
   const isSmallScreen = useMediaQuery({ maxWidth: '640px' }); // Tailwind's `sm` screen size is 640px
 
   const pushToUrl = (dateRange: DateRange | undefined) => {
-    const adjustedFrom = dateRange?.from ? dateRange.from : defaultFrom;
-    const adjustedTo = dateRange?.to ? dateRange.to : defaultTo;
+    const adjustedFrom = dateRange?.from
+      ? new Date(dateRange.from.setHours(12, 0, 0, 0))
+      : new Date(defaultFrom.setHours(12, 0, 0, 0));
+    const adjustedTo = dateRange?.to
+      ? new Date(dateRange.to.setHours(12, 0, 0, 0))
+      : new Date(defaultTo.setHours(12, 0, 0, 0));
 
     const query = {
       from: format(adjustedFrom, "yyyy-MM-dd"),
@@ -100,8 +108,13 @@ export const DateFilter = () => {
           mode="range"
           defaultMonth={date?.from}
           selected={date}
-          onSelect={setDate}
-          numberOfMonths={isSmallScreen ? 1 : 2} // Show one month on small screens, two on larger screens
+          onSelect={(range) => {
+            setDate({
+              from: range?.from ? new Date(range.from.setHours(12, 0, 0, 0)) : undefined,
+              to: range?.to ? new Date(range.to.setHours(12, 0, 0, 0)) : undefined,
+            });
+          }}
+          numberOfMonths={isSmallScreen ? 1 : 2}
         />
 
         <div className="flex w-full items-center gap-x-2 p-4">

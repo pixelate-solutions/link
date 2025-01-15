@@ -200,8 +200,9 @@ const CategoriesPage = () => {
       from = newFrom;
       to = newTo;
     }
-    const fromDate = parseISO(from);
-    const toDate = parseISO(to);
+    const fromDate = new Date(parseISO(from));
+    fromDate.setUTCHours(12);
+    const toDate = new Date(parseISO(to));
 
     dateRange = formatDateRange({ to: toDate, from: fromDate });
 
@@ -209,9 +210,12 @@ const CategoriesPage = () => {
     const isFullMonth = (isFirstDayOfMonth(fromDate) && isSameDay(toDate, lastDayOfMonth(toDate)) || fromDate.getDate() === toDate.getDate());
 
     // If it's a full month, don't adjust the budgetAmount, just show the monthly value
-    const adjustedBudgetAmount = isFullMonth
-      ? parseFloat(category.budgetAmount || "0")
-      : (parseFloat(category.budgetAmount || "0") * (differenceInDays(toDate, fromDate) + 1) / 30.44);
+    const adjustedBudgetAmount = isSameDay(fromDate, toDate)
+    ? parseFloat(category.budgetAmount || "0") / 30.44 // Single day's budget
+    : isFullMonth
+    ? parseFloat(category.budgetAmount || "0") // Full monthly budget
+    : (parseFloat(category.budgetAmount || "0") * (differenceInDays(toDate, fromDate) + 1) / 30.44);
+
 
     // Find the total based on categoryId
     const total = totalsQuery.data?.find(total => total.categoryId === category.id) || { totalIncome: 0, totalCost: 0 };
