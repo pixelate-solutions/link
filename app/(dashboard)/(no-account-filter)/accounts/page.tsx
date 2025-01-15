@@ -65,7 +65,7 @@ const AccountsPage = () => {
   const [openPlaid, setOpenPlaid] = useState<() => void>(() => () => { });
   const [isBelowAccountLimit, setIsBelowAccountLimit] = useState<boolean>(false);
 
-  const Categories = ["Credit cards", "Depositories", "Investments", "Loans", "Real estate", "Others"];
+  const Categories = ["Credit cards", "Depositories", "Investments", "Loans", "Others"];
   const formSchema = insertAccountSchema.pick({
     name: true,
     category: true,
@@ -209,7 +209,7 @@ const AccountsPage = () => {
     fetchSubscriptionStatus();
   }, [userId]);
 
-  const categories = ["Credit cards", "Depository", "Investments", "Loans", "Real estate", "Others"];
+  const categories = ["Credit cards", "Depository", "Investments", "Loans", "Others"];
   type Account = {
     id: string;
     name: string;

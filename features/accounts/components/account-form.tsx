@@ -34,7 +34,7 @@ type AccountFormProps = {
   disabled?: boolean;
 };
 
-const categories = ["Credit cards", "Depository", "Investments", "Loans", "Real estate", "Others"];
+const categories = ["Credit cards", "Depository", "Investments", "Loans", "Others"];
 
 export const AccountForm = ({
   id,
