@@ -76,7 +76,7 @@ export function MobileTransactions({ transactions }: MobileTransactionsProps) {
               key={tx.id}
               className="block"
             >
-              <div className="flex items-center justify-between border-b border-gray-200 hover:bg-gray-50 py-4">
+              <div className="flex items-center justify-between border-b px-1 border-gray-200 hover:bg-gray-50 py-4 rounded-lg">
                 <div className="flex flex-col">
                   <span className="text-black text-[14px] font-medium leading-tight">
                     {truncateString(tx.payee || "", 14)}
