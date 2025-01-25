@@ -117,6 +117,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       Here is a list of categories from recurring transactions: [${transactionCategories}]
       Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
       respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
+      Positive values should be categorized as Income.
       You MUST categorize each of these [${transactionCategories}] as one of these: [${categoryOptions.join(", ")}].
       MAKE SURE the values inside are strings in double quotes so that it is a list of strings.
     `;
@@ -486,6 +487,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
   const query = `
     Here is a list of transaction names: [${recurringTransactionNames.join(", ")}]
     Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}].
+    Positive values should be categorized as Income.
     Make sure EVERY one of those transactions is categorized into one of the categories so your
     response list needs to be the same length as the length of the transactions list.
     Return the result as a plain JavaScript array (list) in the same order as the transaction names.

@@ -200,6 +200,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     Here is a list of categories from transactions: [${transactionCategories}]
     Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
     respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
+    Positive values should be categorized as Income.
     You MUST categorize each of these [${transactionCategories}] as one of these: [${categoryOptions.join(", ")}].
     Every value in your list response will be one of these values: [${categoryOptions.join(", ")}]. Again, respond as a list with 
     brackets "[]" and comma-separated values with NO other text than that list. And the only options you can use to make
@@ -368,6 +369,7 @@ app.post('/recategorize', clerkMiddleware(), async (ctx) => {
   const query = `
     Here is a list of transaction payee names: [${payeeNames.join(", ")}].
     Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}].
+    Positive values should be categorized as Income.
     Make sure EVERY one of those transactions is categorized into one of the categories so your
     response list needs to be the same length as the length of the transactions list.
     Return the result as a plain JavaScript array (list) in the same order as the payee names.

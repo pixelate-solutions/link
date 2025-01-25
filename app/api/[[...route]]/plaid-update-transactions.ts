@@ -364,6 +364,7 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
     Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
     respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
     You MUST categorize each of these [${transactionCategories}] as one of these: [${categoryOptions.join(", ")}].
+    Positive values should be categorized as Income.
     Every value in your list response will be one of these values: [${categoryOptions.join(", ")}]. Again, respond as a list with 
     brackets "[]" and comma-separated values with NO other text than that list. And the only options you can use to make
     the list are values from this list: [${categoryOptions.join(", ")}]. MAKE SURE the values inside are strings in double quotes so that it is a 
@@ -572,6 +573,7 @@ async function processRecurringTransactions(plaidData: any, userId: string) {
     Here is a list of categories from recurring transactions: [${transactionCategories}]
     Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
     respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
+    Positive values should be categorized as Income.
     You MUST categorize each of these [${transactionCategories}] as one of these: [${categoryOptions.join(", ")}].
     MAKE SURE the values inside are strings in double quotes so that it is a list of strings.
   `;

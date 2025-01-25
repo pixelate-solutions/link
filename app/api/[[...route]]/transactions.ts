@@ -131,6 +131,8 @@ const app = new Hono()
           amount: transactions.amount,
           notes: transactions.notes,
           accountId: transactions.accountId,
+          plaidTransactionId: transactions.plaidTransactionId,
+          isFromPlaid: transactions.isFromPlaid,
         })
         .from(transactions)
         .innerJoin(accounts, eq(transactions.accountId, accounts.id))
