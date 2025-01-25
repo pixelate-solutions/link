@@ -76,18 +76,18 @@ export function MobileTransactions({ transactions }: MobileTransactionsProps) {
               key={tx.id}
               className="block"
             >
-              <div className="flex items-center justify-between p-2 border-b border-gray-200 hover:bg-gray-50">
+              <div className="flex items-center justify-between border-b border-gray-200 hover:bg-gray-50 py-4">
                 <div className="flex flex-col">
-                  <span className="text-black text-[12px] font-medium leading-tight">
+                  <span className="text-black text-[14px] font-medium leading-tight">
                     {truncateString(tx.payee || "", 14)}
                   </span>
-                  <span className="text-gray-500 text-[10px]">{formattedDate}</span>
+                  <span className="text-gray-500 text-[12px]">{formattedDate}</span>
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className="text-blue-600 text-[10px] text-right">
-                    {tx.category}
+                  <span className="text-blue-600 text-[12px] text-right">
+                    {truncateString(tx.category || "", 18)}
                   </span>
-                  <span className={`font-semibold text-xs ${amountClasses}`}>
+                  <span className={`font-semibold text-sm ${amountClasses}`}>
                     {formatCurrency(Number(tx.amount))}
                   </span>
                 </div>
