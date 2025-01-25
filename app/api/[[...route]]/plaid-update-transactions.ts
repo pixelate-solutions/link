@@ -252,8 +252,6 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
 
   const { userId, accessToken, cursor: initialCursor } = userToken;
 
-  await sendEmail(`Webhook trigger successful for userId ${userId} & access token ${accessToken}.\n\n Webhook Code: ${webhook_code}\n\n Webhook Type: ${webhook_type}`);
-
   // Check if the webhook code corresponds to a transaction update
   if (webhook_type === "TRANSACTIONS") {
     // Handle different transaction webhook codes
@@ -266,7 +264,6 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
           await sendEmail("Failed to fetch transactions after multiple attempts.");
           return ctx.json({ error: "Failed to fetch transactions after multiple attempts" }, 500);
         }
-        await sendEmail(`Transaction fetch successfull. Gathered ${plaidTransactions.length} transactions.`);
         await processTransactions(plaidTransactions, userId, item_id);
 
         // Fetch recurring transactions
@@ -295,8 +292,7 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
                       .execute();
                 }
 
-              // console.log(`Successfully removed ${removed_transactions.length} transactions.`);
-              await sendEmail(`Successfully removed ${removed_transactions.length} transactions.`)
+              console.log(`Successfully removed ${removed_transactions.length} transactions.`);
             } catch (error) {
                 console.error("Error processing removed transactions:", error);
                 return ctx.json({ error: "Failed to process removed transactions" }, 500);
@@ -312,7 +308,7 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
 
       default:
         await sendEmail(`Unrecognized webhook code: ${webhook_code}`);
-        // console.log(`Unrecognized webhook code: ${webhook_code}`);
+        console.log(`Unrecognized webhook code: ${webhook_code}`);
         return ctx.json({ message: `Webhook code ${webhook_code} not handled` }, 200);
     }
   } else if (webhook_type === "ITEM") {
@@ -565,8 +561,6 @@ async function processRecurringTransactions(plaidData: any, userId: string) {
   const inflowStreams = plaidData.inflow_streams || [];
   const outflowStreams = plaidData.outflow_streams || [];
   const allStreams = [...inflowStreams, ...outflowStreams];
-
-  await sendEmail(`Recurring transaction fetch successfull. Gathered ${allStreams.length} recurring transaction streams.`);
 
   // Extract the personal_finance_category for AI categorization
   const transactionCategories = allStreams.map(stream =>
