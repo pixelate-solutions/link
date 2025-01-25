@@ -2,10 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { formatCurrency } from "@/lib/utils";
-import { useParams } from "next/navigation";
-
+import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 
 // Shadcn UI components (adjust paths as needed)
 import { Button } from "@/components/ui/button";
@@ -25,8 +24,7 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns"; // for formatting dates in the UI
-import { useUser } from "@clerk/nextjs";
+import { format } from "date-fns";
 
 interface Category {
   id: string;
@@ -34,17 +32,23 @@ interface Category {
   budgetAmount: string | null;
 }
 
+interface Account {
+  id: string;
+  name: string;
+  // Add other fields if needed
+}
+
 interface Transaction {
-  id: string;                    // Primary key
-  userId: string;                // Required (not null in DB)
-  amount: number;                // Stored as text in DB, but use number here
-  payee: string | null;          // Not required in DB, so it can be null
-  notes: string | null;          // Not required in DB, so it can be null
-  date: string;                  // "YYYY-MM-DD" or another date format
-  accountId: string;             // Not null, references accounts.id
-  categoryId: string | null;     // Can be null
-  isFromPlaid: boolean;          // Default false, not null
-  plaidTransactionId: string;    // Unique, not null
+  id: string;               // Primary key
+  userId: string;           // Required (not null in DB)
+  amount: number;           // Stored as text in DB, but use number here
+  payee: string | null;     // Not required in DB, so can be null
+  notes: string | null;     // Not required, can be null
+  date: string;             // "YYYY-MM-DD" or another date format
+  accountId: string;        // Not null, references accounts.id
+  categoryId: string | null;// Can be null
+  isFromPlaid: boolean;     // Default false, not null
+  plaidTransactionId: string; // Unique, not null
 }
 
 const TransactionDetails = () => {
@@ -52,15 +56,18 @@ const TransactionDetails = () => {
   const router = useRouter();
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const { user } = useUser();
   const userId = user?.id;
 
-  // Form data is stored as strings, but we'll convert as needed before PATCH
+  // Form data is stored as strings
   const [formData, setFormData] = useState({
     payee: "",
+    accountId: "",
     date: "",       // "YYYY-MM-DD"
     categoryId: "",
     amount: "",     // "99.95" (will convert to number)
@@ -85,6 +92,28 @@ const TransactionDetails = () => {
   };
 
   /**
+   * Fetch all accounts (both isFromPlaid=true/false).
+   */
+  const fetchAccounts = async () => {
+    try {
+      // Non-Plaid
+      const resFalse = await fetch("/api/accounts?isFromPlaid=false");
+      const jsonFalse = await resFalse.json();
+      const dataFalse = resFalse.ok ? jsonFalse.data || [] : [];
+
+      // Plaid
+      const resTrue = await fetch("/api/accounts?isFromPlaid=true");
+      const jsonTrue = await resTrue.json();
+      const dataTrue = resTrue.ok ? jsonTrue.data || [] : [];
+
+      // Combine
+      setAccounts([...dataFalse, ...dataTrue]);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  /**
    * Fetch the transaction details by ID.
    */
   const fetchTransaction = async (transactionId: string) => {
@@ -98,6 +127,7 @@ const TransactionDetails = () => {
       // Populate the form data for editing
       setFormData({
         payee: data.payee || "",
+        accountId: data.accountId || "",
         date: new Date(data.date).toISOString().split("T")[0],
         categoryId: data.categoryId || "",
         amount: data.amount.toString(),
@@ -112,18 +142,18 @@ const TransactionDetails = () => {
   };
 
   /**
-   * On component mount or when `id` changes, fetch transaction & categories
+   * On mount / ID change, fetch the transaction & categories & accounts
    */
   useEffect(() => {
     if (!id) return;
     const transactionId = Array.isArray(id) ? id[0] : id;
-
     fetchTransaction(transactionId);
     fetchCategories();
+    fetchAccounts();
   }, [id]);
 
   /**
-   * Update form state when user changes payee, amount, notes, etc.
+   * Update form state when user changes payee, amount, etc.
    */
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -138,49 +168,42 @@ const TransactionDetails = () => {
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      // Ensure the date in formData is properly set from selectedDate
+      if (!transaction) return;
+
+      // Convert date in formData from selectedDate
       let dateString = formData.date;
       if (selectedDate) {
-        // convert Date to "YYYY-MM-DD"
         dateString = selectedDate.toISOString().split("T")[0];
       }
 
-      // Convert amount to a number so it matches the schema
-      if (!transaction) {
-        return;
-      }
-
-      const uniquePlaidId = transaction.plaidTransactionId
-        ? transaction.plaidTransactionId
-        : null;
-
       // Build the payload
       const payload = {
-        userId: userId,
+        userId,
         amount: formData.amount,
         payee: formData.payee,
         notes: formData.notes || null,
-        date: dateString,               
-        accountId: transaction.accountId,
+        date: dateString,
+        accountId: formData.accountId,        // <-- from edit form now
         categoryId: formData.categoryId || null,
-        plaidTransactionId: uniquePlaidId,
-        isFromPlaid: transaction.isFromPlaid || null,
+        plaidTransactionId: transaction.plaidTransactionId,
+        isFromPlaid: transaction.isFromPlaid,
       };
 
-      const response = await fetch(`/api/transactions/${id}`, {
+      const response = await fetch(`/api/transactions/${transaction.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       if (!response.ok) throw new Error("Failed to update transaction.");
-      
+
       const { data }: { data: Transaction } = await response.json();
       setTransaction(data); // Update local state with newly saved data
       setIsEditing(false);
       setIsLoading(false);
     } catch (error) {
       console.error(error);
+      setIsLoading(false);
     }
   };
 
@@ -200,9 +223,13 @@ const TransactionDetails = () => {
     );
   }
 
-  // Find the name of the category based on the transaction’s categoryId
+  // Get category name
   const currentCategory = categories.find((cat) => cat.id === transaction.categoryId);
   const currentCategoryName = currentCategory?.name || "Uncategorized";
+
+  // Get account name
+  const currentAccount = accounts.find((acct) => acct.id === transaction.accountId);
+  const currentAccountName = currentAccount?.name || "Unknown Account";
 
   return (
     <div className="p-4 -mt-6 mb-6 max-w-md mx-auto border border-gray-200 rounded-md shadow-md bg-white">
@@ -236,6 +263,30 @@ const TransactionDetails = () => {
             />
           </div>
 
+          {/* Account (shadcn Select) - new field */}
+          <div>
+            <Label htmlFor="accountId" className="text-xs font-bold text-gray-600">
+              Account
+            </Label>
+            <Select
+              value={formData.accountId}
+              onValueChange={(value) => {
+                setFormData((prev) => ({ ...prev, accountId: value }));
+              }}
+            >
+              <SelectTrigger className="mt-1 w-full">
+                <SelectValue placeholder="Select an account" />
+              </SelectTrigger>
+              <SelectContent>
+                {accounts.map((acct) => (
+                  <SelectItem key={acct.id} value={acct.id}>
+                    {acct.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Date (Calendar popover) */}
           <div>
             <Label htmlFor="date" className="text-xs font-bold text-gray-600">
@@ -248,7 +299,14 @@ const TransactionDetails = () => {
                   className="mt-1 w-full justify-start text-left font-normal"
                 >
                   {selectedDate
-                    ? format(new Date(selectedDate.getUTCFullYear(), selectedDate.getUTCMonth(), selectedDate.getUTCDate()), "PP")
+                    ? format(
+                        new Date(
+                          selectedDate.getUTCFullYear(),
+                          selectedDate.getUTCMonth(),
+                          selectedDate.getUTCDate()
+                        ),
+                        "PP"
+                      )
                     : "Pick a date"}
                 </Button>
               </PopoverTrigger>
@@ -262,20 +320,24 @@ const TransactionDetails = () => {
                           selectedDate.getUTCMonth(),
                           selectedDate.getUTCDate()
                         )
-                      : new Date() // Fallback to current date if selectedDate is null
+                      : new Date()
                   }
                   onSelect={(date) => {
                     if (date) {
-                      // Convert the selected date to UTC
-                      const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+                      const utcDate = new Date(
+                        Date.UTC(
+                          date.getFullYear(),
+                          date.getMonth(),
+                          date.getDate()
+                        )
+                      );
                       setSelectedDate(utcDate);
                     } else {
-                      setSelectedDate(new Date()); // Fallback to current date
+                      setSelectedDate(new Date());
                     }
                   }}
                   initialFocus
                 />
-
               </PopoverContent>
             </Popover>
           </div>
@@ -341,9 +403,16 @@ const TransactionDetails = () => {
         </div>
       ) : (
         <div className="space-y-4">
+          {/* Read-only details */}
           <div>
             <p className="text-xs font-bold text-gray-600">Payee</p>
             <p className="text-sm text-gray-800">{transaction.payee}</p>
+          </div>
+
+          {/* Account name */}
+          <div>
+            <p className="text-xs font-bold text-gray-600">Account</p>
+            <p className="text-sm text-gray-800">{currentAccountName}</p>
           </div>
 
           <div>
@@ -372,10 +441,16 @@ const TransactionDetails = () => {
 
           <div>
             <p className="text-xs font-bold text-gray-600">Notes</p>
-            <p className="text-sm text-gray-800">{transaction.notes || "No notes provided."}</p>
+            <p className="text-sm text-gray-800">
+              {transaction.notes || "No notes provided."}
+            </p>
           </div>
 
-          <Button variant="default" onClick={() => setIsEditing(true)} className="w-full bg-gradient-to-br bg-blue-400">
+          <Button
+            variant="default"
+            onClick={() => setIsEditing(true)}
+            className="w-full bg-gradient-to-br bg-blue-400"
+          >
             Edit
           </Button>
         </div>

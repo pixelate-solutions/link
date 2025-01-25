@@ -47,7 +47,7 @@ export function MobileTransactions({ transactions }: MobileTransactionsProps) {
           placeholder="Search by name or category"
           value={searchTerm}
           onChange={handleSearch}
-          className="w-full p-2 border border-gray-300 rounded-md text-xs"
+          className="w-full p-2 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2"
         />
       </div>
 
