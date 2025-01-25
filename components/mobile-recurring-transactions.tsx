@@ -76,7 +76,7 @@ export function MobileRecurringTransactions({ recurringTransactions }: MobileRec
 
           return (
             <Link
-              href={`/recurring/${tx.id}`}
+              href={`transactions/r/${tx.id}`}
               key={tx.id}
               className="block"
             >
