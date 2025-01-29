@@ -23,6 +23,19 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
+
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 
@@ -59,6 +72,7 @@ const TransactionDetails = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const { user } = useUser();
@@ -76,6 +90,30 @@ const TransactionDetails = () => {
 
   // Local state for the calendar popover
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  const onDelete = async () => {
+    setIsLoading(true);
+    try {
+      if (!transaction?.id) {
+        throw new Error("No transaction ID.");
+      }
+
+      const response = await fetch(`/api/transactions/${transaction.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete transaction.");
+      }
+
+      router.push("/transactions");
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+      setIsDeleteOpen(false);
+    }
+  };
 
   /**
    * Fetch all categories for the user (once).
@@ -453,6 +491,28 @@ const TransactionDetails = () => {
           >
             Edit
           </Button>
+          <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="destructive"
+                className="w-full bg-gradient-to-br bg-red-400"
+              >
+                Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="rounded-lg w-[95%]">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete this transaction.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction className="bg-red-500" onClick={onDelete}>Delete</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
     </div>

@@ -22,6 +22,20 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
+
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+
+
 import { Calendar } from "@/components/ui/calendar";
 
 // We can reuse the formatCurrency from utils
@@ -105,6 +119,9 @@ export default function RecurringTransactionPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   // Form data for editing
   const [formData, setFormData] = useState({
     name: "",
@@ -118,6 +135,31 @@ export default function RecurringTransactionPage() {
     isActive: "",
   });
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  
+    
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      if (!recurringTx?.id) {
+        throw new Error("No recurring transaction ID");
+      }
+
+      const response = await fetch(`/api/plaid/recurring/${recurringTx.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete recurring transaction");
+      }
+      router.push("/transactions");
+    } catch (error) {
+      console.error(error);
+      setError(error instanceof Error ? error.message : "Deletion failed");
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteOpen(false);
+    }
+  };
 
   // 1. Fetch recurring transaction + siblings
   const fetchRecurringTransaction = async () => {
@@ -646,6 +688,35 @@ export default function RecurringTransactionPage() {
           >
             Edit
           </Button>
+          <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="destructive"
+                className="w-full bg-red-400 text-white"
+              >
+                Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="rounded-lg w-[95%]">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete this recurring transaction.
+                  This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  className="bg-red-500 hover:bg-red-600"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? "Deleting..." : "Delete"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
 
