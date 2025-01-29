@@ -13,10 +13,10 @@ import { useBulkDeleteAccounts } from "@/features/accounts/api/use-bulk-delete-a
 import { useGetAccounts } from "@/features/accounts/api/use-get-accounts";
 import { useNewAccount } from "@/features/accounts/hooks/use-new-account";
 import { columns } from "./columns";
-import "/styles.css"
+import "/styles.css";
 import { cn } from "@/lib/utils";
 import { Montserrat } from "next/font/google";
-import { usePlaidLink } from 'react-plaid-link';
+import { usePlaidLink } from "react-plaid-link";
 import { Typewriter } from "react-simple-typewriter";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -32,6 +32,9 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AccountsGrid } from "@/components/accounts-grid";
+
+// Import the new MobileAccounts component
+import { MobileAccounts } from "@/components/mobile-accounts";
 
 const montserratP = Montserrat({
   weight: "500",
@@ -62,8 +65,24 @@ const AccountsPage = () => {
   const accountCategoryRef = useRef<string>("Others");
   const [plaidIsOpen, setPlaidIsOpen] = useState<boolean>(false);
   const [linkToken, setLinkToken] = useState<string | null>(null);
-  const [openPlaid, setOpenPlaid] = useState<() => void>(() => () => { });
+  const [openPlaid, setOpenPlaid] = useState<() => void>(() => () => {});
   const [isBelowAccountLimit, setIsBelowAccountLimit] = useState<boolean>(false);
+
+  // NEW: track window width for conditional rendering
+  const [windowWidth, setWindowWidth] = useState<number>(
+    typeof window !== "undefined" ? window.innerWidth : 9999
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
 
   const Categories = ["Credit cards", "Depositories", "Investments", "Loans", "Others"];
   const formSchema = insertAccountSchema.pick({
@@ -77,9 +96,9 @@ const AccountsPage = () => {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {name: "", category: "", currentBalance: ""},
+    defaultValues: { name: "", category: "", currentBalance: "" },
   });
-  
+
   useEffect(() => {
     const fetchLinkToken = async () => {
       if (user?.id) {
@@ -109,7 +128,7 @@ const AccountsPage = () => {
         console.error("Error fetching account count:", error);
       }
     };
-    
+
     if (user?.id) {
       fetchPlaidAccountCount();
       fetchLinkToken();
@@ -118,27 +137,27 @@ const AccountsPage = () => {
 
   const onSuccess = async (public_token: string) => {
     try {
-      const response = await fetch('/api/plaid/set-access-token', {
-        method: 'POST',
+      const response = await fetch("/api/plaid/set-access-token", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ public_token, userId: user?.id }),
       });
 
+      // Wait a moment or handle the response
       setTimeout(() => {}, 2000);
 
-      await fetch('/api/plaid/upload-accounts', {
-        method: 'POST',
+      await fetch("/api/plaid/upload-accounts", {
+        method: "POST",
         body: JSON.stringify({ category: accountCategoryRef.current }),
-        headers: { 'Content-Type': 'application/json' },
+        headers: { "Content-Type": "application/json" },
       });
 
-      await fetch('/api/plaid/upload-transactions', { method: 'POST' });
-      await fetch('/api/plaid/recurring', { method: 'POST' });
+      await fetch("/api/plaid/upload-transactions", { method: "POST" });
+      await fetch("/api/plaid/recurring", { method: "POST" });
 
       setPlaidIsOpen(false);
-
       window.location.reload();
     } catch (error) {
       console.error("Error exchanging public token and uploading data:", error);
@@ -176,28 +195,35 @@ const AccountsPage = () => {
   const plaidAccountsQuery = useGetAccounts(true);
   const plaidAccounts = plaidAccountsQuery.data || [];
 
-  const accountIds = [...new Set([...manualAccounts.map(acc => acc.id), ...plaidAccounts.map(acc => acc.id)])];
+  // Combine IDs to fetch totals
+  const accountIds = [
+    ...new Set([...manualAccounts.map((acc) => acc.id), ...plaidAccounts.map((acc) => acc.id)]),
+  ];
 
   const totalsQuery = useQuery({
     queryKey: ["accountTotals", { from, to, accountIds }],
     queryFn: () => fetchAccountTotals(from, to, accountIds),
-    enabled: accountIds.length > 0, // Ensures the query runs only if there are account IDs
+    enabled: accountIds.length > 0,
   });
 
   const [isPremiumUser, setIsPremiumUser] = useState(false);
 
-  const isDisabled = manualAccountsQuery.isLoading || plaidAccountsQuery.isLoading || deleteAccounts.isPending || totalsQuery.isLoading;
+  const isDisabled =
+    manualAccountsQuery.isLoading ||
+    plaidAccountsQuery.isLoading ||
+    deleteAccounts.isPending ||
+    totalsQuery.isLoading;
 
   const userId = user?.id || "";
 
-  // Always call useEffect, even if userId might not be set yet
+  // Check subscription status
   useEffect(() => {
     const fetchSubscriptionStatus = async () => {
       if (userId) {
         try {
-          const response = await fetch(`/api/subscription-status?userId=${userId}`)
-            .then(response => response.json())
-            .then(async (data) => {
+          await fetch(`/api/subscription-status?userId=${userId}`)
+            .then((response) => response.json())
+            .then((data) => {
               setIsPremiumUser(data.plan !== "Free");
             });
         } catch (error) {
@@ -210,6 +236,7 @@ const AccountsPage = () => {
   }, [userId]);
 
   const categories = ["Credit cards", "Depository", "Investments", "Loans", "Others"];
+
   type Account = {
     id: string;
     name: string;
@@ -220,52 +247,59 @@ const AccountsPage = () => {
     plaidAccessToken: string;
     currentBalance: string;
     availableBalance: string;
-    [key: string]: any; // Add additional dynamic fields if needed
+    [key: string]: any; // Additional dynamic fields if needed
   };
 
   const groupByCategory = (accounts: Account[]): Record<string, Account[]> => {
     return categories.reduce((acc, category) => {
-      // Ensure account.category is defined and handle the case where it might be undefined or null
+      const lowerCategory = category.trim().toLowerCase();
       acc[category] = accounts.filter((account) => {
-        const accountCategory = account.category?.trim().toLowerCase(); // Safely access category and trim it
-        return accountCategory === category.trim().toLowerCase(); // Normalize and compare categories
+        const acctCat = (account.category || "").trim().toLowerCase();
+        return acctCat === lowerCategory;
       });
       return acc;
     }, {} as Record<string, Account[]>);
   };
 
-  const manualAccountsWithTotals = manualAccounts.map((account) => {
-    return {
-      ...account,
-      ...(totalsQuery.data?.find((total) => total.id === account.id) || {}),
-      userId: account.userId || "",
-      category: account.category || "Others",
-      plaidAccountId: account.plaidAccountId || "",
-      plaidAccessToken: account.plaidAccessToken || "",
-      currentBalance: account.currentBalance || "0",
-      availableBalance: account.availableBalance || "0",
-    };
-  });
+  // Merge each account with its totals from the query
+  const manualAccountsWithTotals = manualAccounts.map((account) => ({
+    ...account,
+    ...(totalsQuery.data?.find((total) => total.id === account.id) || {}),
+    userId: account.userId || "",
+    category: account.category || "Others",
+    plaidAccountId: account.plaidAccountId || "",
+    plaidAccessToken: account.plaidAccessToken || "",
+    currentBalance: account.currentBalance || "0",
+    availableBalance: account.availableBalance || "0",
+  }));
 
-  const plaidAccountsWithTotals = plaidAccounts.map((account) => {
-    return {
-      ...account,
-      ...(totalsQuery.data?.find((total) => total.id === account.id) || {}),
-      userId: account.userId || "",
-      category: account.category || "Others",
-      plaidAccountId: account.plaidAccountId || "",
-      plaidAccessToken: account.plaidAccessToken || "",
-      currentBalance: account.currentBalance || "0",
-      availableBalance: account.availableBalance || "0",
-    };
-  });
-    
+  const plaidAccountsWithTotals = plaidAccounts.map((account) => ({
+    ...account,
+    ...(totalsQuery.data?.find((total) => total.id === account.id) || {}),
+    userId: account.userId || "",
+    category: account.category || "Others",
+    plaidAccountId: account.plaidAccountId || "",
+    plaidAccessToken: account.plaidAccessToken || "",
+    currentBalance: account.currentBalance || "0",
+    availableBalance: account.availableBalance || "0",
+  }));
+
   const groupedManualAccounts = groupByCategory(manualAccountsWithTotals);
   const groupedPlaidAccounts = groupByCategory(plaidAccountsWithTotals);
 
-  if (manualAccountsQuery.isLoading || plaidAccountsQuery.isLoading || totalsQuery.isLoading) {
+  // Loading state
+  if (
+    manualAccountsQuery.isLoading ||
+    plaidAccountsQuery.isLoading ||
+    totalsQuery.isLoading
+  ) {
     return (
-      <div className={cn("mx-auto -mt-6 w-full max-w-screen-2xl pb-10", montserratP.className)}>
+      <div
+        className={cn(
+          "mx-auto -mt-6 w-full max-w-screen-2xl pb-10",
+          montserratP.className
+        )}
+      >
         <AccountsGrid />
         <Card className="border-none drop-shadow-sm">
           <CardHeader>
@@ -294,7 +328,14 @@ const AccountsPage = () => {
   }
 
   return (
-    <div className={cn(`mx-auto -mt-6 w-full max-w-screen-2xl pb-10 ${plaidIsOpen ? "plaid-open" : ""}`, montserratP.className)}>
+    <div
+      className={cn(
+        `mx-auto -mt-6 w-full max-w-screen-2xl pb-10 ${
+          plaidIsOpen ? "plaid-open" : ""
+        }`,
+        montserratP.className
+      )}
+    >
       <AccountsGrid />
       {plaidIsOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
@@ -302,7 +343,16 @@ const AccountsPage = () => {
             <h2 className="text-2xl font-bold mb-4">Connecting</h2>
             <p className="text-lg text-gray-600">
               <Typewriter
-                words={['This will take a few minutes...', 'Please be patient...', 'Waiting for Plaid connections...', 'Waiting for Plaid connections...', 'Waiting for Plaid connections...', 'Fetching your financial data...', 'Categorizing transactions...', 'Creating accounts...', 'Training virtual assistant...']}
+                words={[
+                  "This will take a few minutes...",
+                  "Please be patient...",
+                  "Waiting for Plaid connections...",
+                  "Waiting for Plaid connections...",
+                  "Fetching your financial data...",
+                  "Categorizing transactions...",
+                  "Creating accounts...",
+                  "Training virtual assistant...",
+                ]}
                 loop={true}
                 cursor
                 cursorStyle="|"
@@ -314,11 +364,14 @@ const AccountsPage = () => {
           </div>
         </div>
       )}
-      {/* Plaid Accounts */}
+
+      {/* ========== LINKED (Plaid) ACCOUNTS ========== */}
       {isPremiumUser && (
         <Card>
           <CardHeader className="gap-y-2 md:flex-row md:items-center md:justify-between">
-            <CardTitle className="line-clamp-1 text-2xl font-bold">Linked Accounts</CardTitle>
+            <CardTitle className="line-clamp-1 text-2xl font-bold">
+              Linked Accounts
+            </CardTitle>
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit((data) => {
@@ -337,7 +390,7 @@ const AccountsPage = () => {
                     control={form.control}
                     defaultValue="Others"
                     render={({ field }) => (
-                      <FormItem className="">
+                      <FormItem>
                         <FormLabel className="sr-only">Category</FormLabel>
                         <FormControl>
                           <Select
@@ -365,79 +418,132 @@ const AccountsPage = () => {
                   <Button
                     type="submit"
                     className="bg-gradient-to-br from-blue-500 to-purple-500 hover:opacity-80 w-full md:w-auto mt-5 md:mt-0"
-                    disabled={!form.watch('category') || !isBelowAccountLimit}
+                    disabled={!form.watch("category") || !isBelowAccountLimit}
                   >
-                    <Link className="mr-2 size-4" /> Link New
+                    <Link className="mr-2 size-4" />
+                    Link New
                   </Button>
                 </div>
               </form>
             </Form>
           </CardHeader>
+
           <CardContent>
-          {categories.map((category) => (
-            <div key={category}>
-              <div className={`${groupedPlaidAccounts[category].length === 0 ? "hidden" : ""}`} key={category}>
-                <h3 className="text-lg font-semibold mt-4">{category}</h3>
-                <DataTable
-                  data={groupedPlaidAccounts[category] || []}
-                  columns={columns}
-                  filterKey="name"
-                  disabled={isDisabled}
-                  onDelete={(row) => deleteAccounts.mutate({ ids: row.map((r) => r.original.id) })}
-                />
-              </div>
-              <div className={`${groupedPlaidAccounts[category].length === 0 ? "w-full" : "hidden"}`}>
-                <h3 className="text-lg font-semibold mt-4">{category}</h3>
-                <Button
-                  disabled={!isBelowAccountLimit}
-                  className={cn("w-full border border-dashed rounded-2xl py-10 my-2 bg-transparent text-black hover:bg-gray-100 hover:text-black", montserratH.className)}
-                  onClick={() => {
-                    accountCategoryRef.current = category;
-                    openPlaid();
-                    setPlaidIsOpen(true);
-                  }}
-                >
-                  Link new account
-                </Button>
-              </div>
-            </div>
-          ))}
-        </CardContent>
+            {categories.map((category) => {
+              const accountsForCat = groupedPlaidAccounts[category] || [];
+              const isEmpty = accountsForCat.length === 0;
+
+              return (
+                <div key={category} className="mt-4">
+                  <h3 className="text-lg font-semibold mb-2">{category}</h3>
+
+                  {/* If no accounts in this category, show the "Link new account" button */}
+                  {isEmpty && (
+                    <Button
+                      disabled={!isBelowAccountLimit}
+                      className={cn(
+                        "w-full border border-dashed rounded-2xl py-10 my-2 bg-transparent text-black hover:bg-gray-100 hover:text-black",
+                        montserratH.className
+                      )}
+                      onClick={() => {
+                        accountCategoryRef.current = category;
+                        openPlaid();
+                        setPlaidIsOpen(true);
+                      }}
+                    >
+                      Link new account
+                    </Button>
+                  )}
+
+                  {/* Otherwise show either DataTable or MobileAccounts */}
+                  {!isEmpty && (
+                    <>
+                      {windowWidth >= 1024 ? (
+                        <DataTable
+                          data={accountsForCat}
+                          columns={columns}
+                          filterKey="name"
+                          disabled={isDisabled}
+                          onDelete={(row) =>
+                            deleteAccounts.mutate({
+                              ids: row.map((r) => r.original.id),
+                            })
+                          }
+                        />
+                      ) : (
+                        <MobileAccounts
+                          accounts={accountsForCat}
+                          categoryName={category}
+                        />
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </CardContent>
         </Card>
       )}
-      {/* Manual Accounts */}
-      <Card className={`border-none drop-shadow-sm ${isPremiumUser ? "mt-10" : ""}`}>
+
+      {/* ========== MANUAL ACCOUNTS ========== */}
+      <Card className={cn("border-none drop-shadow-sm", isPremiumUser ? "mt-10" : "")}>
         <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between">
-          <CardTitle className="line-clamp-1 text-2xl font-bold">{isPremiumUser ? "Manual Accounts" : "Accounts"}</CardTitle>
+          <CardTitle className="line-clamp-1 text-2xl font-bold">
+            {isPremiumUser ? "Manual Accounts" : "Accounts"}
+          </CardTitle>
           <Button size="sm" onClick={newAccount.onOpen}>
             <Plus className="mr-2 size-4" /> Add new
           </Button>
         </CardHeader>
         <CardContent>
-          {categories.map((category) => (
-            <div key={category}>
-              <div className={`${groupedManualAccounts[category].length === 0 ? "hidden" : ""}`} key={category}>
-                <h3 className="text-lg font-semibold mt-4">{category}</h3>
-                <DataTable
-                  data={groupedManualAccounts[category] || []}
-                  columns={columns}
-                  filterKey="name"
-                  disabled={isDisabled}
-                  onDelete={(row) => deleteAccounts.mutate({ ids: row.map((r) => r.original.id) })}
-                />
+          {categories.map((category) => {
+            const accountsForCat = groupedManualAccounts[category] || [];
+            const isEmpty = accountsForCat.length === 0;
+
+            return (
+              <div key={category} className="mt-4">
+                <h3 className="text-lg font-semibold mb-2">{category}</h3>
+
+                {/* If no accounts in this category, show the "Add new account" button */}
+                {isEmpty && (
+                  <Button
+                    disabled={!isBelowAccountLimit}
+                    className={cn(
+                      "w-full border border-dashed rounded-2xl py-10 my-2 bg-transparent text-black hover:bg-gray-100 hover:text-black",
+                      montserratH.className
+                    )}
+                    onClick={newAccount.onOpen}
+                  >
+                    Add new account
+                  </Button>
+                )}
+
+                {/* Otherwise show either DataTable or MobileAccounts */}
+                {!isEmpty && (
+                  <>
+                    {windowWidth >= 1024 ? (
+                      <DataTable
+                        data={accountsForCat}
+                        columns={columns}
+                        filterKey="name"
+                        disabled={isDisabled}
+                        onDelete={(row) =>
+                          deleteAccounts.mutate({
+                            ids: row.map((r) => r.original.id),
+                          })
+                        }
+                      />
+                    ) : (
+                      <MobileAccounts
+                        accounts={accountsForCat}
+                        categoryName={category}
+                      />
+                    )}
+                  </>
+                )}
               </div>
-              <div className={`${groupedManualAccounts[category].length === 0 ? "w-full" : "hidden"}`}>
-                <h3 className="text-lg font-semibold mt-4">{category}</h3>
-                <Button
-                  disabled={!isBelowAccountLimit}
-                  className={cn("w-full border border-dashed rounded-2xl py-10 my-2 bg-transparent text-black hover:bg-gray-100 hover:text-black", montserratH.className)}
-                  onClick={newAccount.onOpen}
-                >
-                  Add new account
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </CardContent>
       </Card>
     </div>
