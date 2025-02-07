@@ -39,7 +39,7 @@ export const AreaVariant = ({ data }: AreaVariantProps) => {
           axisLine={false}
           tickLine={false}
           dataKey="date"
-          tickFormatter={(value) => format(value, "dd MMM")}
+          tickFormatter={(value) => format(value, "MMM d")}
           style={{
             fontSize: "12px",
           }}
