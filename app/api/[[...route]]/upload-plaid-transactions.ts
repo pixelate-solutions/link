@@ -6,7 +6,7 @@ import {
   transactions,
   userTokens,
   categories,
-  categorizationRules
+  categorizationRules,
 } from "@/db/schema";
 import { createId } from "@paralleldrive/cuid2";
 import plaidClient from "./plaid";
@@ -161,20 +161,164 @@ function formatPlaidCategoryName(category: string): string {
  * This makes names like "check paid #20143" and "check paid #19243" equivalent.
  */
 function sanitizeTransactionName(name: string): string {
-  return name.replace(/\d+/g, '').trim().toLowerCase();
+  return name.replace(/\d+/g, "").trim().toLowerCase();
 }
+
+/**
+ * Determine the final categoryId for a transaction.
+ *
+ * The function first checks if any user-defined rules already exist in the DB.
+ * If so, it returns the matching categoryId. Otherwise, it falls back to using the
+ * default Plaid category and creates new rules for future transactions.
+ */
+async function determineCategoryIdForTransaction(
+  transactionOrStream: any,
+  userRules: any[],
+  categoryMap: Record<string, string>,
+  userId: string
+): Promise<string | null> {
+  const rawName = transactionOrStream.name || transactionOrStream.merchant_name || "";
+  const sanitizedName = sanitizeTransactionName(rawName);
+  const merchantName = transactionOrStream.merchant_name?.toLowerCase() || "";
+  const transactionDesc =
+    transactionOrStream.name?.toLowerCase() ||
+    transactionOrStream.description?.toLowerCase() ||
+    "";
+  const transactionType = transactionOrStream.transaction_type || "";
+
+  // Helper to get the highest priority rule from an array
+  function getHighestPriorityRule(rules: any[]): any | null {
+    if (rules.length === 0) return null;
+    rules.sort((a, b) => {
+      // First sort descending by priority, then by date (newer first)
+      if (b.priority !== a.priority) return b.priority - a.priority;
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
+    return rules[0];
+  }
+
+  // Check for transaction_name rules first
+  const transactionNameRules = userRules.filter(
+    (rule) => rule.matchType === "transaction_name" && rule.matchValue === sanitizedName
+  );
+  const highestTransactionNameRule = getHighestPriorityRule(transactionNameRules);
+  if (highestTransactionNameRule) {
+    return highestTransactionNameRule.categoryId;
+  }
+
+  // Check for merchant_name rules
+  const merchantNameRules = userRules.filter(
+    (rule) =>
+      rule.matchType === "merchant_name" &&
+      merchantName.includes(rule.matchValue.toLowerCase())
+  );
+  const highestMerchantNameRule = getHighestPriorityRule(merchantNameRules);
+  if (highestMerchantNameRule) {
+    return highestMerchantNameRule.categoryId;
+  }
+
+  // Check for transaction_description rules
+  const transactionDescriptionRules = userRules.filter(
+    (rule) =>
+      rule.matchType === "transaction_description" &&
+      transactionDesc.includes(rule.matchValue.toLowerCase())
+  );
+  const highestTransactionDescriptionRule = getHighestPriorityRule(transactionDescriptionRules);
+  if (highestTransactionDescriptionRule) {
+    return highestTransactionDescriptionRule.categoryId;
+  }
+
+  // Check for transaction_type rules
+  const transactionTypeRules = userRules.filter(
+    (rule) => rule.matchType === "transaction_type" && transactionType === rule.matchValue
+  );
+  const highestTransactionTypeRule = getHighestPriorityRule(transactionTypeRules);
+  if (highestTransactionTypeRule) {
+    return highestTransactionTypeRule.categoryId;
+  }
+
+  // 2) Force "Other" if personal_finance_category.detailed is in TRANSFER_DETAILED_CATEGORIES
+  const detailedCat = transactionOrStream.personal_finance_category?.detailed ?? "";
+  if (TRANSFER_DETAILED_CATEGORIES.has(detailedCat)) {
+    return null;
+  }
+
+  // 3) Otherwise, format the Plaid primary category
+  const primaryCatRaw = transactionOrStream.personal_finance_category?.primary ?? null;
+  const categoryName = formatPlaidCategoryName(primaryCatRaw) || "";
+
+  // 4) Check if that category is in the DB; else fallback to "Other"
+  let finalCategoryId = categoryMap[categoryName] || null;
+
+  // 5) If we ended up with "Other" because we didn't find the category,
+  //    or the primary category was literally "Other", we won't create a new rule.
+  //    Otherwise, create a new rule for "plaid_primary_category" if it doesn't exist.
+  if (finalCategoryId && categoryName) {
+    const existingRule = await db
+      .select()
+      .from(categorizationRules)
+      .where(
+        and(
+          eq(categorizationRules.userId, userId),
+          eq(categorizationRules.matchType, "plaid_primary_category"),
+          eq(categorizationRules.matchValue, primaryCatRaw)
+        )
+      )
+      .orderBy(desc(categorizationRules.priority), desc(categorizationRules.date));
+
+    if (existingRule.length === 0) {
+      // Insert a new rule mapping this raw primary category to finalCategoryId
+      await db.insert(categorizationRules).values({
+        id: createId(),
+        userId,
+        categoryId: finalCategoryId,
+        matchType: "plaid_primary_category",
+        matchValue: primaryCatRaw,
+        priority: 1,
+        date: new Date(),
+      });
+    }
+  }
+
+  // 6) New logic: Check again for a "transaction_name" rule by performing a fresh DB query,
+  //     ordered by descending priority to ensure the highest priority rule is used.
+  if (finalCategoryId && sanitizedName) {
+    const existingNameRule = await db
+      .select()
+      .from(categorizationRules)
+      .where(
+        and(
+          eq(categorizationRules.userId, userId),
+          eq(categorizationRules.matchType, "transaction_name"),
+          eq(categorizationRules.matchValue, sanitizedName)
+        )
+      )
+      .orderBy(desc(categorizationRules.priority), desc(categorizationRules.date));
+
+    if (existingNameRule.length > 0) {
+      finalCategoryId = existingNameRule[0].categoryId;
+    } else {
+      await db.insert(categorizationRules).values({
+        id: createId(),
+        userId,
+        categoryId: finalCategoryId,
+        matchType: "transaction_name",
+        matchValue: sanitizedName.toLowerCase(),
+        priority: 1,
+        date: new Date(),
+      });
+    }
+  }
+
+  return finalCategoryId;
+}
+
 
 /**
  * Initial endpoint that fetches transactions from Plaid and assigns them
  * a "first pass" category using only Plaid's `personal_finance_category`.
  *
- * Now also creates two types of categorization rules:
- *  1. A rule keyed on the Plaid primary category (if not forced to "Other")
- *  2. A rule keyed on the transaction name (ignoring numbers) so that future transactions
- *     with the same (sanitized) payee name are automatically categorized.
- *
- * (Note: When a user manually changes a transaction’s category, a rule with priority 2 is created
- *  which will then override these automatically created priority 1 rules.)
+ * Now also creates categorization rules by using determineCategoryIdForTransaction.
  */
 app.post("/", clerkMiddleware(), async (ctx) => {
   const auth = getAuth(ctx);
@@ -246,6 +390,12 @@ app.post("/", clerkMiddleware(), async (ctx) => {
     return map;
   }, {} as Record<string, string>);
 
+  // Pre-fetch all existing categorization rules for the user
+  const userRules = await db
+    .select()
+    .from(categorizationRules)
+    .where(eq(categorizationRules.userId, userId));
+
   // Insert transactions into the DB with a "first pass" category
   await Promise.all(
     plaidTransactions.map(async (transaction) => {
@@ -253,84 +403,15 @@ app.post("/", clerkMiddleware(), async (ctx) => {
       const accountId = accountIdMap[transaction.account_id];
       if (!accountId) return;
 
-      // 2. Determine the categoryName from Plaid
-      let categoryName: string | null;
-      const detailedCat = transaction.personal_finance_category?.detailed ?? "";
-      const primaryCatRaw = transaction.personal_finance_category?.primary ?? "Other";
+      // 2. Determine the category using the helper function.
+      const categoryId = await determineCategoryIdForTransaction(
+        transaction,
+        userRules,
+        categoryMap,
+        userId
+      );
 
-      if (TRANSFER_DETAILED_CATEGORIES.has(detailedCat)) {
-        // Force it to "Other"
-        categoryName = null;
-      } else {
-        // Format the primary category
-        categoryName = formatPlaidCategoryName(primaryCatRaw);
-      }
-
-      // 3. Find the category ID based on the formatted name
-      let categoryId: string | null = null;
-      if (categoryName) {
-        categoryId = categoryMap[categoryName] || null;
-      }
-
-      // 4. Create (if needed) a categorization rule keyed on the Plaid primary category
-      //    (We store the raw "primaryCatRaw" so we match exactly what Plaid sends next time)
-      if (!TRANSFER_DETAILED_CATEGORIES.has(detailedCat)) {
-        const existingRule = await db
-          .select()
-          .from(categorizationRules)
-          .where(
-            and(
-              eq(categorizationRules.userId, userId),
-              eq(categorizationRules.matchType, "plaid_primary_category"),
-              eq(categorizationRules.matchValue, primaryCatRaw)
-            )
-          )
-          .orderBy(desc(categorizationRules.priority), desc(categorizationRules.date));
-        if (existingRule.length === 0 && categoryId) {
-          await db.insert(categorizationRules).values({
-            id: createId(),
-            userId,
-            categoryId,
-            matchType: "plaid_primary_category",
-            matchValue: primaryCatRaw, // use raw to match future Plaid data
-            priority: 1,
-            date: new Date(),
-          });
-        }
-      }
-
-      // 5. New logic: Check for a transaction name rule (ignoring numbers)
-      //    If one exists, override the category; if not, create a new rule (if a category exists).
-      const sanitizedPayee = sanitizeTransactionName(transaction.name);
-      const existingNameRule = await db
-        .select()
-        .from(categorizationRules)
-        .where(
-          and(
-            eq(categorizationRules.userId, userId),
-            eq(categorizationRules.matchType, "transaction_name"),
-            eq(categorizationRules.matchValue, sanitizedPayee)
-          )
-        )
-        .orderBy(desc(categorizationRules.priority), desc(categorizationRules.date));
-
-      if (existingNameRule.length > 0) {
-        // Use the category from the existing transaction name rule
-        categoryId = existingNameRule[0].categoryId;
-      } else if (categoryId) {
-        // Insert a new rule for this transaction name (with priority 1)
-        await db.insert(categorizationRules).values({
-          id: createId(),
-          userId,
-          categoryId,
-          matchType: "transaction_name",
-          matchValue: sanitizedPayee,
-          priority: 1,
-          date: new Date(),
-        });
-      }
-
-      // 6. Determine the sign of the amount
+      // 3. Determine the sign of the amount
       let amount: number;
       const lowerName = transaction.name.toLowerCase();
       if (lowerName.includes("withdraw")) {
@@ -341,7 +422,7 @@ app.post("/", clerkMiddleware(), async (ctx) => {
         amount = transaction.amount * -1;
       }
 
-      // 7. Insert the transaction
+      // 4. Insert the transaction
       await db
         .insert(transactions)
         .values({

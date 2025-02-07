@@ -405,7 +405,7 @@ const app = new Hono()
           id: crypto.randomUUID(),
           userId: auth.userId,
           matchType: "transaction_name",
-          matchValue: values.payee || "",
+          matchValue: values.payee?.toLowerCase() || "",
           priority: 2,
           date: new Date(),
           categoryId: newCategoryId, // Referencing the correct category

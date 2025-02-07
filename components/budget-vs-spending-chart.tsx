@@ -7,7 +7,8 @@ import {
 import { 
   format, parseISO, differenceInDays, 
   isFirstDayOfMonth, endOfToday, isSameDay, 
-  subMonths, lastDayOfMonth 
+  subMonths, lastDayOfMonth, 
+  addDays
 } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { FileSearch } from 'lucide-react';
@@ -81,7 +82,7 @@ export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartP
       const today = endOfToday();
       const previousMonthSameDay = subMonths(today, 1);
 
-      from = previousMonthSameDay.toISOString();
+      from = addDays(previousMonthSameDay, 1).toISOString();
       to = today.toISOString();
     }
 

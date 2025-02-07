@@ -26,7 +26,6 @@ interface PlaidErrorResponse {
   error_message: string;
 }
 
-// A set of Plaid detailed categories that should always be forced to "Other"
 const TRANSFER_DETAILED_CATEGORIES = new Set<string>([
   "TRANSFER_IN_DEPOSIT",
   "TRANSFER_IN_CASH_ADVANCES_AND_LOANS",
@@ -36,14 +35,10 @@ const TRANSFER_DETAILED_CATEGORIES = new Set<string>([
 ]);
 
 /**
- * Convert a Plaid primary category like "FOOD_AND_DRINK" into a more human-friendly name:
- * - Splits on underscores
- * - Replaces "AND" with "/"
- * - Capitalizes each piece
- * - Joins them with spaces, removing spaces around "/"
+ * Convert a Plaid primary category like "FOOD_AND_DRINK" into a more human-friendly name.
  */
 function formatPlaidCategoryName(category: string): string {
-  const splitted = category.split("_"); // e.g. ["FOOD", "AND", "DRINK"]
+  const splitted = category.split("_");
   const processed = splitted.map((word) => {
     if (word.toUpperCase() === "AND") {
       return "/";
@@ -51,14 +46,12 @@ function formatPlaidCategoryName(category: string): string {
     return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
   });
   let joined = processed.join(" ");
-  // Remove spaces around slashes
   joined = joined.replace(/\s+\/\s+/g, "/");
   return joined;
 }
 
 /**
  * Helper to sanitize a transaction name by removing numbers.
- * This ensures that names like "Check Paid #20143" and "Check Paid #19243" are treated as equivalent.
  */
 function sanitizeTransactionName(name: string): string {
   return name.replace(/\d+/g, '').trim().toLowerCase();
@@ -92,7 +85,6 @@ export const sendEmail = async (body: string) => {
   }
 };
 
-// Type guard to check if the error is an AxiosError
 const isAxiosError = (error: unknown): error is AxiosError => {
   return (error as AxiosError).isAxiosError !== undefined;
 };
@@ -117,39 +109,23 @@ const fetchPlaidTransactionsWithRetry = async (
           cursor: cursor ?? undefined,
         });
 
-        const {
-          added,
-          modified,
-          removed,
-          next_cursor,
-          has_more,
-          accounts: plaidAccounts,
-        } = response.data;
+        const { added, modified, removed, next_cursor, has_more, accounts: plaidAccounts } = response.data;
 
         // Update account balances in DB
         for (const account of plaidAccounts) {
           const { account_id, balances, type, subtype } = account;
           let { current, available } = balances;
 
-          // Adjust sign for credit/loan
           if (type === "credit" || (type === "loan" && subtype !== "student")) {
-            // Positive balance = debt
             current = -Math.abs(current || 0);
             available = available !== null ? Math.abs(available) : null;
-          } else if (
-            type === "loan" &&
-            subtype === "student" &&
-            account.official_name?.includes("Sallie Mae")
-          ) {
-            // Student loan for Sallie Mae
+          } else if (type === "loan" && subtype === "student" && account.official_name?.includes("Sallie Mae")) {
             current = -Math.abs(current || 0);
           } else {
-            // Asset accounts remain positive
             current = Math.abs(current || 0);
             available = available !== null ? Math.abs(available) : null;
           }
 
-          // Update in DB
           await db
             .update(accounts)
             .set({
@@ -167,11 +143,9 @@ const fetchPlaidTransactionsWithRetry = async (
             const catCheck = (cat: string) => cat.toLowerCase().includes("transfer");
             const nameCheck = (nm: string | undefined) =>
               nm?.toLowerCase().includes("check") || nm?.toLowerCase().includes("pay");
-
             const detailedCategory = t.personal_finance_category?.detailed ?? "";
             const primaryCategory = t.personal_finance_category?.primary ?? "";
             const name = t.name ?? "";
-
             return !(catCheck(detailedCategory) || catCheck(primaryCategory)) || nameCheck(name);
           });
 
@@ -180,7 +154,6 @@ const fetchPlaidTransactionsWithRetry = async (
         hasMore = has_more;
       }
 
-      // Store cursor for next sync
       await db
         .update(userTokens)
         .set({ cursor })
@@ -207,7 +180,6 @@ const fetchPlaidTransactionsWithRetry = async (
         console.error("Unknown error:", error);
         throw new Error("An unknown error occurred.");
       }
-
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
       attempts++;
     }
@@ -219,9 +191,7 @@ async function fetchRecurringTransactionsWithRetry(accessToken: string) {
   let attempts = 0;
   while (attempts < MAX_RETRIES) {
     try {
-      const response = await plaidClient.transactionsRecurringGet({
-        access_token: accessToken,
-      });
+      const response = await plaidClient.transactionsRecurringGet({ access_token: accessToken });
       return response.data;
     } catch (error) {
       if (attempts >= MAX_RETRIES - 1) {
@@ -238,7 +208,7 @@ async function fetchRecurringTransactionsWithRetry(accessToken: string) {
  * Determine the best category for a transaction (or stream), respecting user overrides,
  * forced "Other" logic, and creating new categorization rules as needed.
  *
- * Now also checks for a transaction name rule by sanitizing the name (ignoring numbers).
+ * This version gathers all matching user rules and returns the one with the highest priority.
  */
 async function determineCategoryIdForTransaction(
   transactionOrStream: any,
@@ -255,41 +225,53 @@ async function determineCategoryIdForTransaction(
     "";
   const transactionType = transactionOrStream.transaction_type || "";
 
-  // 1) Check user-defined rules first (including transaction_name rules)
-  for (const rule of userRules) {
-    if (rule.matchType === "transaction_name" && rule.matchValue === sanitizedName) {
-      return rule.categoryId;
-    }
-    if (rule.matchType === "merchant_name" && merchantName.includes(rule.matchValue.toLowerCase())) {
-      return rule.categoryId;
-    }
-    if (
-      rule.matchType === "transaction_description" &&
-      transactionDesc.includes(rule.matchValue.toLowerCase())
-    ) {
-      return rule.categoryId;
-    }
-    if (rule.matchType === "transaction_type" && transactionType === rule.matchValue) {
-      return rule.categoryId;
-    }
+  // Helper to get the highest priority rule from an array
+  function getHighestPriorityRule(rules: any[]): any | null {
+    if (rules.length === 0) return null;
+    rules.sort((a, b) => {
+      if (b.priority !== a.priority) return b.priority - a.priority;
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
+    return rules[0];
   }
 
-  // 2) Force "Other" if personal_finance_category.detailed is in TRANSFER_DETAILED_CATEGORIES
+  // Check transaction_name rules
+  const transactionNameRules = userRules.filter(
+    (rule) => rule.matchType === "transaction_name" && rule.matchValue === sanitizedName
+  );
+  const highestTransactionNameRule = getHighestPriorityRule(transactionNameRules);
+  if (highestTransactionNameRule) return highestTransactionNameRule.categoryId;
+
+  // Check merchant_name rules
+  const merchantNameRules = userRules.filter(
+    (rule) => rule.matchType === "merchant_name" && merchantName.includes(rule.matchValue.toLowerCase())
+  );
+  const highestMerchantNameRule = getHighestPriorityRule(merchantNameRules);
+  if (highestMerchantNameRule) return highestMerchantNameRule.categoryId;
+
+  // Check transaction_description rules
+  const transactionDescriptionRules = userRules.filter(
+    (rule) => rule.matchType === "transaction_description" && transactionDesc.includes(rule.matchValue.toLowerCase())
+  );
+  const highestTransactionDescriptionRule = getHighestPriorityRule(transactionDescriptionRules);
+  if (highestTransactionDescriptionRule) return highestTransactionDescriptionRule.categoryId;
+
+  // Check transaction_type rules
+  const transactionTypeRules = userRules.filter(
+    (rule) => rule.matchType === "transaction_type" && transactionType === rule.matchValue
+  );
+  const highestTransactionTypeRule = getHighestPriorityRule(transactionTypeRules);
+  if (highestTransactionTypeRule) return highestTransactionTypeRule.categoryId;
+
+  // Force "Other" if personal_finance_category.detailed is in TRANSFER_DETAILED_CATEGORIES
   const detailedCat = transactionOrStream.personal_finance_category?.detailed ?? "";
-  if (TRANSFER_DETAILED_CATEGORIES.has(detailedCat)) {
-    return null;
-  }
+  if (TRANSFER_DETAILED_CATEGORIES.has(detailedCat)) return null;
 
-  // 3) Otherwise, format the Plaid primary category
+  // Otherwise, format the Plaid primary category
   const primaryCatRaw = transactionOrStream.personal_finance_category?.primary ?? null;
   const categoryName = formatPlaidCategoryName(primaryCatRaw) || "";
-
-  // 4) Check if that category is in the DB; else fallback to "Other"
   let finalCategoryId = categoryMap[categoryName] || null;
 
-  // 5) If we ended up with "Other" because we didn't find the category,
-  //    or the primary category was literally "Other", we won't create a new rule.
-  //    Otherwise, create a new rule for "plaid_primary_category" if it doesn't exist.
   if (finalCategoryId && categoryName) {
     const existingRule = await db
       .select()
@@ -304,7 +286,6 @@ async function determineCategoryIdForTransaction(
       .orderBy(desc(categorizationRules.priority), desc(categorizationRules.date));
 
     if (existingRule.length === 0) {
-      // Insert a new rule mapping this raw primary category to finalCategoryId
       await db.insert(categorizationRules).values({
         id: createId(),
         userId,
@@ -317,8 +298,6 @@ async function determineCategoryIdForTransaction(
     }
   }
 
-  // 6) New logic: Check for a "transaction_name" rule based on the sanitized name.
-  //     If one exists, override finalCategoryId; if not and we have a category, insert a new rule.
   if (finalCategoryId && sanitizedName) {
     const existingNameRule = await db
       .select()
@@ -340,7 +319,7 @@ async function determineCategoryIdForTransaction(
         userId,
         categoryId: finalCategoryId,
         matchType: "transaction_name",
-        matchValue: sanitizedName,
+        matchValue: sanitizedName.toLowerCase(),
         priority: 1,
         date: new Date(),
       });
@@ -352,24 +331,17 @@ async function determineCategoryIdForTransaction(
 
 /**
  * Processes standard (non-recurring) transactions from Plaid.
- * Respects user-defined rules, forced-other logic, and
- * will create new rules for "plaid_primary_category" (and now for "transaction_name").
  */
 async function processTransactions(plaidTransactions: any[], userId: string, itemId: string) {
-  // 1. Fetch user accounts
   const dbAccounts = await db
     .select({ id: accounts.id, plaidAccountId: accounts.plaidAccountId })
     .from(accounts)
     .where(eq(accounts.userId, userId));
-
   const accountIdMap = dbAccounts.reduce((map, account) => {
-    if (account.plaidAccountId) {
-      map[account.plaidAccountId] = account.id;
-    }
+    if (account.plaidAccountId) map[account.plaidAccountId] = account.id;
     return map;
   }, {} as Record<string, string>);
 
-  // 2. Fetch all user rules & categories
   const userRules = await db
     .select()
     .from(categorizationRules)
@@ -380,21 +352,16 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
     .select({ id: categories.id, name: categories.name })
     .from(categories)
     .where(eq(categories.userId, userId));
-
   const categoryMap = dbCategories.reduce((map, c) => {
-    if (c.name) {
-      map[c.name] = c.id;
-    }
+    if (c.name) map[c.name] = c.id;
     return map;
   }, {} as Record<string, string>);
 
-  // 3. Insert or update each Plaid transaction
   await Promise.all(
     plaidTransactions.map(async (transaction) => {
       const accountId = accountIdMap[transaction.account_id];
       if (!accountId) return;
 
-      // 3a. Determine category
       const categoryId = await determineCategoryIdForTransaction(
         transaction,
         userRules,
@@ -402,7 +369,6 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
         userId
       );
 
-      // 3b. Decide sign of amount
       let amount: number;
       const lowerName = transaction.name?.toLowerCase() || "";
       if (lowerName.includes("withdraw")) {
@@ -426,13 +392,10 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
         .execute();
 
       if (existingTx.length > 0) {
-        // Already exists: optionally update if you want
-        // For now, skip or do minimal updates
         console.log("SKIPPING EXISTING TRANSACTION");
         return;
       }
 
-      // Insert new standard transaction
       await db
         .insert(transactions)
         .values({
@@ -453,24 +416,17 @@ async function processTransactions(plaidTransactions: any[], userId: string, ite
 
 /**
  * Processes recurring transactions from Plaid.
- * Respects user-defined rules, forced-other logic, and
- * will create new rules for "plaid_primary_category" (and now for "transaction_name").
  */
 async function processRecurringTransactions(plaidData: any, userId: string) {
-  // 1. Fetch user accounts
   const dbAccounts = await db
     .select({ id: accounts.id, plaidAccountId: accounts.plaidAccountId })
     .from(accounts)
     .where(eq(accounts.userId, userId));
-
   const accountIdMap = dbAccounts.reduce((map, account) => {
-    if (account.plaidAccountId) {
-      map[account.plaidAccountId] = account.id;
-    }
+    if (account.plaidAccountId) map[account.plaidAccountId] = account.id;
     return map;
   }, {} as Record<string, string>);
 
-  // 2. Fetch user rules & categories
   const userRules = await db
     .select()
     .from(categorizationRules)
@@ -481,26 +437,20 @@ async function processRecurringTransactions(plaidData: any, userId: string) {
     .select({ id: categories.id, name: categories.name })
     .from(categories)
     .where(eq(categories.userId, userId));
-
   const categoryMap = dbCategories.reduce((map, c) => {
-    if (c.name) {
-      map[c.name] = c.id;
-    }
+    if (c.name) map[c.name] = c.id;
     return map;
   }, {} as Record<string, string>);
 
-  // 3. Gather all streams
   const inflowStreams = plaidData.inflow_streams || [];
   const outflowStreams = plaidData.outflow_streams || [];
   const allStreams = [...inflowStreams, ...outflowStreams];
 
-  // 4. Insert each recurring stream if not already present
   await Promise.all(
     allStreams.map(async (stream) => {
       const accountId = accountIdMap[stream.account_id];
       if (!accountId) return null;
 
-      // 4a. Determine category
       const categoryId = await determineCategoryIdForTransaction(
         stream,
         userRules,
@@ -508,13 +458,11 @@ async function processRecurringTransactions(plaidData: any, userId: string) {
         userId
       );
 
-      // 4b. Convert amounts to string (negative by default)
       const avgAmt = stream.average_amount?.amount ?? 0;
       const lastAmt = stream.last_amount?.amount ?? 0;
       const averageAmount = (avgAmt * -1).toString();
       const lastAmount = (lastAmt * -1).toString();
 
-      // 4c. Check duplicates by streamId
       const existing = await db
         .select({ id: recurringTransactions.id })
         .from(recurringTransactions)
@@ -525,7 +473,6 @@ async function processRecurringTransactions(plaidData: any, userId: string) {
         return null;
       }
 
-      // 4d. Insert new recurring transaction
       return db
         .insert(recurringTransactions)
         .values({
@@ -536,17 +483,12 @@ async function processRecurringTransactions(plaidData: any, userId: string) {
           payee:
             stream.merchant_name
               ?.split(" ")
-              .map(
-                (word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-              )
+              .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
               .join(" ") || "Unknown",
           categoryId,
           frequency: stream.frequency
             .split("_")
-            .map(
-              (word: string) =>
-                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-            )
+            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
             .join(" "),
           averageAmount,
           lastAmount,
@@ -563,28 +505,17 @@ async function processRecurringTransactions(plaidData: any, userId: string) {
  * Primary webhook endpoint for handling Plaid transaction updates.
  */
 app.post("/transactions", clerkMiddleware(), async (ctx) => {
-  const { webhook_code, webhook_type, item_id, removed_transactions } =
-    await ctx.req.json();
+  const { webhook_code, webhook_type, item_id, removed_transactions } = await ctx.req.json();
+  if (!item_id) return ctx.json({ error: "Missing item_id" }, 400);
 
-  if (!item_id) {
-    return ctx.json({ error: "Missing item_id" }, 400);
-  }
-
-  // Fetch user token + access
   const userTokensResult = await db
-    .select({
-      userId: userTokens.userId,
-      accessToken: userTokens.accessToken,
-      cursor: userTokens.cursor,
-    })
+    .select({ userId: userTokens.userId, accessToken: userTokens.accessToken, cursor: userTokens.cursor })
     .from(userTokens)
     .where(eq(userTokens.itemId, item_id))
     .orderBy(desc(userTokens.createdAt));
 
   const userToken = userTokensResult[0];
-  if (!userToken) {
-    return ctx.json({ error: "Access token not found" }, 404);
-  }
+  if (!userToken) return ctx.json({ error: "Access token not found" }, 404);
 
   const { userId, accessToken, cursor: initialCursor } = userToken;
 
@@ -592,7 +523,6 @@ app.post("/transactions", clerkMiddleware(), async (ctx) => {
     switch (webhook_code) {
       case "SYNC_UPDATES_AVAILABLE":
       case "RECURRING_TRANSACTIONS_UPDATE":
-        // Fetch new/modified transactions
         const plaidTransactions = await fetchPlaidTransactionsWithRetry(
           accessToken,
           initialCursor,
@@ -603,20 +533,13 @@ app.post("/transactions", clerkMiddleware(), async (ctx) => {
           await sendEmail("Failed to fetch transactions after multiple attempts.");
           return ctx.json({ error: "Failed to fetch transactions after multiple attempts" }, 500);
         }
-
-        // Insert or update them
         await processTransactions(plaidTransactions, userId, item_id);
 
-        // Fetch recurring transactions
         const plaidRecurringTransactions = await fetchRecurringTransactionsWithRetry(accessToken);
         if (!plaidRecurringTransactions) {
-          return ctx.json(
-            { error: "Failed to fetch recurring transactions after multiple attempts" },
-            500
-          );
+          return ctx.json({ error: "Failed to fetch recurring transactions after multiple attempts" }, 500);
         }
         await processRecurringTransactions(plaidRecurringTransactions, userId);
-
         break;
 
       case "TRANSACTIONS_REMOVED":
@@ -643,9 +566,7 @@ app.post("/transactions", clerkMiddleware(), async (ctx) => {
       case "INITIAL_UPDATE":
       case "HISTORICAL_UPDATE":
       case "DEFAULT_UPDATE":
-        // You could handle these if needed
         break;
-
       default:
         await sendEmail(`Unrecognized webhook code: ${webhook_code}`);
         console.log(`Unrecognized webhook code: ${webhook_code}`);
@@ -654,7 +575,6 @@ app.post("/transactions", clerkMiddleware(), async (ctx) => {
   } else if (webhook_type === "ITEM") {
     switch (webhook_code) {
       case "WEBHOOK_UPDATE_ACKNOWLEDGED":
-        // Webhook URL updated, do any logging if you want
         break;
       default:
         await sendEmail(`Unrecognized ITEM webhook code: ${webhook_code}`);
