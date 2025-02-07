@@ -6,7 +6,7 @@ import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db/drizzle";
-import { accounts, transactions } from "@/db/schema";
+import { accounts, transactions, categories } from "@/db/schema";
 
 const app = new Hono()
   .get(
@@ -35,7 +35,9 @@ const app = new Hono()
         ? startOfDay(parse(from, "yyyy-MM-dd", new Date()))
         : startOfDay(defaultFrom);
 
-      const endDate = to ? endOfDay(parse(to, "yyyy-MM-dd", new Date())) : endOfDay(defaultTo);
+      const endDate = to
+        ? endOfDay(parse(to, "yyyy-MM-dd", new Date()))
+        : endOfDay(defaultTo);
 
       try {
         // Fetch account category for the logged-in user
@@ -50,36 +52,47 @@ const app = new Hono()
 
         const accountCategory = account[0]?.category;
 
-        // Calculate total income for the logged-in user
+        // Calculate total income
         const totalIncomeResult = await db
-          .select({ totalIncome: sql`SUM(CAST(amount AS FLOAT))` })
+          .select({
+            totalIncome: sql`SUM(CAST(transactions.amount AS FLOAT))`,
+          })
           .from(transactions)
+          // Left join categories so that we can exclude specific transfer transactions.
+          .leftJoin(categories, eq(transactions.categoryId, categories.id))
           .where(
             and(
               eq(transactions.accountId, accountId || ""),
-              eq(transactions.userId, auth.userId), // Ensure the transaction belongs to the logged-in user
-              gte(transactions.amount, '0'),
+              eq(transactions.userId, auth.userId),
+              gte(transactions.amount, "0"),
               gte(transactions.date, startDate),
-              lte(transactions.date, endDate)
+              lte(transactions.date, endDate),
+              // Exclude transactions whose category type is "transfer"
+              sql`COALESCE(LOWER(${categories.type}), '') <> 'transfer'`
             )
           );
 
-        // Calculate total cost for the logged-in user
+        // Calculate total cost
         const totalCostResult = await db
-          .select({ totalCost: sql`SUM(CAST(amount AS FLOAT))` })
+          .select({
+            totalCost: sql`SUM(CAST(transactions.amount AS FLOAT))`,
+          })
           .from(transactions)
+          .leftJoin(categories, eq(transactions.categoryId, categories.id))
           .where(
             and(
               eq(transactions.accountId, accountId || ""),
-              eq(transactions.userId, auth.userId), // Ensure the transaction belongs to the logged-in user
-              lte(transactions.amount, '0'),
+              eq(transactions.userId, auth.userId),
+              lte(transactions.amount, "0"),
               gte(transactions.date, startDate),
-              lte(transactions.date, endDate)
+              lte(transactions.date, endDate),
+              // Exclude transactions whose category type is "transfer"
+              sql`COALESCE(LOWER(${categories.type}), '') <> 'transfer'`
             )
           );
 
-        const totalIncome = (totalIncomeResult[0]?.totalIncome || 0);
-        const totalCost = (totalCostResult[0]?.totalCost || 0);
+        const totalIncome = totalIncomeResult[0]?.totalIncome || 0;
+        const totalCost = totalCostResult[0]?.totalCost || 0;
 
         return ctx.json({
           totalIncome,

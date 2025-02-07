@@ -165,11 +165,6 @@ const SettingsPage = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       })
-      .then(response => response.json())
-      .then(data => {
-        if (data.message) {
-        }
-      })
       .catch((error) => {
         console.error("Error checking default categories:", error);
       });

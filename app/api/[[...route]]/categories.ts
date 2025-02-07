@@ -6,7 +6,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 
 import { db } from "@/db/drizzle";
-import { categories } from "@/db/schema";
+import { categories, categorizationRules } from "@/db/schema";
 
 const app = new Hono()
   .get("/", clerkMiddleware(), async (ctx) => {
@@ -21,6 +21,7 @@ const app = new Hono()
         id: categories.id,
         name: categories.name,
         budgetAmount: categories.budgetAmount,
+        type: categories.type,
       })
       .from(categories)
       .where(eq(categories.userId, auth.userId));
@@ -53,6 +54,7 @@ const app = new Hono()
           id: categories.id,
           name: categories.name,
           budgetAmount: categories.budgetAmount,
+          type: categories.type,
         })
         .from(categories)
         .where(and(eq(categories.userId, auth.userId), eq(categories.id, id)));
@@ -76,14 +78,22 @@ const app = new Hono()
       }
 
       const defaultCategories = [
-        { name: "Salary/Wages (Default)", type: "income" },
-        { name: "Other (Default)", type: "income" },
-        { name: "Housing/Utilities (Default)", type: "expense" },
-        { name: "Transportation (Default)", type: "expense" },
-        { name: "Groceries/Food (Default)", type: "expense" },
-        { name: "Health/Insurance (Default)", type: "expense" },
-        { name: "Entertainment/Leisure (Default)", type: "expense" },
-        { name: "Savings/Investments (Default)", type: "expense" },
+        { name: "Income", type: "income" },
+        { name: "Transfer In", type: "transfer" },
+        { name: "Transfer Out", type: "transfer" },
+        { name: "Loan Payments", type: "expense" },
+        { name: "Bank Fees", type: "expense" },
+        { name: "Entertainment", type: "expense" },
+        { name: "Food/Drink", type: "expense" },
+        { name: "General Merchandise", type: "expense" },
+        { name: "Home Improvement", type: "expense" },
+        { name: "Medical", type: "expense" },
+        { name: "Personal Care", type: "expense" },
+        { name: "General Services", type: "expense" },
+        { name: "Government/Non-Profit", type: "expense" },
+        { name: "Transportation", type: "expense" },
+        { name: "Travel", type: "expense" },
+        { name: "Rent/Utilities", type: "expense" },
       ];
 
       const existingCategories = await db
@@ -92,7 +102,8 @@ const app = new Hono()
         .where(and(eq(categories.userId, userId), eq(categories.isDefault, true)));
 
       const missingCategories = defaultCategories.filter(
-        (defaultCategory) => !existingCategories.some((cat) => cat.name === defaultCategory.name)
+        (defaultCategory) =>
+          !existingCategories.some((cat) => cat.name === defaultCategory.name)
       );
 
       if (missingCategories.length > 0) {
@@ -162,36 +173,32 @@ const app = new Hono()
         return ctx.json({ error: "Unauthorized." }, 401);
       }
 
-      // Fetch categories to check for any default categories in the list
       const categoriesToDelete = await db
         .select({ id: categories.id, isDefault: categories.isDefault })
         .from(categories)
         .where(
-          and(
-            eq(categories.userId, auth.userId),
-            inArray(categories.id, values.ids)
-          )
+          and(eq(categories.userId, auth.userId), inArray(categories.id, values.ids))
         );
 
-      // Filter out default categories
-      const nonDefaultCategoryIds = categoriesToDelete
-        .filter((category) => !category.isDefault)
-        .map((category) => category.id);
+      // Extract all category IDs to delete
+      const idsToDelete = categoriesToDelete.map((category) => category.id);
 
-      if (nonDefaultCategoryIds.length === 0) {
-        return ctx.json({ error: "No categories can be deleted." }, 400);
-      }
-
-      // Proceed with deletion of non-default categories
-      const data = await db
-        .delete(categories)
-        .where(
-          and(
-            eq(categories.userId, auth.userId),
-            inArray(categories.id, nonDefaultCategoryIds)
+      let data;
+      if (idsToDelete.length > 0) {
+        // Delete all categorizationRules for these categories
+        await db
+          .delete(categorizationRules)
+          .where(
+            and(eq(categorizationRules.userId, auth.userId), inArray(categorizationRules.categoryId, idsToDelete))
           )
-        )
-        .returning({ id: categories.id });
+          .execute();
+
+        // Delete all categories in the given list
+        data = await db
+          .delete(categories)
+          .where(and(eq(categories.userId, auth.userId), inArray(categories.id, idsToDelete)))
+          .returning({ id: categories.id });
+      }
 
       return ctx.json({ data });
     }
@@ -208,13 +215,15 @@ const app = new Hono()
     zValidator(
       "json",
       z.object({
-        budgetAmount: z.string(), // Only allow `budgetAmount` in the request body
+        name: z.string(),
+        budgetAmount: z.string().optional(),
+        type: z.enum(["income", "expense", "transfer"]),
       })
     ),
     async (ctx) => {
       const auth = getAuth(ctx);
       const { id } = ctx.req.valid("param");
-      const { budgetAmount } = ctx.req.valid("json");
+      const { name, budgetAmount, type = "expense" } = ctx.req.valid("json");
 
       if (!id) {
         return ctx.json({ error: "Missing id." }, 400);
@@ -234,10 +243,9 @@ const app = new Hono()
         return ctx.json({ error: "Not found." }, 404);
       }
 
-      // Proceed with update for `budgetAmount` regardless of default status
       const [data] = await db
         .update(categories)
-        .set({ budgetAmount }) // Only update `budgetAmount`
+        .set({ name, budgetAmount, type })
         .where(and(eq(categories.userId, auth.userId), eq(categories.id, id)))
         .returning();
 
@@ -265,22 +273,24 @@ const app = new Hono()
         return ctx.json({ error: "Unauthorized." }, 401);
       }
 
-      // Check if the category is a default category
+      // Fetch the category (Optional: only if you need it for logging or other operations)
       const category = await db
         .select({ id: categories.id, isDefault: categories.isDefault })
         .from(categories)
         .where(and(eq(categories.userId, auth.userId), eq(categories.id, id)))
         .limit(1);
 
-      if (!category) {
+      if (!category.length) {
         return ctx.json({ error: "Not found." }, 404);
       }
 
-      if (category[0].isDefault) {
-        return ctx.json({ error: "Cannot delete a default category." }, 403);
-      }
+      // First, delete any categorizationRules that have this category id for the user
+      await db
+        .delete(categorizationRules)
+        .where(and(eq(categorizationRules.userId, auth.userId), eq(categorizationRules.categoryId, id)))
+        .execute();
 
-      // Proceed with deletion if the category is not default
+      // Then, delete the category regardless of whether it's default or not
       const [data] = await db
         .delete(categories)
         .where(and(eq(categories.userId, auth.userId), eq(categories.id, id)))

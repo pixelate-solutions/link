@@ -133,7 +133,7 @@ export const ExpensesDataCard = ({
       </CardHeader>
 
       <CardContent>
-        <h1 className={`mb-2 line-clamp-1 break-all text-2xl font-bold ${value < 0 ? "text-red-600" : ""}`}>
+        <h1 className={`mb-2 line-clamp-1 break-all text-2xl font-bold ${value < 0 ? "text-red-600" : "text-green-600"}`}>
           <CountUp
             preserveValue
             start={0}

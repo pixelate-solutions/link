@@ -6,9 +6,10 @@ import { formatCurrency } from "@/lib/utils";
 interface Category {
   id: string;
   name: string | null;
-  // You can include budgetAmount, totalCost, etc. if you want to show them in mobile
-  budgetAmount?: string | null; 
+  budgetAmount?: string | null;
   totalCost?: string | null;
+  type?: string;
+  isTransfer?: boolean;
 }
 
 interface MobileCategoriesProps {
@@ -47,6 +48,20 @@ export function MobileCategories({ categories }: MobileCategoriesProps) {
       >
         {data.map((cat) => {
           const displayName = cat.name ? truncateString(cat.name, 18) : "Unnamed";
+          // If the category is a transfer, render a simplified row.
+          if (cat.type === "transfer") {
+            return (
+              <Link href={`/categories/${cat.id}`} key={cat.id}>
+                <div className="flex flex-col border-b border-gray-100 px-3 py-4 hover:bg-gray-50">
+                  <span className="font-semibold text-sm text-black">{displayName}</span>
+                  <span className="text-[12px] text-gray-500">
+                    Transfers do not count toward totals
+                  </span>
+                </div>
+              </Link>
+            );
+          }
+          // Otherwise, render the standard row.
           return (
             <Link href={`/categories/${cat.id}`} key={cat.id}>
               <div className="flex justify-between items-center border-b border-gray-100 px-3 py-4 hover:bg-gray-50">
@@ -54,23 +69,19 @@ export function MobileCategories({ categories }: MobileCategoriesProps) {
                   <span className="font-semibold text-sm text-black">
                     {displayName}
                   </span>
-                  {/* If you want to show the budget or cost in the mobile card: */}
                   {cat.budgetAmount && (
                     <span className="text-[12px] text-gray-500">
                       Budget: {formatCurrency(Number(cat.budgetAmount))}
                     </span>
                   )}
                 </div>
-                {/* Possibly show totalSpent: */}
-                {cat.totalCost && (
-                    <div className="flex flex-col w-auto">
-                        <span className="text-sm text-right">
-                            Spent
-                        </span>
-                        <span className={`text-sm text-red-600 font-semibold ${Number(cat.totalCost) >= 0}`}>
-                            {formatCurrency(Number(cat.totalCost))}
-                        </span>
-                    </div>
+                {(cat.totalCost) && (
+                  <div className="flex flex-col w-auto">
+                    <span className="text-sm text-right">Spent</span>
+                    <span className={`text-sm text-red-600 font-semibold`}>
+                      {formatCurrency(Number(cat.totalCost))}
+                    </span>
+                  </div>
                 )}
               </div>
             </Link>

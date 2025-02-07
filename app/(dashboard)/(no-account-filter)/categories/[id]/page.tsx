@@ -27,13 +27,14 @@ const montserratP = Montserrat({
   subsets: ["latin"],
 });
 
+// Extend the Category interface to include type.
 interface Category {
   id: string;
   userId: string | null;
   name: string | null;
   budgetAmount: string | null;
   isFromPlaid: boolean;
-  // etc.
+  type: string;
 }
 
 // Adjust to match the shape from /api/plaid/category-totals
@@ -59,10 +60,11 @@ export default function CategoryDetails() {
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
-  // Local form state
+  // Local form state now includes "type"
   const [formData, setFormData] = useState({
     name: "",
     budgetAmount: "",
+    type: "income",
   });
 
   // ====== Fetch Single Category ======
@@ -73,10 +75,10 @@ export default function CategoryDetails() {
       const json = await res.json();
       const cat: Category = json.data;
       setCategory(cat);
-
       setFormData({
         name: cat.name || "",
         budgetAmount: cat.budgetAmount || "0",
+        type: cat.type || "income",
       });
     } catch (err) {
       console.error(err);
@@ -91,11 +93,7 @@ export default function CategoryDetails() {
       );
       if (!res.ok) throw new Error("Failed to fetch category totals");
 
-      // The endpoint returns an array for all categories
-      // E.g. [ { categoryId: 'abc', totalCost: 123, totalIncome: 456 }, ... ]
       const data: CategoryTotals[] = await res.json();
-
-      // Find the matching totals object for this categoryId
       const matching = data.find((item) => item.categoryId === categoryId);
 
       if (matching) {
@@ -104,7 +102,6 @@ export default function CategoryDetails() {
           totalIncome: matching.totalIncome ?? 0,
         });
       } else {
-        // If not found, no cost/income
         setTotals({ totalCost: 0, totalIncome: 0 });
       }
     } catch (err) {
@@ -121,7 +118,9 @@ export default function CategoryDetails() {
   }, [id, from, to]);
 
   // ====== Handle form changes ======
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -131,10 +130,15 @@ export default function CategoryDetails() {
     if (!category) return;
     setIsLoading(true);
     try {
-      const payload = {
+      // Build the payload always including type.
+      const payload: any = {
         name: formData.name,
-        budgetAmount: formData.budgetAmount,
+        type: formData.type,
       };
+      // Only include budgetAmount if the selected type is not "transfer"
+      if (formData.type !== "transfer") {
+        payload.budgetAmount = formData.budgetAmount;
+      }
       const response = await fetch(`/api/categories/${category.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -161,7 +165,7 @@ export default function CategoryDetails() {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("Failed to delete category");
-      router.push("/categories"); // go back to main categories list
+      router.push("/categories");
     } catch (err) {
       console.error(err);
     } finally {
@@ -179,9 +183,7 @@ export default function CategoryDetails() {
   }
 
   return (
-    <div
-      className={`p-4 max-w-md mx-auto bg-white rounded-md shadow-sm ${montserratP.className}`}
-    >
+    <div className={`p-4 max-w-md mx-auto bg-white rounded-md shadow-sm ${montserratP.className}`}>
       {/* “Back” button, only if not editing */}
       {!isEditing && (
         <div className="mb-4 -ml-2">
@@ -214,40 +216,63 @@ export default function CategoryDetails() {
             />
           </div>
 
+          {/* Always show the type dropdown */}
           <div>
-            <Label
-              htmlFor="budgetAmount"
-              className="text-xs font-bold text-gray-600"
-            >
-              Monthly Budget
+            <Label htmlFor="type" className="text-xs font-bold text-gray-600 mr-2">
+              Type
             </Label>
-            <Input
-              id="budgetAmount"
-              name="budgetAmount"
-              type="number"
-              step="0.01"
-              value={formData.budgetAmount}
+            <select
+              id="type"
+              name="type"
+              value={formData.type}
               onChange={handleChange}
-              className="mt-1"
-            />
+              className="mt-1 p-2 border rounded"
+            >
+              <option value="income">Income</option>
+              <option value="expense">Expense</option>
+              <option value="transfer">Transfer</option>
+            </select>
+            {formData.type === "transfer" && (
+              <p className="text-red-500 text-xs mt-1">
+                Transfers will not be counted toward totals.
+              </p>
+            )}
           </div>
 
-          {/* Show cost/income in edit mode, read-only */}
-          {totals && (
-            <div className="grid grid-cols-2 gap-2">
+          {/* Only show budget info if the selected type is not transfer */}
+          {formData.type !== "transfer" && (
+            <>
               <div>
-                <p className="text-xs font-bold text-gray-600">Spent</p>
-                <p className="text-sm text-red-700">
-                  {formatCurrency(totals.totalCost)}
-                </p>
+                <Label htmlFor="budgetAmount" className="text-xs font-bold text-gray-600">
+                  Monthly Budget
+                </Label>
+                <Input
+                  id="budgetAmount"
+                  name="budgetAmount"
+                  type="number"
+                  step="0.01"
+                  value={formData.budgetAmount}
+                  onChange={handleChange}
+                  className="mt-1"
+                />
               </div>
-              <div>
-                <p className="text-xs font-bold text-gray-600">Income</p>
-                <p className="text-sm text-green-700">
-                  {formatCurrency(totals.totalIncome)}
-                </p>
-              </div>
-            </div>
+              {totals && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-xs font-bold text-gray-600">Spent</p>
+                    <p className="text-sm text-red-700">
+                      {formatCurrency(totals.totalCost)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-600">Income</p>
+                    <p className="text-sm text-green-700">
+                      {formatCurrency(totals.totalIncome)}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           <Button
@@ -265,32 +290,36 @@ export default function CategoryDetails() {
             <p className="text-xs font-bold text-gray-600">Name</p>
             <p className="text-sm">{category.name || "Untitled Category"}</p>
           </div>
-
           <div>
-            <p className="text-xs font-bold text-gray-600">Monthly Budget</p>
-            <p className="text-sm text-gray-700">
-              {formatCurrency(Number(category.budgetAmount) || 0)}
-            </p>
+            <p className="text-xs font-bold text-gray-600">Type</p>
+            <p className="text-sm capitalize">{category.type || "None"}</p>
           </div>
-
-          {totals && (
-            <div className="grid grid-cols-2 gap-2">
+          {category.type !== "transfer" && (
+            <>
               <div>
-                <p className="text-xs font-bold text-gray-600">Spent</p>
-                <p className="text-sm text-red-700">
-                  {formatCurrency(totals.totalCost)}
+                <p className="text-xs font-bold text-gray-600">Monthly Budget</p>
+                <p className="text-sm text-gray-700">
+                  {formatCurrency(Number(category.budgetAmount) || 0)}
                 </p>
               </div>
-              <div>
-                <p className="text-xs font-bold text-gray-600">Income</p>
-                <p className="text-sm text-green-700">
-                  {formatCurrency(totals.totalIncome)}
-                </p>
-              </div>
-            </div>
+              {totals && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-xs font-bold text-gray-600">Spent</p>
+                    <p className="text-sm text-red-700">
+                      {formatCurrency(totals.totalCost)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-600">Income</p>
+                    <p className="text-sm text-green-700">
+                      {formatCurrency(totals.totalIncome)}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
           )}
-
-          {/* Buttons */}
           <Button
             onClick={() => setIsEditing(true)}
             className="w-full bg-blue-400 hover:bg-blue-500"

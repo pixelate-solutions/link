@@ -1,13 +1,10 @@
 import { XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid, Area, AreaChart } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { format, parseISO, differenceInDays, isSameMonth, getDate, isFirstDayOfMonth, isLastDayOfMonth, endOfToday, isSameDay, subMonths, lastDayOfMonth } from 'date-fns';
+import { format, parseISO, differenceInDays, getDate, isFirstDayOfMonth, isLastDayOfMonth, endOfToday, subMonths, lastDayOfMonth } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { FileSearch } from 'lucide-react';
 import { CountUp } from './count-up';
 import { formatCurrency, formatDateRange } from "@/lib/utils";
-import { useSearchParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
-import { useGetCategories } from '@/features/categories/api/use-get-categories';
 
 type BudgetVsSpendingChartProps = {
   data: {
@@ -34,187 +31,87 @@ type BudgetVsSpendingChartProps = {
     incomeChange: number;
     expensesChange: number;
   };
+  cumulativeBudget: number; // NEW prop
 };
 
-interface CategoryTotal {
-  categoryId: string;
-  categoryName: string;
-  totalCost: number;
-  totalIncome: number;
-  budgetAmount: string | null; // Optional
-  amountLeftToSpend: string | null; // Optional, computed based on the budget
-}
-
-export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartProps) => {
-  const searchParams = useSearchParams();
-  let from = searchParams.get("from") || "";
-  let to = searchParams.get("to") || "";
-
-  let dateRange;
-
-  const fetchCategoryTotals = async (from: string, to: string): Promise<CategoryTotal[]> => {
-    const response = await fetch(`/api/plaid/category-totals?from=${from}&to=${to}`);
-    if (!response.ok) throw new Error("Failed to fetch category totals.");
-    return response.json();
-  };
-  
-  const categoriesQuery = useGetCategories();
-  const categories = categoriesQuery.data || [];
-
-  const totalsQuery = useQuery({
-    queryKey: ["categoryTotals", { from, to }],
-    queryFn: () => fetchCategoryTotals(from, to),
-    enabled: true, // Ensure the query runs on every page load
-  });
-
-  const categoriesWithTotals = categories.map((category: any) => {
-    if (to === "" || from === "") {
-      const today = endOfToday();  // Get today's date
-      const previousMonthSameDay = subMonths(today, 1);  // Get the same day in the previous month
-
-      const newFrom = previousMonthSameDay.toISOString();  // Convert to ISO format
-      const newTo = today.toISOString();  // Today's date in ISO format
-
-      from = newFrom;
-      to = newTo;
-    }
-    const fromDate = parseISO(from);
-    const toDate = parseISO(to);
-
-    dateRange = formatDateRange({ to: toDate, from: fromDate });
-
-    // Check if fromDate is the first day and toDate is the last day of the same month
-    const isFullMonth = (isFirstDayOfMonth(fromDate) && isSameDay(toDate, lastDayOfMonth(toDate)) || fromDate.getDate() === toDate.getDate());
-
-    // If it's a full month, don't adjust the budgetAmount, just show the monthly value
-    const adjustedBudgetAmount = isSameDay(fromDate, toDate)
-    ? parseFloat(category.budgetAmount || "0") / 30.44 // Single day's budget
-    : isFullMonth
-    ? parseFloat(category.budgetAmount || "0") // Full monthly budget
-    : (parseFloat(category.budgetAmount || "0") * (differenceInDays(toDate, fromDate) + 1) / 30.44); // Adjusted budget for the date range
-
-
-    // Find the total based on categoryId
-    const total = totalsQuery.data?.find(total => total.categoryId === category.id) || { totalIncome: 0, totalCost: 0 };
-
-    return {
-      id: category.id,
-      name: category.name,
-      totalIncome: total.totalIncome.toFixed(2), // Convert to string with 2 decimal places
-      totalCost: total.totalCost.toFixed(2), // Convert to string with 2 decimal places
-      budgetAmount: adjustedBudgetAmount.toFixed(2), // Adjusted budget per the precise number of months
-      amountLeftToSpend: (adjustedBudgetAmount + total.totalCost).toFixed(2), // Ensure this is a number and convert to string
-    };
-  });
-
-  const transformedData = categoriesWithTotals.map((category: any) => ({
-    ...category,
-    budgetAmount: category.budgetAmount ?? "0", // Ensure budgetAmount is included
-  }));
-
-  const sumBudgetAmount = transformedData.reduce(
-    (sum: any, item: any) => sum + parseFloat(item.budgetAmount),
-    0
-  );
-
-  const [isLargeScreen, setIsLargeScreen] = useState<boolean>(false);
+export const BudgetVsSpendingChart = ({ data, fullData, cumulativeBudget }: BudgetVsSpendingChartProps) => {
   const mainCumulativeSpending = fullData?.expensesAmount || 0;
-  let isFullMonth;
-  if (data.length === 0) {
-    isFullMonth = false
-  } else {
-    const isSameDayOfMonth = getDate(new Date(data[0].date)) === getDate(new Date(data[data.length - 1].date));
-    isFullMonth = 
-    isSameDayOfMonth || 
-    (isSameMonth(new Date(data[0].date), new Date(data[data.length - 1].date)) &&
-      isFirstDayOfMonth(new Date(data[0].date)) &&
-    isLastDayOfMonth(new Date(data[data.length - 1].date)));
-  }
-
-  const cumulativeBudget = sumBudgetAmount;
-
-  // Calculate the remaining budget
   const budgetLeft = cumulativeBudget + mainCumulativeSpending;
-
-  // Check screen size on mount and resize
+  
+  const [isLargeScreen, setIsLargeScreen] = useState<boolean>(false);
+  
   useEffect(() => {
     const checkScreenSize = () => {
-      setIsLargeScreen(window.innerWidth >= 1024); // 'lg' breakpoint in Tailwind corresponds to 1024px
+      setIsLargeScreen(window.innerWidth >= 1024);
     };
-
-    checkScreenSize(); // Check on mount
-    window.addEventListener('resize', checkScreenSize); // Re-check on resize
-
+  
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+  
     return () => {
       window.removeEventListener('resize', checkScreenSize);
     };
   }, []);
-
-  // Format data for cumulative spending
+  
+  // Process the daily data: compute cumulative spending and the proportional daily budget
   let cumulativeSpending = 0;
   const processedData = data.map((entry, index) => {
     const adjustedDate = new Date(entry.date);
-    adjustedDate.setDate(adjustedDate.getDate() + 1); // Adjust date if needed
-
-    cumulativeSpending += entry.spending; // Add to cumulative spending
-
-    // Calculate the cumulative budget for the current day
+    adjustedDate.setDate(adjustedDate.getDate() + 1);
+  
+    cumulativeSpending += entry.spending;
+  
     const totalDays = data.length;
-    const cumulativeBudgetForDay = (cumulativeBudget / totalDays) * (index + 1); // Proportional budget
-
+    const cumulativeBudgetForDay = (cumulativeBudget / totalDays) * (index + 1);
+  
     return {
       ...entry,
-      date: adjustedDate.toISOString(), // Update date to adjusted value
+      date: adjustedDate.toISOString(),
       cumulativeSpending,
-      budget: cumulativeBudgetForDay, // Proportional cumulative budget
+      budget: cumulativeBudgetForDay,
     };
   });
-
-    // Determine the date range, ensuring the data array is not empty
-    let daysSpan = 0
-    if (data.length > 0) {
-        const startDate = parseISO(data[0].date).setUTCHours(0, 0, 0, 0);
-        const endDate = parseISO(data[data.length - 1].date).setUTCHours(23, 59, 59, 999);
-        daysSpan = differenceInDays(endDate, startDate);
-    }
-
-  // Determine tick interval based on days span for large screens
+  
+  // Determine tick interval based on the number of days
+  let daysSpan = 0;
+  if (data.length > 0) {
+    const startDate = parseISO(data[0].date).setUTCHours(0, 0, 0, 0);
+    const endDate = parseISO(data[data.length - 1].date).setUTCHours(23, 59, 59, 999);
+    daysSpan = differenceInDays(endDate, startDate);
+  }
+  
   let tickInterval = 0;
   if (daysSpan <= 31) {
     tickInterval = Math.floor(data.length / 7);
   } else if (daysSpan <= 90) {
-    tickInterval = Math.floor(data.length / 9); // Approx every 10 days
+    tickInterval = Math.floor(data.length / 9);
   } else if (daysSpan <= 180) {
-    tickInterval = Math.floor(data.length / 12); // Approx every 15 days
+    tickInterval = Math.floor(data.length / 12);
   } else if (daysSpan <= 365) {
-    tickInterval = Math.floor(data.length / 18); // Approx every 20 days
+    tickInterval = Math.floor(data.length / 18);
   } else if (daysSpan <= 730) {
-    tickInterval = Math.floor(data.length / 12); // Approx every month
+    tickInterval = Math.floor(data.length / 12);
   } else if (daysSpan <= 1460) {
-    tickInterval = Math.floor(data.length / 4); // Every 3 months
+    tickInterval = Math.floor(data.length / 4);
   } else {
-    tickInterval = Math.floor(data.length / 1); // Every year
+    tickInterval = Math.floor(data.length / 1);
   }
-
-  // Calculate first, middle, and last index for small screens
+  
   const firstIndex = isLargeScreen ? 1 : Math.floor(data.length * 0.07);
   const middleIndex = Math.floor(data.length / 2);
   const lastIndex = isLargeScreen ? data.length - 1 : data.length - Math.floor(data.length * 0.07);
-
-  // Formatter for x-axis labels
+  
   const tickFormatter = (date: string, index: number) => {
     if (isLargeScreen) {
-      // Show all labels for large screens
       return format(parseISO(date), 'MMM d');
     } else {
-      // For small screens, show only first, middle, and last labels
       if (index === firstIndex || index === middleIndex || index === lastIndex) {
         return format(parseISO(date), 'MMM d');
       }
-      return ''; // Hide other labels
+      return '';
     }
   };
-
+  
   return (
     <Card className="border-none drop-shadow-sm">
       <CardHeader>
@@ -259,30 +156,25 @@ export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartP
         ) : (
           <ResponsiveContainer className="w-full" height={350}>
             <AreaChart data={processedData}>
-              {/* X-Axis with dynamic tick intervals */}
               <XAxis
                 className='text-xs md:text-sm lg:text-md'
-                dataKey="date"  // Use the date field directly
-                scale="band"  // Use band scale for evenly spaced days
-                tickFormatter={tickFormatter} // Conditionally show labels based on screen size
-                interval={isLargeScreen ? tickInterval : 0}  // Use dynamic interval for large screens, no interval for small
-                tickLine={false}  // Disable tick lines except for visible labels
-                tick={{ stroke: '#ccc', strokeWidth: 0.5 }}  // Styling for ticks
+                dataKey="date"
+                scale="band"
+                tickFormatter={tickFormatter}
+                interval={isLargeScreen ? tickInterval : 0}
+                tickLine={false}
+                tick={{ stroke: '#ccc', strokeWidth: 0.5 }}
               />
-              {/* Y-Axis */}
-                <YAxis
-                  className='text-xs md:text-sm lg:text-md'
-                  tickFormatter={(value) => (value === 0 ? '' : value)}
-                />
-              
-              {/* Dotted grid lines */}
+              <YAxis
+                className='text-xs md:text-sm lg:text-md'
+                tickFormatter={(value) => (value === 0 ? '' : value)}
+              />
               <CartesianGrid
                 strokeDasharray="3 3"
-                vertical={isLargeScreen}  // Show all vertical lines on large screens
+                vertical={isLargeScreen}
                 horizontal={true}
-                verticalPoints={isLargeScreen ? undefined : [firstIndex, middleIndex, lastIndex]} // Vertical lines only for visible ticks on small screens
+                verticalPoints={isLargeScreen ? undefined : [firstIndex, middleIndex, lastIndex]}
               />
-              
               <Tooltip
                 labelFormatter={(date) => (
                   <span className='text-gray-800 text-sm'>
@@ -291,14 +183,17 @@ export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartP
                 )}
                 cursor={{ stroke: '#ccc', strokeWidth: 1 }}
                 formatter={(value, name, props) => {
-                  const formattedValue = `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                  const formattedValue = `$${Number(value).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}`;
                   let color = '';
                   if (name === 'Budget') {
-                    color = "#22C55E"; // Green for Budget
+                    color = "#22C55E";
                   } else if (name === 'Spending') {
-                    color = '#EF4444'; // Red for Spending
+                    color = '#EF4444';
                   }
-
+  
                   return [
                     <div key="tooltip-content" className="bg-white">
                       <div className='flex w-full'>
@@ -324,32 +219,25 @@ export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartP
                   boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
                 }}
               />
-
               <Legend />
-              
-              {/* Spending Line (cumulative) */}
               <Area
                 type="monotone"
                 dataKey="cumulativeSpending"
-                stroke="#DC2626"  // red-600 for spending line
+                stroke="#DC2626"
                 fill="url(#colorSpending)"
                 name="Spending"
-                fillOpacity={0.3} // Gradient fill for spending line
+                fillOpacity={0.3}
                 activeDot={false}
               />
-              
-              {/* Budget Line */}
               <Area
                 type="monotone"
                 dataKey="budget"
-                stroke="#22C55E"  // green-500 for budget line
+                stroke="#22C55E"
                 fill="url(#colorBudget)"
                 name="Budget"
-                fillOpacity={0.3} // Gradient fill for budget line
+                fillOpacity={0.3}
                 activeDot={false}
               />
-              
-              {/* Gradient for Spending */}
               <defs>
                 <linearGradient id="colorSpending" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#DC2626" stopOpacity={0.8}/>

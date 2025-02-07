@@ -5,6 +5,7 @@ type CategoryData = {
   id: string;
   name: string;
   budgetAmount: string;
+  type?: string;
 };
 
 export const useGetCategory = (id?: string) => {

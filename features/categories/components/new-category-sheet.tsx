@@ -63,6 +63,7 @@ export const NewCategorySheet = () => {
           defaultValues={{
             name: "", // Default empty name
             budgetAmount: "", // Default empty budgetAmount
+            type: "income",
           }}
           onSubmit={onSubmit}
           disabled={mutation.isPending}

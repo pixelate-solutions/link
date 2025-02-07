@@ -684,7 +684,7 @@ export default function RecurringTransactionPage() {
           <Button
             variant="default"
             onClick={() => setIsEditing(true)}
-            className="w-full bg-blue-400 text-white"
+            className="w-full bg-blue-400 hover:bg-blue-500 text-white"
           >
             Edit
           </Button>

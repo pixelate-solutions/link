@@ -13,11 +13,22 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { insertCategorySchema } from "@/db/schema";
 
+// Extend the schema to include a 'type' field.
+// If 'type' is not part of insertCategorySchema already, extend it:
 const formSchema = insertCategorySchema.pick({
   name: true,
   budgetAmount: true, // Ensure we pick the budgetAmount directly from schema
+}).extend({
+  type: z.enum(["income", "expense", "transfer"]),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -40,6 +51,7 @@ export const CategoryForm = ({
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      type: "income",
       ...defaultValues,
     },
   });
@@ -70,7 +82,7 @@ export const CategoryForm = ({
               <FormControl>
                 <Input
                   placeholder="e.g. Food, Travel, etc."
-                  value={field.value || ''} // Ensure value is not null
+                  value={field.value || ""}
                   onChange={field.onChange}
                   onBlur={field.onBlur}
                   name={field.name}
@@ -82,6 +94,7 @@ export const CategoryForm = ({
             </FormItem>
           )}
         />
+
         <FormField
           name="budgetAmount"
           control={form.control}
@@ -91,18 +104,46 @@ export const CategoryForm = ({
               <FormLabel>Monthly Budget</FormLabel>
               <FormControl>
                 <Input
-                  type="number" // Use type "text" to allow for string storage
+                  type="number"
                   placeholder="$200"
-                  value={field.value ?? ''} // Ensure value is handled as a string
+                  value={field.value ?? ""}
                   onChange={(e) => {
-                    const value = e.target.value; // Keep the value as a string
-                    field.onChange(value); // Directly pass the string to onChange
+                    const value = e.target.value;
+                    field.onChange(value);
                   }}
                   onBlur={field.onBlur}
                   name={field.name}
                   ref={field.ref}
                   disabled={disabled}
                 />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          name="type"
+          control={form.control}
+          disabled={disabled}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Type</FormLabel>
+              <FormControl>
+                <Select 
+                  onValueChange={field.onChange}
+                  value={field.value}
+                  disabled={disabled}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="income">Income</SelectItem>
+                    <SelectItem value="expense">Expense</SelectItem>
+                    <SelectItem value="transfer">Transfer</SelectItem>
+                  </SelectContent>
+                </Select>
               </FormControl>
               <FormMessage />
             </FormItem>

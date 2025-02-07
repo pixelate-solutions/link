@@ -26,6 +26,7 @@ export const categories = pgTable("categories", {
   id: text("id").primaryKey(),
   userId: text("user_id"),
   name: text("name"),
+  type: text("type"),
   plaidCategoryId: text("plaid_category_id"),
   isFromPlaid: boolean("is_from_plaid").default(false),
   budgetAmount: text("budget_amount"),
@@ -153,3 +154,26 @@ export const lifetimePurchases = pgTable('lifetime_purchases', {
 });
 
 export const insertLifetimePurchaseSchema = createInsertSchema(lifetimePurchases);
+
+export const categorizationRules = pgTable("categorization_rules", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  categoryId: text("category_id")
+    .references(() => categories.id, { onDelete: "cascade" })
+    .notNull(), // Points to the categories table
+  matchType: text("match_type").notNull(),
+  matchValue: text("match_value").notNull(),
+  priority: integer("priority").notNull().default(1),
+  date: timestamp("date", { mode: "date" }).notNull(),
+});
+
+export const categorizationRulesRelations = relations(categorizationRules, ({ one }) => ({
+  category: one(categories, {
+    fields: [categorizationRules.categoryId],
+    references: [categories.id],
+  }),
+}));
+
+export const insertCategorizationRuleSchema = createInsertSchema(categorizationRules, {
+  priority: z.number().min(1).default(1),
+});

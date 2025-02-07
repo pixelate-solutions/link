@@ -69,6 +69,7 @@ app.post('/upsert', clerkMiddleware(), async (c) => {
       name: string;
       totalSpent: string;
       monthlyBudget: string;
+      type?: string;
     };
 
     type CategoryTotal = {

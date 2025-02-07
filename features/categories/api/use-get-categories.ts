@@ -22,7 +22,8 @@ export const useGetCategories = () => {
       return data.map((category: any) => ({
         id: category.id,
         name: category.name,
-        budgetAmount: category.budgetAmount, // Ensure this field is mapped
+        budgetAmount: category.budgetAmount,
+        type: category.type,
       }));
     },
   });

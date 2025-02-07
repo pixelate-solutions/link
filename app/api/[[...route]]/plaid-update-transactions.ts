@@ -1,12 +1,19 @@
 import { Hono } from "hono";
 import { db } from "@/db/drizzle";
-import { accounts, transactions, userTokens, categories, recurringTransactions } from "@/db/schema";
+import {
+  accounts,
+  transactions,
+  userTokens,
+  categories,
+  recurringTransactions,
+  categorizationRules
+} from "@/db/schema";
 import { createId } from "@paralleldrive/cuid2";
 import plaidClient from "./plaid";
 import { eq, and, desc } from "drizzle-orm";
-import { AxiosError } from 'axios';
+import { AxiosError } from "axios";
 import { clerkMiddleware } from "@hono/clerk-auth";
-import nodemailer from 'nodemailer';
+import nodemailer from "nodemailer";
 
 const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
 const MAX_RETRIES = 3;
@@ -19,63 +26,76 @@ interface PlaidErrorResponse {
   error_message: string;
 }
 
-function stringToList(input: string): string[] {
-  // Remove any surrounding quotes and extra characters
-  const cleanedInput = input.trim();
+// A set of Plaid detailed categories that should always be forced to "Other"
+const TRANSFER_DETAILED_CATEGORIES = new Set<string>([
+  "TRANSFER_IN_DEPOSIT",
+  "TRANSFER_IN_CASH_ADVANCES_AND_LOANS",
+  "TRANSFER_IN_INVESTMENT_AND_RETIREMENT_FUNDS",
+  "TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS",
+  "TRANSFER_OUT_WITHDRAWAL",
+]);
 
-  // If the input is wrapped in quotes, remove them
-  if (cleanedInput.startsWith('"') && cleanedInput.endsWith('"')) {
-    return JSON.parse(cleanedInput);
-  }
+/**
+ * Convert a Plaid primary category like "FOOD_AND_DRINK" into a more human-friendly name:
+ * - Splits on underscores
+ * - Replaces "AND" with "/"
+ * - Capitalizes each piece
+ * - Joins them with spaces, removing spaces around "/"
+ */
+function formatPlaidCategoryName(category: string): string {
+  const splitted = category.split("_"); // e.g. ["FOOD", "AND", "DRINK"]
+  const processed = splitted.map((word) => {
+    if (word.toUpperCase() === "AND") {
+      return "/";
+    }
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  });
+  let joined = processed.join(" ");
+  // Remove spaces around slashes
+  joined = joined.replace(/\s+\/\s+/g, "/");
+  return joined;
+}
 
-  // Ensure each list item is a valid string by adding quotes around them
-  const validJsonInput = cleanedInput.replace(/([a-zA-Z0-9\s\(\)\/\-]+)(?=\s*,|\s*\])/, '"$1"');
-
-  try {
-    // Parse the cleaned string
-    return JSON.parse(validJsonInput);
-  } catch (error) {
-    // console.log("AI RESPONSE: ", cleanedInput);
-    throw new Error("Invalid AI response format");
-  }
+/**
+ * Helper to sanitize a transaction name by removing numbers.
+ * This ensures that names like "Check Paid #20143" and "Check Paid #19243" are treated as equivalent.
+ */
+function sanitizeTransactionName(name: string): string {
+  return name.replace(/\d+/g, '').trim().toLowerCase();
 }
 
 export const sendEmail = async (body: string) => {
   try {
-    // Parse request body
     const to = "support@budgetwithlink.com";
     const subject = "TRANSACTION WEBHOOK";
-    const emailBody = body;
 
-    // Create reusable transporter object using SMTP transport
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST, // e.g., smtp.gmail.com
-      port: parseInt(process.env.SMTP_PORT || '587', 10),
-      secure: false, // true for port 465, false for other ports
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || "587", 10),
+      secure: false,
       auth: {
-        user: process.env.SMTP_USER, // SMTP username
-        pass: process.env.SMTP_PASSWORD, // SMTP password
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD,
       },
     });
 
-    // Set up email data
     const mailOptions = {
-      from: process.env.SMTP_USER, // Sender address
-      to, // List of recipients
-      subject, // Subject line
-      text: body, // Plain text body
+      from: process.env.SMTP_USER,
+      to,
+      subject,
+      text: body,
     };
 
-    // Send email
     await transporter.sendMail(mailOptions);
-
-    // Return success response
-    // return ctx.json({ message: 'Email sent successfully' });
   } catch (error) {
-    console.error('Error sending email:', error);
-    // return ctx.json({ error: 'Internal Server Error' }, 500);
+    console.error("Error sending email:", error);
   }
-}
+};
+
+// Type guard to check if the error is an AxiosError
+const isAxiosError = (error: unknown): error is AxiosError => {
+  return (error as AxiosError).isAxiosError !== undefined;
+};
 
 const fetchPlaidTransactionsWithRetry = async (
   accessToken: string,
@@ -97,30 +117,43 @@ const fetchPlaidTransactionsWithRetry = async (
           cursor: cursor ?? undefined,
         });
 
-        const { added, modified, removed, next_cursor, has_more, accounts: plaidAccounts } = response.data;
+        const {
+          added,
+          modified,
+          removed,
+          next_cursor,
+          has_more,
+          accounts: plaidAccounts,
+        } = response.data;
 
+        // Update account balances in DB
         for (const account of plaidAccounts) {
           const { account_id, balances, type, subtype } = account;
           let { current, available } = balances;
 
-          // Update the balance in your database if the account_id matches plaidAccountId
-          if (type === 'credit' || (type === 'loan' && subtype !== 'student')) {
-            // Credit and non-student loan accounts: Positive balance indicates debt
+          // Adjust sign for credit/loan
+          if (type === "credit" || (type === "loan" && subtype !== "student")) {
+            // Positive balance = debt
             current = -Math.abs(current || 0);
-            available = available !== null ? Math.abs(available) : null; // Available balance stays positive or null
-          } else if (type === 'loan' && subtype === 'student' && account.official_name?.includes('Sallie Mae')) {
-            // Student loan account for Sallie Mae: current includes principal + interest
+            available = available !== null ? Math.abs(available) : null;
+          } else if (
+            type === "loan" &&
+            subtype === "student" &&
+            account.official_name?.includes("Sallie Mae")
+          ) {
+            // Student loan for Sallie Mae
             current = -Math.abs(current || 0);
           } else {
-            // Asset accounts (e.g., depository, investment): Balance remains positive
+            // Asset accounts remain positive
             current = Math.abs(current || 0);
             available = available !== null ? Math.abs(available) : null;
           }
 
-          // Update the balances in the database
-          await db.update(accounts)
+          // Update in DB
+          await db
+            .update(accounts)
             .set({
-              currentBalance: current.toString() || "0",
+              currentBalance: current?.toString() || "0",
               availableBalance: available?.toString() || "0",
             })
             .where(eq(accounts.plaidAccountId, account_id))
@@ -129,62 +162,56 @@ const fetchPlaidTransactionsWithRetry = async (
 
         const newTransactions = added
           .concat(modified)
-          .filter(transaction => transaction.transaction_code !== "transfer")
-          .filter(transaction => {
-            const categoryCheck = (category: string) => category.toLowerCase().includes("transfer");
-            const nameCheck = (name: string | undefined) => name?.toLowerCase().includes("check") || name?.toLowerCase().includes("pay");
+          .filter((t: any) => t.transaction_code !== "transfer")
+          .filter((t: any) => {
+            const catCheck = (cat: string) => cat.toLowerCase().includes("transfer");
+            const nameCheck = (nm: string | undefined) =>
+              nm?.toLowerCase().includes("check") || nm?.toLowerCase().includes("pay");
 
-            const detailedCategory = transaction.personal_finance_category?.detailed ?? "";
-            const primaryCategory = transaction.personal_finance_category?.primary ?? "";
-            const name = transaction.name ?? "";
+            const detailedCategory = t.personal_finance_category?.detailed ?? "";
+            const primaryCategory = t.personal_finance_category?.primary ?? "";
+            const name = t.name ?? "";
 
-            return !(categoryCheck(detailedCategory) || categoryCheck(primaryCategory)) || nameCheck(name);
+            return !(catCheck(detailedCategory) || catCheck(primaryCategory)) || nameCheck(name);
           });
 
-        allTransactions = [...allTransactions, ...newTransactions];
+        allTransactions.push(...newTransactions);
         cursor = next_cursor;
         hasMore = has_more;
       }
 
-      // Store the updated cursor for future syncs
-      await db.update(userTokens)
-        .set({ cursor: cursor })  // Assuming `cursor` is a column in `userTokens`
+      // Store cursor for next sync
+      await db
+        .update(userTokens)
+        .set({ cursor })
         .where(and(eq(userTokens.userId, userId), eq(userTokens.itemId, item_id)))
         .execute();
 
       return allTransactions;
-
     } catch (error: unknown) {
-      // Narrowing the error type to AxiosError
       if (isAxiosError(error)) {
-        // Log the full error to help with debugging
-        console.error('Error syncing transactions:', error);
-
-        // If the error is INVALID_ACCESS_TOKEN, skip this token and continue
-        const errorResponse = error.response?.data as PlaidErrorResponse; // Type assertion
-        if (errorResponse?.error_code === 'INVALID_ACCESS_TOKEN') {
-          await sendEmail(`Invalid access token for userId ${userId} & access token ${accessToken} & Item ID ${item_id}.`);
+        console.error("Error syncing transactions:", error);
+        const errorResponse = error.response?.data as PlaidErrorResponse;
+        if (errorResponse?.error_code === "INVALID_ACCESS_TOKEN") {
+          await sendEmail(
+            `Invalid access token for userId ${userId} & access token ${accessToken} & Item ID ${item_id}.`
+          );
           console.warn(`Skipping access token for item ${item_id} due to invalid token.`);
-          return [];  // Return an empty array or continue with the next token
+          return [];
         }
-
-        // Retry logic if it is a recoverable error
         if (attempts >= MAX_RETRIES - 1) {
           console.error("Max retries reached. Failing sync.");
           throw new Error("Failed to sync transactions after multiple attempts.");
         }
       } else {
-        // If it's not an Axios error, log and throw
-        console.error('Unknown error:', error);
-        throw new Error('An unknown error occurred.');
+        console.error("Unknown error:", error);
+        throw new Error("An unknown error occurred.");
       }
 
-      // console.log(`Retrying transaction sync... Attempt ${attempts + 1}`);
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
       attempts++;
     }
   }
-
   return null;
 };
 
@@ -192,55 +219,364 @@ async function fetchRecurringTransactionsWithRetry(accessToken: string) {
   let attempts = 0;
   while (attempts < MAX_RETRIES) {
     try {
-      const response = await plaidClient.transactionsRecurringGet({ access_token: accessToken });
-      return response.data; // Return data if successful
+      const response = await plaidClient.transactionsRecurringGet({
+        access_token: accessToken,
+      });
+      return response.data;
     } catch (error) {
       if (attempts >= MAX_RETRIES - 1) {
         throw new Error("Failed to fetch recurring transactions after multiple attempts.");
       }
-      // console.log(`Retrying recurring transaction fetch... Attempt ${attempts + 1}`);
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS)); // Wait before retrying
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
       attempts++;
     }
   }
-  return null; // Return null if all retries failed
+  return null;
 }
 
-// async function updateTransactions(transactionsList: any[], userId: string, item_id: string) {
-//   for (const transaction of transactionsList) {
-//     const { id, amount, date, payee, categoryId } = transaction;
+/**
+ * Determine the best category for a transaction (or stream), respecting user overrides,
+ * forced "Other" logic, and creating new categorization rules as needed.
+ *
+ * Now also checks for a transaction name rule by sanitizing the name (ignoring numbers).
+ */
+async function determineCategoryIdForTransaction(
+  transactionOrStream: any,
+  userRules: any[],
+  categoryMap: Record<string, string>,
+  userId: string
+): Promise<string | null> {
+  const rawName = transactionOrStream.name || transactionOrStream.merchant_name || "";
+  const sanitizedName = sanitizeTransactionName(rawName);
+  const merchantName = transactionOrStream.merchant_name?.toLowerCase() || "";
+  const transactionDesc =
+    transactionOrStream.name?.toLowerCase() ||
+    transactionOrStream.description?.toLowerCase() ||
+    "";
+  const transactionType = transactionOrStream.transaction_type || "";
 
-//     // Update transaction in the database
-//     await db
-//       .update(transactions)
-//       .set({ amount, date, payee, categoryId })
-//       .where(and(eq(transactions.userId, userId), eq(transactions.id, id)));
-//   }
-//   // console.log(`Updated ${transactionsList.length} transactions for userId ${userId}.`);
-// }
+  // 1) Check user-defined rules first (including transaction_name rules)
+  for (const rule of userRules) {
+    if (rule.matchType === "transaction_name" && rule.matchValue === sanitizedName) {
+      return rule.categoryId;
+    }
+    if (rule.matchType === "merchant_name" && merchantName.includes(rule.matchValue.toLowerCase())) {
+      return rule.categoryId;
+    }
+    if (
+      rule.matchType === "transaction_description" &&
+      transactionDesc.includes(rule.matchValue.toLowerCase())
+    ) {
+      return rule.categoryId;
+    }
+    if (rule.matchType === "transaction_type" && transactionType === rule.matchValue) {
+      return rule.categoryId;
+    }
+  }
 
-// Type guard to check if the error is an AxiosError
-const isAxiosError = (error: unknown): error is AxiosError => {
-  return (error as AxiosError).isAxiosError !== undefined;
-};
+  // 2) Force "Other" if personal_finance_category.detailed is in TRANSFER_DETAILED_CATEGORIES
+  const detailedCat = transactionOrStream.personal_finance_category?.detailed ?? "";
+  if (TRANSFER_DETAILED_CATEGORIES.has(detailedCat)) {
+    return null;
+  }
 
-app.post('/transactions', clerkMiddleware(), async (ctx) => {
-  // console.log("WEBHOOK STARTED");
-  const {
-    webhook_code,
-    webhook_type,
-    item_id,
-    removed_transactions,
-  } = await ctx.req.json();
+  // 3) Otherwise, format the Plaid primary category
+  const primaryCatRaw = transactionOrStream.personal_finance_category?.primary ?? null;
+  const categoryName = formatPlaidCategoryName(primaryCatRaw) || "";
 
-  // Check if the required field item_id is missing
+  // 4) Check if that category is in the DB; else fallback to "Other"
+  let finalCategoryId = categoryMap[categoryName] || null;
+
+  // 5) If we ended up with "Other" because we didn't find the category,
+  //    or the primary category was literally "Other", we won't create a new rule.
+  //    Otherwise, create a new rule for "plaid_primary_category" if it doesn't exist.
+  if (finalCategoryId && categoryName) {
+    const existingRule = await db
+      .select()
+      .from(categorizationRules)
+      .where(
+        and(
+          eq(categorizationRules.userId, userId),
+          eq(categorizationRules.matchType, "plaid_primary_category"),
+          eq(categorizationRules.matchValue, primaryCatRaw)
+        )
+      )
+      .orderBy(desc(categorizationRules.priority), desc(categorizationRules.date));
+
+    if (existingRule.length === 0) {
+      // Insert a new rule mapping this raw primary category to finalCategoryId
+      await db.insert(categorizationRules).values({
+        id: createId(),
+        userId,
+        categoryId: finalCategoryId,
+        matchType: "plaid_primary_category",
+        matchValue: primaryCatRaw,
+        priority: 1,
+        date: new Date(),
+      });
+    }
+  }
+
+  // 6) New logic: Check for a "transaction_name" rule based on the sanitized name.
+  //     If one exists, override finalCategoryId; if not and we have a category, insert a new rule.
+  if (finalCategoryId && sanitizedName) {
+    const existingNameRule = await db
+      .select()
+      .from(categorizationRules)
+      .where(
+        and(
+          eq(categorizationRules.userId, userId),
+          eq(categorizationRules.matchType, "transaction_name"),
+          eq(categorizationRules.matchValue, sanitizedName)
+        )
+      )
+      .orderBy(desc(categorizationRules.priority), desc(categorizationRules.date));
+
+    if (existingNameRule.length > 0) {
+      finalCategoryId = existingNameRule[0].categoryId;
+    } else {
+      await db.insert(categorizationRules).values({
+        id: createId(),
+        userId,
+        categoryId: finalCategoryId,
+        matchType: "transaction_name",
+        matchValue: sanitizedName,
+        priority: 1,
+        date: new Date(),
+      });
+    }
+  }
+
+  return finalCategoryId;
+}
+
+/**
+ * Processes standard (non-recurring) transactions from Plaid.
+ * Respects user-defined rules, forced-other logic, and
+ * will create new rules for "plaid_primary_category" (and now for "transaction_name").
+ */
+async function processTransactions(plaidTransactions: any[], userId: string, itemId: string) {
+  // 1. Fetch user accounts
+  const dbAccounts = await db
+    .select({ id: accounts.id, plaidAccountId: accounts.plaidAccountId })
+    .from(accounts)
+    .where(eq(accounts.userId, userId));
+
+  const accountIdMap = dbAccounts.reduce((map, account) => {
+    if (account.plaidAccountId) {
+      map[account.plaidAccountId] = account.id;
+    }
+    return map;
+  }, {} as Record<string, string>);
+
+  // 2. Fetch all user rules & categories
+  const userRules = await db
+    .select()
+    .from(categorizationRules)
+    .where(eq(categorizationRules.userId, userId))
+    .orderBy(desc(categorizationRules.priority), desc(categorizationRules.date));
+
+  const dbCategories = await db
+    .select({ id: categories.id, name: categories.name })
+    .from(categories)
+    .where(eq(categories.userId, userId));
+
+  const categoryMap = dbCategories.reduce((map, c) => {
+    if (c.name) {
+      map[c.name] = c.id;
+    }
+    return map;
+  }, {} as Record<string, string>);
+
+  // 3. Insert or update each Plaid transaction
+  await Promise.all(
+    plaidTransactions.map(async (transaction) => {
+      const accountId = accountIdMap[transaction.account_id];
+      if (!accountId) return;
+
+      // 3a. Determine category
+      const categoryId = await determineCategoryIdForTransaction(
+        transaction,
+        userRules,
+        categoryMap,
+        userId
+      );
+
+      // 3b. Decide sign of amount
+      let amount: number;
+      const lowerName = transaction.name?.toLowerCase() || "";
+      if (lowerName.includes("withdraw")) {
+        amount = Math.abs(transaction.amount) * -1;
+      } else if (lowerName.includes("deposit")) {
+        amount = Math.abs(transaction.amount);
+      } else {
+        amount = transaction.amount * -1;
+      }
+
+      const existingTx = await db
+        .select()
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.plaidTransactionId, transaction.transaction_id),
+            eq(transactions.userId, userId)
+          )
+        )
+        .limit(1)
+        .execute();
+
+      if (existingTx.length > 0) {
+        // Already exists: optionally update if you want
+        // For now, skip or do minimal updates
+        console.log("SKIPPING EXISTING TRANSACTION");
+        return;
+      }
+
+      // Insert new standard transaction
+      await db
+        .insert(transactions)
+        .values({
+          id: createId(),
+          userId,
+          amount: amount.toString(),
+          payee: transaction.name,
+          date: new Date(transaction.date),
+          accountId,
+          categoryId,
+          isFromPlaid: true,
+          plaidTransactionId: transaction.transaction_id,
+        })
+        .execute();
+    })
+  );
+}
+
+/**
+ * Processes recurring transactions from Plaid.
+ * Respects user-defined rules, forced-other logic, and
+ * will create new rules for "plaid_primary_category" (and now for "transaction_name").
+ */
+async function processRecurringTransactions(plaidData: any, userId: string) {
+  // 1. Fetch user accounts
+  const dbAccounts = await db
+    .select({ id: accounts.id, plaidAccountId: accounts.plaidAccountId })
+    .from(accounts)
+    .where(eq(accounts.userId, userId));
+
+  const accountIdMap = dbAccounts.reduce((map, account) => {
+    if (account.plaidAccountId) {
+      map[account.plaidAccountId] = account.id;
+    }
+    return map;
+  }, {} as Record<string, string>);
+
+  // 2. Fetch user rules & categories
+  const userRules = await db
+    .select()
+    .from(categorizationRules)
+    .where(eq(categorizationRules.userId, userId))
+    .orderBy(desc(categorizationRules.priority), desc(categorizationRules.date));
+
+  const dbCategories = await db
+    .select({ id: categories.id, name: categories.name })
+    .from(categories)
+    .where(eq(categories.userId, userId));
+
+  const categoryMap = dbCategories.reduce((map, c) => {
+    if (c.name) {
+      map[c.name] = c.id;
+    }
+    return map;
+  }, {} as Record<string, string>);
+
+  // 3. Gather all streams
+  const inflowStreams = plaidData.inflow_streams || [];
+  const outflowStreams = plaidData.outflow_streams || [];
+  const allStreams = [...inflowStreams, ...outflowStreams];
+
+  // 4. Insert each recurring stream if not already present
+  await Promise.all(
+    allStreams.map(async (stream) => {
+      const accountId = accountIdMap[stream.account_id];
+      if (!accountId) return null;
+
+      // 4a. Determine category
+      const categoryId = await determineCategoryIdForTransaction(
+        stream,
+        userRules,
+        categoryMap,
+        userId
+      );
+
+      // 4b. Convert amounts to string (negative by default)
+      const avgAmt = stream.average_amount?.amount ?? 0;
+      const lastAmt = stream.last_amount?.amount ?? 0;
+      const averageAmount = (avgAmt * -1).toString();
+      const lastAmount = (lastAmt * -1).toString();
+
+      // 4c. Check duplicates by streamId
+      const existing = await db
+        .select({ id: recurringTransactions.id })
+        .from(recurringTransactions)
+        .where(and(eq(recurringTransactions.streamId, stream.stream_id), eq(recurringTransactions.userId, userId)));
+
+      if (existing.length > 0) {
+        console.log(`Skipping duplicate transaction for streamId: ${stream.stream_id}`);
+        return null;
+      }
+
+      // 4d. Insert new recurring transaction
+      return db
+        .insert(recurringTransactions)
+        .values({
+          id: createId(),
+          userId,
+          name: stream.description,
+          accountId,
+          payee:
+            stream.merchant_name
+              ?.split(" ")
+              .map(
+                (word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+              )
+              .join(" ") || "Unknown",
+          categoryId,
+          frequency: stream.frequency
+            .split("_")
+            .map(
+              (word: string) =>
+                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+            )
+            .join(" "),
+          averageAmount,
+          lastAmount,
+          date: new Date(stream.last_date),
+          isActive: stream.is_active.toString(),
+          streamId: stream.stream_id,
+        })
+        .returning();
+    })
+  );
+}
+
+/**
+ * Primary webhook endpoint for handling Plaid transaction updates.
+ */
+app.post("/transactions", clerkMiddleware(), async (ctx) => {
+  const { webhook_code, webhook_type, item_id, removed_transactions } =
+    await ctx.req.json();
+
   if (!item_id) {
     return ctx.json({ error: "Missing item_id" }, 400);
   }
 
-  // Fetch user token and access information
+  // Fetch user token + access
   const userTokensResult = await db
-    .select({ userId: userTokens.userId, accessToken: userTokens.accessToken, cursor: userTokens.cursor })
+    .select({
+      userId: userTokens.userId,
+      accessToken: userTokens.accessToken,
+      cursor: userTokens.cursor,
+    })
     .from(userTokens)
     .where(eq(userTokens.itemId, item_id))
     .orderBy(desc(userTokens.createdAt));
@@ -252,58 +588,62 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
 
   const { userId, accessToken, cursor: initialCursor } = userToken;
 
-  // Check if the webhook code corresponds to a transaction update
   if (webhook_type === "TRANSACTIONS") {
-    // Handle different transaction webhook codes
     switch (webhook_code) {
       case "SYNC_UPDATES_AVAILABLE":
       case "RECURRING_TRANSACTIONS_UPDATE":
-        // Fetch non-recurring transactions
-        const plaidTransactions = await fetchPlaidTransactionsWithRetry(accessToken, initialCursor, item_id, userId);
+        // Fetch new/modified transactions
+        const plaidTransactions = await fetchPlaidTransactionsWithRetry(
+          accessToken,
+          initialCursor,
+          item_id,
+          userId
+        );
         if (!plaidTransactions) {
           await sendEmail("Failed to fetch transactions after multiple attempts.");
           return ctx.json({ error: "Failed to fetch transactions after multiple attempts" }, 500);
         }
+
+        // Insert or update them
         await processTransactions(plaidTransactions, userId, item_id);
 
         // Fetch recurring transactions
         const plaidRecurringTransactions = await fetchRecurringTransactionsWithRetry(accessToken);
         if (!plaidRecurringTransactions) {
-          return ctx.json({ error: "Failed to fetch recurring transactions after multiple attempts" }, 500);
+          return ctx.json(
+            { error: "Failed to fetch recurring transactions after multiple attempts" },
+            500
+          );
         }
         await processRecurringTransactions(plaidRecurringTransactions, userId);
 
         break;
 
       case "TRANSACTIONS_REMOVED":
-        // console.log("Handling TRANSACTIONS_REMOVED webhook...");
-
         if (removed_transactions && removed_transactions.length > 0) {
-            try {
-                for (const removedTransactionId of removed_transactions) {
-                    // Delete transaction where plaid_transaction_id matches the removed transaction ID
-                    await db.delete(transactions)
-                        .where(
-                            and(
-                                eq(transactions.userId, userId),
-                                eq(transactions.plaidTransactionId, removedTransactionId)
-                            )
-                        )
-                      .execute();
-                }
-
-              console.log(`Successfully removed ${removed_transactions.length} transactions.`);
-            } catch (error) {
-                console.error("Error processing removed transactions:", error);
-                return ctx.json({ error: "Failed to process removed transactions" }, 500);
+          try {
+            for (const removedTransactionId of removed_transactions) {
+              await db
+                .delete(transactions)
+                .where(
+                  and(
+                    eq(transactions.userId, userId),
+                    eq(transactions.plaidTransactionId, removedTransactionId)
+                  )
+                )
+                .execute();
             }
-        } else {
-            // console.log("No transactions to remove.");
+            console.log(`Successfully removed ${removed_transactions.length} transactions.`);
+          } catch (error) {
+            console.error("Error processing removed transactions:", error);
+            return ctx.json({ error: "Failed to process removed transactions" }, 500);
+          }
         }
         break;
       case "INITIAL_UPDATE":
       case "HISTORICAL_UPDATE":
       case "DEFAULT_UPDATE":
+        // You could handle these if needed
         break;
 
       default:
@@ -312,346 +652,24 @@ app.post('/transactions', clerkMiddleware(), async (ctx) => {
         return ctx.json({ message: `Webhook code ${webhook_code} not handled` }, 200);
     }
   } else if (webhook_type === "ITEM") {
-    // Handle ITEM webhook type (item updates, like webhook URL changes)
     switch (webhook_code) {
       case "WEBHOOK_UPDATE_ACKNOWLEDGED":
-        // console.log("Webhook URL updated. Acknowledging change...");
+        // Webhook URL updated, do any logging if you want
         break;
-
       default:
         await sendEmail(`Unrecognized ITEM webhook code: ${webhook_code}`);
-        // console.log(`Unrecognized ITEM webhook code: ${webhook_code}`);
+        console.log(`Unrecognized ITEM webhook code: ${webhook_code}`);
         return ctx.json({ message: `ITEM Webhook code ${webhook_code} not handled` }, 200);
     }
   } else {
     await sendEmail(`Unrecognized webhook type: ${webhook_type}`);
-    // console.log(`Unrecognized webhook type: ${webhook_type}`);
     return ctx.json({ error: "Unrecognized webhook type" }, 400);
   }
 
   return ctx.json({ message: "Webhook processed successfully." });
-
 });
 
-
-// Function to process and insert transactions into the database
-async function processTransactions(plaidTransactions: any[], userId: string, itemId: string) {
-  const dbAccounts = await db
-    .select({ id: accounts.id, plaidAccountId: accounts.plaidAccountId })
-    .from(accounts)
-    .where(eq(accounts.userId, userId));
-
-  const accountIdMap = dbAccounts.reduce((map, account) => {
-    if (account.plaidAccountId) {
-      map[account.plaidAccountId] = account.id;
-    }
-    return map;
-  }, {} as Record<string, string>);
-
-  const dbCategories = await db
-    .select({ id: categories.id, name: categories.name })
-    .from(categories)
-    .where(eq(categories.userId, userId));
-
-  const categoryOptions = dbCategories.map(category => category.name);
-
-  // Categorize transactions using AI or predefined categories
-  const transactionCategories = plaidTransactions.map(transaction =>
-    transaction.personal_finance_category?.detailed || transaction.personal_finance_category?.primary || ""
-  );
-
-  const query = `Here is a list of categories from transactions: [${transactionCategories}]
-    Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
-    respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
-    You MUST categorize each of these [${transactionCategories}] as one of these: [${categoryOptions.join(", ")}].
-    Every value in your list response will be one of these values: [${categoryOptions.join(", ")}]. Again, respond as a list with 
-    brackets "[]" and comma-separated values with NO other text than that list. And the only options you can use to make
-    the list are values from this list: [${categoryOptions.join(", ")}]. MAKE SURE the values inside are strings in double quotes so that it is a 
-    list of strings.
-  `;
-
-  const data = {
-    user_id: userId,
-    query: query,
-    allow_access: false,
-    using_user_id: true,
-  };
-
-  const aiResponse = await fetch(`${AI_URL}/finance/categorize`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-
-  if (!aiResponse.ok) {
-    throw new Error("AI categorization failed");
-  }
-
-  const aiData = await aiResponse.json();
-  const categorizedResults = stringToList(aiData);
-
-  // Upsert only the new transactions
-  await Promise.all(plaidTransactions.map(async (transaction, index) => {
-    const accountId = accountIdMap[transaction.account_id];
-    if (!accountId) return;
-
-    let categoryId = dbCategories.find(category => category.name === categorizedResults[index])?.id;
-
-    if (!categoryId) {
-        categoryId = dbCategories.find(category => category.name === "Other (Default)")?.id;
-    }
-    
-    let amount;
-    if (transaction.name.toLowerCase().includes("withdraw")) {
-      amount = Math.abs(transaction.amount) * -1; // Ensure negative
-    } else if (transaction.name.toLowerCase().includes("deposit")) {
-      amount = Math.abs(transaction.amount); // Ensure positive
-    } else {
-      amount = transaction.amount * -1;
-    }
-
-    amount = amount.toString();
-
-    if (transaction.recurring) {
-      // Handle recurring transactions
-      const recurringTransaction = await db
-        .select({ id: recurringTransactions.id })
-        .from(recurringTransactions)
-        .where(and(
-          eq(recurringTransactions.userId, userId),
-          eq(recurringTransactions.name, transaction.name),
-          eq(recurringTransactions.accountId, accountId)
-        ))
-        .execute();
-
-      if (recurringTransaction.length > 0) {
-        // Update existing recurring transaction
-        await db
-          .update(recurringTransactions)
-          .set({
-            averageAmount: amount,
-            lastAmount: amount,
-            date: transaction.date,
-            categoryId,
-            isActive: "true" // Assuming "true" for active status
-          })
-          .where(eq(recurringTransactions.id, recurringTransaction[0].id))
-          .execute();
-      } else {
-        // Insert new recurring transaction
-        await db.insert(recurringTransactions).values({
-          id: createId(),
-          userId,
-          name: transaction.name,
-          payee: transaction.merchant_name ?? null,
-          accountId,
-          categoryId,
-          frequency: transaction.frequency, // Assuming "monthly"; adjust as needed
-          averageAmount: amount,
-          lastAmount: amount,
-          date: transaction.date,
-          isActive: transaction.active,
-          streamId: createId() // New stream ID for this transaction
-        }).execute();
-      }
-    } else {
-      // Handle standard transactions
-      const existingTransaction = await db
-        .select()
-        .from(transactions)
-        .where(and(eq(transactions.plaidTransactionId, transaction.transaction_id), eq(transactions.userId, userId)))
-        .limit(1)
-        .execute();
-            
-      if (existingTransaction.length === 0) {
-        // Insert new transaction
-        await db.insert(transactions).values({
-          id: createId(),
-          userId: userId,
-          amount: amount.toString(),
-          payee: transaction.name,
-          date: new Date(transaction.date),
-          accountId: accountId,
-          categoryId: categoryId,
-          isFromPlaid: true,
-          plaidTransactionId: transaction.transaction_id,
-        }).execute();
-      } else {
-        console.log(`SKIPPING EXISTING TRANSACTION`);
-      }
-    }
-  }));
-
-  // // Fetch all inserted transactions for the user to format for AI
-  // const userTransactions = await db
-  //   .select({
-  //     id: transactions.id,
-  //     amount: transactions.amount,
-  //     payee: transactions.payee,
-  //     date: transactions.date,
-  //     accountId: transactions.accountId,
-  //     categoryId: transactions.categoryId,
-  //   })
-  //   .from(transactions)
-  //   .where(eq(transactions.userId, userId));
-
-  // // Format transactions for upserting to AI
-  // const formattedTransactions = userTransactions
-  //   .map((transaction) => {
-  //     const amount = transaction.amount ?? "0"; // Default to "0" if undefined
-  //     const payee = transaction.payee ?? "Unknown Payee"; // Default to "Unknown Payee" if undefined
-  //     const date = new Date(transaction.date);
-  //     const formattedDate = date.toLocaleDateString();
-
-  //     return `
-  //       A transaction was made in the amount of $${amount} by the user to the person or group named ${payee} on ${formattedDate}. 
-  //       No additional notes were provided for this transaction.
-  //     `;
-  //   }).join("\n").trim(); // Remove any leading or trailing whitespace
-
-  // // Upsert transactions to AI endpoint
-  // try {
-  //   if (formattedTransactions) { // Ensure there are formatted transactions
-  //     const aiResponse = await fetch(
-  //       `${AI_URL}/resource/upsert_text?user_id=${userId}&name=Transactions from ${accountIdMap[plaidTransactions[0].account_id] || "Unknown Payee"} for ${userId}`,
-  //       {
-  //         method: 'POST',
-  //         headers: {
-  //           'Content-Type': 'text/plain',
-  //         },
-  //         body: formattedTransactions,
-  //       }
-  //     );
-
-  //     if (!aiResponse.ok) {
-  //       const errorText = await aiResponse.text();
-  //       throw new Error(`Upsert failed: ${errorText}`);
-  //     }
-
-  //     const responseData = await aiResponse.json();
-  //   }
-  // } catch (error) {
-  //   console.error('Error upserting transactions:', error);
-  //   return new Response(JSON.stringify({ error: 'Failed to upsert transactions' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
-  // }
-}
-
-async function processRecurringTransactions(plaidData: any, userId: string) {
-  // Fetch user's accounts from the database
-  const dbAccounts = await db
-    .select({ id: accounts.id, plaidAccountId: accounts.plaidAccountId })
-    .from(accounts)
-    .where(eq(accounts.userId, userId));
-
-  const accountIdMap = dbAccounts.reduce((map, account) => {
-    if (account.plaidAccountId) {
-      map[account.plaidAccountId] = account.id;
-    }
-    return map;
-  }, {} as Record<string, string>);
-
-  // Fetch all categories for the user
-  const dbCategories = await db
-    .select({ id: categories.id, name: categories.name })
-    .from(categories)
-    .where(eq(categories.userId, userId));
-
-  const categoryOptions = dbCategories.map(category => category.name);
-
-  const inflowStreams = plaidData.inflow_streams || [];
-  const outflowStreams = plaidData.outflow_streams || [];
-  const allStreams = [...inflowStreams, ...outflowStreams];
-
-  // Extract the personal_finance_category for AI categorization
-  const transactionCategories = allStreams.map(stream =>
-    stream.personal_finance_category?.detailed || stream.personal_finance_category?.primary || ""
-  );
-
-  // Construct the query for the AI API
-  const query = `
-    Here is a list of categories from recurring transactions: [${transactionCategories}]
-    Categorize each of these into one of the following categories: [${categoryOptions.join(", ")}] and
-    respond as a list with brackets "[]" and comma-separated values with NO other text than that list.
-    You MUST categorize each of these [${transactionCategories}] as one of these: [${categoryOptions.join(", ")}].
-    MAKE SURE the values inside are strings in double quotes so that it is a list of strings.
-  `;
-
-  const data = {
-    user_id: userId,
-    query: query,
-    allow_access: false,
-    using_user_id: true,
-  };
-
-  const aiResponse = await fetch(`${AI_URL}/finance/categorize`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!aiResponse.ok) {
-    throw new Error('Failed to categorize recurring transactions');
-  }
-
-  const aiData = await aiResponse.json();
-  const categorizedResults = stringToList(aiData);
-
-  // Insert recurring transactions into the database with categorized results
-  await Promise.all(
-    allStreams.map(async (stream, index) => {
-      const accountId = accountIdMap[stream.account_id];
-      if (!accountId) {
-        // Skip stream if account is not in the database
-        return null;
-      }
-
-      // Match AI result with a category in the database
-      let categoryId = dbCategories.find(category => category.name === categorizedResults[index])?.id;
-
-      if (!categoryId) {
-        categoryId = dbCategories.find(category => category.name === "Other (Default)")?.id;
-      }
-
-      // Convert amounts to string, ensuring amounts are handled appropriately
-      const averageAmount = stream.average_amount?.amount
-        ? (stream.average_amount.amount * -1).toString()
-        : "0";
-      const lastAmount = stream.last_amount?.amount
-        ? (stream.last_amount.amount * -1).toString()
-        : "0";
-      
-      // Check if a transaction with the same streamId already exists
-      const existingTransaction = await db
-        .select({ id: recurringTransactions.id })
-        .from(recurringTransactions)
-        .where(and(eq(recurringTransactions.streamId, stream.stream_id), eq(recurringTransactions.userId, userId)));
-
-      if (existingTransaction.length > 0) {
-        console.log(`Skipping duplicate transaction for streamId: ${stream.stream_id}`);
-        return;
-      }
-
-      await db.insert(recurringTransactions).values({
-        id: createId(),
-        userId,
-        name: stream.description,
-        accountId,
-        payee: stream.merchant_name?.split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ') || "Unknown",
-        categoryId,
-        frequency: stream.frequency.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' '),
-        averageAmount,
-        lastAmount,
-        date: new Date(stream.last_date),
-        isActive: stream.is_active.toString(),
-        streamId: stream.stream_id,
-      }).returning();
-    })
-  );
-}
-
-app.get('/transactions', clerkMiddleware(), async (ctx) => {
+app.get("/transactions", clerkMiddleware(), async (ctx) => {
   return ctx.json({ message: "Plaid Transactions Webhook" }, 200);
 });
 

@@ -487,7 +487,7 @@ const TransactionDetails = () => {
           <Button
             variant="default"
             onClick={() => setIsEditing(true)}
-            className="w-full bg-gradient-to-br bg-blue-400"
+            className="w-full bg-gradient-to-br bg-blue-400 hover:bg-blue-500"
           >
             Edit
           </Button>

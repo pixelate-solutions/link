@@ -10,6 +10,7 @@ import { db } from "@/db/drizzle";
 import {
   accounts,
   categories,
+  categorizationRules,
   insertTransactionSchema,
   transactions,
 } from "@/db/schema";
@@ -172,39 +173,39 @@ const app = new Hono()
         .returning();
 
       // Format the transaction for upserting to AI
-      let formatString = ""
-      if (parseFloat(data.amount) < 0) {
-        formatString = `-$${Math.abs(parseFloat(data.amount)).toFixed(2)}`
-      } else {
-        formatString = `$${parseFloat(data.amount).toFixed(2)}`
-      }
-      const formattedTransaction = `
-        A transaction was made in the amount of ${formatString} by the user to the person or group named ${data.payee} on ${data.date.toLocaleDateString()}. 
-        ${data.notes ? `Some notes regarding this transaction to ${data.payee} on ${data.date.toLocaleDateString()} are: ${data.notes}.` : "No additional notes were provided for this transaction."}
-      `;
+      // let formatString = ""
+      // if (parseFloat(data.amount) < 0) {
+      //   formatString = `-$${Math.abs(parseFloat(data.amount)).toFixed(2)}`
+      // } else {
+      //   formatString = `$${parseFloat(data.amount).toFixed(2)}`
+      // }
+      // const formattedTransaction = `
+      //   A transaction was made in the amount of ${formatString} by the user to the person or group named ${data.payee} on ${data.date.toLocaleDateString()}. 
+      //   ${data.notes ? `Some notes regarding this transaction to ${data.payee} on ${data.date.toLocaleDateString()} are: ${data.notes}.` : "No additional notes were provided for this transaction."}
+      // `;
 
-      try {
-        const aiResponse = await fetch(
-          `${AI_URL}/resource/upsert_text?user_id=${auth.userId}&name=Transactions from ${data.accountId} for ${auth.userId}&account=${data.accountId}`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'text/plain',
-            },
-            body: formattedTransaction.trim(),
-          }
-        );
+      // try {
+      //   const aiResponse = await fetch(
+      //     `${AI_URL}/resource/upsert_text?user_id=${auth.userId}&name=Transactions from ${data.accountId} for ${auth.userId}&account=${data.accountId}`,
+      //     {
+      //       method: 'POST',
+      //       headers: {
+      //         'Content-Type': 'text/plain',
+      //       },
+      //       body: formattedTransaction.trim(),
+      //     }
+      //   );
 
-        if (!aiResponse.ok) {
-          const errorText = await aiResponse.text();
-          throw new Error(`Upsert failed: ${errorText}`);
-        }
+      //   if (!aiResponse.ok) {
+      //     const errorText = await aiResponse.text();
+      //     throw new Error(`Upsert failed: ${errorText}`);
+      //   }
 
-        const responseData = await aiResponse.json();
-      } catch (error) {
-        console.error('Error upserting transaction to AI:', error);
-        return ctx.json({ error: 'Failed to upsert transaction to AI' }, 500);
-      }
+      //   const responseData = await aiResponse.json();
+      // } catch (error) {
+      //   console.error('Error upserting transaction to AI:', error);
+      //   return ctx.json({ error: 'Failed to upsert transaction to AI' }, 500);
+      // }
 
       return ctx.json({ data });
     }
@@ -345,6 +346,21 @@ const app = new Hono()
         return ctx.json({ error: "Unauthorized." }, 401);
       }
 
+      // Retrieve the existing transaction before updating
+      const existingTransaction = await db
+        .select({ categoryId: transactions.categoryId })
+        .from(transactions)
+        .innerJoin(accounts, eq(transactions.accountId, accounts.id))
+        .where(and(eq(transactions.id, id), eq(accounts.userId, auth.userId)))
+        .limit(1);
+
+      if (!existingTransaction.length) {
+        return ctx.json({ error: "Transaction not found." }, 404);
+      }
+
+      const previousCategoryId = existingTransaction[0].categoryId;
+      const newCategoryId = values.categoryId;
+
       const transactionsToUpdate = db.$with("transactions_to_update").as(
         db
           .select({ id: transactions.id })
@@ -367,6 +383,33 @@ const app = new Hono()
 
       if (!data) {
         return ctx.json({ error: "Not found." }, 404);
+      }
+
+      // If category was changed, insert a new rule into categorizationRules
+      if (newCategoryId && newCategoryId !== previousCategoryId) {
+        // Retrieve the category name based on userId and categoryId
+        const category = await db
+          .select({ name: categories.name })
+          .from(categories)
+          .where(and(eq(categories.id, newCategoryId), eq(categories.userId, auth.userId)))
+          .limit(1);
+
+        if (!category.length) {
+          return ctx.json({ error: "Category not found." }, 400);
+        }
+
+        const categoryName = category[0].name;
+
+        // Insert new rule into categorizationRules
+        await db.insert(categorizationRules).values({
+          id: crypto.randomUUID(),
+          userId: auth.userId,
+          matchType: "transaction_name",
+          matchValue: values.payee || "",
+          priority: 2,
+          date: new Date(),
+          categoryId: newCategoryId, // Referencing the correct category
+        });
       }
 
       return ctx.json({ data });

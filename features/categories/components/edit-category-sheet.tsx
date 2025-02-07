@@ -20,6 +20,7 @@ import { CategoryForm } from "./category-form";
 const formSchema = insertCategorySchema.pick({
   name: true,
   budgetAmount: true,
+  type: true,
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -37,13 +38,14 @@ export const EditCategorySheet = () => {
   const deleteMutation = useDeleteCategory(id);
 
   const isPending = editMutation.isPending || deleteMutation.isPending;
-
   const isLoading = categoryQuery.isLoading;
 
   const onSubmit = (values: FormValues) => {
     const updatedValues = {
       ...values,
+      name: values.name ?? '',
       budgetAmount: values.budgetAmount ?? '',
+      type: values.type as "income" | "expense" | "transfer",
     };
 
     editMutation.mutate(updatedValues, {
@@ -54,15 +56,16 @@ export const EditCategorySheet = () => {
   };
 
   const defaultValues = categoryQuery.data
-  ? {
-      name: categoryQuery.data.name,
-      budgetAmount: categoryQuery.data.budgetAmount ?? '',
-    }
-  : {
-      name: "",
-      budgetAmount: '',
-    };
-
+    ? {
+        name: categoryQuery.data.name,
+        budgetAmount: categoryQuery.data.budgetAmount ?? '',
+        type: (categoryQuery.data.type ?? 'income') as "income" | "expense" | "transfer",
+      }
+    : {
+        name: "",
+        budgetAmount: '',
+        type: 'income' as "income" | "expense" | "transfer",
+      };
 
   const onDelete = async () => {
     const ok = await confirm();
@@ -79,21 +82,22 @@ export const EditCategorySheet = () => {
   return (
     <>
       <ConfirmDialog />
-      <Sheet open={isOpen || isPending} onOpenChange={(open) => {
-        onClose();
-        setTimeout(() => {
-          if (!open) {
-            document.body.style.pointerEvents = ''
-          }
-        }, 100)
-      }}>
+      <Sheet
+        open={isOpen || isPending}
+        onOpenChange={(open) => {
+          onClose();
+          setTimeout(() => {
+            if (!open) {
+              document.body.style.pointerEvents = "";
+            }
+          }, 100);
+        }}
+      >
         <SheetContent className="space-y-4">
           <SheetHeader>
             <SheetTitle>Edit Category</SheetTitle>
-
             <SheetDescription>Edit an existing category.</SheetDescription>
           </SheetHeader>
-
           {isLoading ? (
             <div className="absolute inset-0 flex items-center justify-center">
               <Loader2 className="size-4 animate-spin text-muted-foreground" />
@@ -102,7 +106,7 @@ export const EditCategorySheet = () => {
             <CategoryForm
               id={id}
               defaultValues={defaultValues}
-              onSubmit={onSubmit}
+                onSubmit={onSubmit}
               disabled={isPending}
               onDelete={onDelete}
             />

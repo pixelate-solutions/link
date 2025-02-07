@@ -56,21 +56,44 @@ const montserratH = Montserrat({
   subsets: ["latin"],
 });
 
-// Define the type for category totals
+// -----------------------------------------------------------------
+// Define our local types
+// -----------------------------------------------------------------
+
+// (Assume your API originally returns categories without the `type` field.)
+interface APICategory {
+  id: string;
+  name: string | null;
+  budgetAmount: string | null;
+}
+
+// Extend the API Category with the new "type" field.
+interface Category extends APICategory {
+  type: string;
+}
+
+// This is the type expected by your DataTable. All fields must be strings.
+interface ResponseType {
+  id: string;
+  name: string | null;
+  type: string;
+  totalIncome: string;
+  totalCost: string;
+  budgetAmount: string;
+  amountLeftToSpend: string;
+  // Additional flags for our rendering logic
+  isTransfer?: boolean;
+  transferMessage?: string;
+}
+
+// Define the type for category totals returned from the API.
 interface CategoryTotal {
   categoryId: string;
   categoryName: string;
   totalCost: number;
   totalIncome: number;
-  budgetAmount: string | null;      // optional
-  amountLeftToSpend: string | null; // optional
-}
-
-// Category shape from your DB
-interface Category {
-  id: string;
-  name: string | null;
-  budgetAmount: string | null; // included in your schema
+  budgetAmount: string | null;
+  amountLeftToSpend: string | null;
 }
 
 // API fetcher for category totals
@@ -83,10 +106,13 @@ const fetchCategoryTotals = async (
   return response.json();
 };
 
+// -----------------------------------------------------------------
+// Main Component
+// -----------------------------------------------------------------
 export default function CategoriesPage() {
-  // ========================
+  // ------------------------------
   // 1) Track window width
-  // ========================
+  // ------------------------------
   const [windowWidth, setWindowWidth] = useState<number>(
     typeof window !== "undefined" ? window.innerWidth : 9999
   );
@@ -99,9 +125,9 @@ export default function CategoriesPage() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // ========================
+  // ------------------------------
   // 2) Get summary data
-  // ========================
+  // ------------------------------
   const { data: rawData, isLoading: summaryLoading } = useGetSummary();
   const data = rawData ?? {
     monthlyBudget: 0,
@@ -115,7 +141,7 @@ export default function CategoriesPage() {
     expensesChange: 0,
   };
 
-  // Process the data for charts
+  // Process data for charts
   const processedCategories = data?.categories?.map((item) => ({
     name: item.name ?? "Unknown",
     value: item.value,
@@ -130,14 +156,13 @@ export default function CategoriesPage() {
 
   // Additional calculations
   const mainCumulativeSpending = data.expensesAmount;
-  let isFullMonth;
+  let isFullMonth: boolean;
 
   if (data.days.length === 0) {
     isFullMonth = false;
   } else {
     const firstDay = data.days[0];
     const lastDay = data.days[data.days.length - 1];
-
     const isSameDayOfMonth = getDate(new Date(firstDay.date)) === getDate(new Date(lastDay.date));
     isFullMonth =
       isSameDayOfMonth ||
@@ -150,12 +175,11 @@ export default function CategoriesPage() {
     ? data.monthlyBudget
     : data.days.reduce((sum, entry) => entry.budget, 0);
 
-  // Calculate the remaining budget
   const budgetLeft = cumulativeBudget + mainCumulativeSpending;
 
-  // ========================
+  // ------------------------------
   // 3) Handle category data
-  // ========================
+  // ------------------------------
   const searchParams = useSearchParams();
   let from = searchParams.get("from") || "";
   let to = searchParams.get("to") || "";
@@ -163,19 +187,19 @@ export default function CategoriesPage() {
   const newCategory = useNewCategory();
   const deleteCategories = useBulkDeleteCategories();
 
+  // IMPORTANT: Call useGetCategories first...
   const categoriesQuery = useGetCategories();
-  const categories = categoriesQuery.data || [];
 
-  // Sub-function to subtract a day from the date if needed
+  // ...then cast its data to our extended Category type.
+  const categories: Category[] = (categoriesQuery.data as unknown as Category[]) || [];
+
+  // Helper to adjust date strings
   const subtractDayFromDate = (dateString: string): string => {
     const date = parseISO(dateString);
     const newDate = new Date(date);
-
-    // Format the adjusted date back to YYYY-MM-DD
     const year = newDate.getFullYear();
     const month = String(newDate.getMonth() + 1).padStart(2, "0");
     const day = String(newDate.getDate()).padStart(2, "0");
-
     return `${year}-${month}-${day}`;
   };
 
@@ -184,18 +208,18 @@ export default function CategoriesPage() {
     from = subtractDayFromDate(from);
   }
 
-  // ========================
+  // ------------------------------
   // 4) Fetch category totals
-  // ========================
+  // ------------------------------
   const totalsQuery = useQuery({
     queryKey: ["categoryTotals", { from, to }],
     queryFn: () => fetchCategoryTotals(from, to),
     enabled: true,
   });
 
-  // ========================
+  // ------------------------------
   // 5) Handle loading states
-  // ========================
+  // ------------------------------
   const isDisabled =
     categoriesQuery.isLoading ||
     deleteCategories.isPending ||
@@ -219,78 +243,84 @@ export default function CategoriesPage() {
     );
   }
 
-  // ========================
-  // 6) Transform categories
-  // ========================
-  // If user didn't pass "from" / "to", default to last 30 days
+  // If no "from"/"to" were passed, default to last 30 days.
   if (to === "" || from === "") {
     const today = endOfToday();
     const previousMonthSameDay = subMonths(today, 1);
-
     from = previousMonthSameDay.toISOString();
     to = today.toISOString();
   }
 
-  // Build the date range display
   const fromDate = new Date(parseISO(from));
   fromDate.setUTCHours(12);
   const toDate = new Date(parseISO(to));
   const dateRange = formatDateRange({ to: toDate, from: fromDate });
 
-  // For partial months
-  const partialIsFullMonth =
-    (isFirstDayOfMonth(fromDate) && isSameDay(toDate, lastDayOfMonth(toDate))) ||
-    fromDate.getDate() === toDate.getDate();
-
-  const categoriesWithTotals = categories.map((category) => {
-    const isFullMonthLocal = partialIsFullMonth;
-
-    // If monthly budget is stored in category.budgetAmount,
-    // adjust for partial intervals
-    const monthlyBudget = parseFloat(category.budgetAmount || "0");
-
-    const dayCount = differenceInDays(toDate, fromDate) + 1;
-    const adjustedBudgetAmount = isSameDay(fromDate, toDate)
-      ? monthlyBudget / 30.44
-      : isFullMonthLocal
-      ? monthlyBudget
-      : (monthlyBudget * dayCount) / 30.44;
-
-    // Find totals for this category
-    const foundTotals =
-      totalsQuery.data?.find((t) => t.categoryId === category.id) || {
-        totalIncome: 0,
-        totalCost: 0,
+  // ------------------------------
+  // 6) Transform categories into rows for DataTable
+  // ------------------------------
+  const categoriesWithTotals: ResponseType[] = categories.map((category) => {
+    if (category.type === "transfer") {
+      // For transfer categories, supply empty strings for numeric fields.
+      return {
+        id: category.id,
+        name: category.name,
+        type: category.type,
+        isTransfer: true,
+        transferMessage: "Transfers do not count toward totals",
+        totalIncome: "",
+        totalCost: "",
+        budgetAmount: "",
+        amountLeftToSpend: "",
       };
+    } else {
+      // Determine if the date range is a full month.
+      const isFullMonthLocal =
+        (isFirstDayOfMonth(fromDate) && isSameDay(toDate, lastDayOfMonth(toDate))) ||
+        fromDate.getDate() === (toDate.getDate() + 1);
 
-    return {
-      id: category.id,
-      name: category.name,
-      totalIncome: foundTotals.totalIncome.toFixed(2),
-      totalCost: foundTotals.totalCost.toFixed(2),
-      budgetAmount: adjustedBudgetAmount.toFixed(2),
-      // amountLeftToSpend = (budget + costSpent) if costSpent is negative
-      // but your code does (budget + totalCost). Just keep consistent:
-      amountLeftToSpend: (adjustedBudgetAmount + foundTotals.totalCost).toFixed(2),
-    };
+      const monthlyBudget = parseFloat(category.budgetAmount || "0");
+      const dayCount = differenceInDays(toDate, fromDate) + 1;
+      const adjustedBudgetAmount = isSameDay(fromDate, toDate)
+        ? monthlyBudget / 30.44
+        : isFullMonthLocal
+        ? monthlyBudget
+        : (monthlyBudget * dayCount) / 30.44;
+
+      const foundTotals =
+        totalsQuery.data?.find((t) => t.categoryId === category.id) || {
+          totalIncome: 0,
+          totalCost: 0,
+        };
+
+      return {
+        id: category.id,
+        name: category.name,
+        type: category.type,
+        totalIncome: foundTotals.totalIncome.toFixed(2),
+        totalCost: foundTotals.totalCost.toFixed(2),
+        budgetAmount: adjustedBudgetAmount.toFixed(2),
+        amountLeftToSpend: (adjustedBudgetAmount + foundTotals.totalCost).toFixed(2),
+      };
+    }
   });
 
-  // Summations
+  // Summations (skip transfer rows)
   const sumBudgetAmount = categoriesWithTotals.reduce(
-    (sum, item) => sum + parseFloat(item.budgetAmount),
+    (sum, item) => (!item.isTransfer ? sum + parseFloat(item.budgetAmount) : sum),
     0
   );
   const sumTotalCost = categoriesWithTotals.reduce(
-    (sum, item) => sum + parseFloat(item.totalCost),
+    (sum, item) => (!item.isTransfer ? sum + parseFloat(item.totalCost) : sum),
     0
   );
 
-  // ========================
-  // 7) Render
-  // ========================
+  // ------------------------------
+  // 7) Render the page
+  // ------------------------------
   return (
     <div className={cn("mx-auto -mt-6 w-full max-w-screen-2xl pb-10", montserratP.className)}>
-      {/* ===== Summary Cards (top row) ===== */}
+      {/* Summary Cards */}
       <div className="mb-8 grid grid-cols-1 gap-8 pb-2 lg:grid-cols-3">
         <ExpensesDataCard
           title="Expenses"
@@ -318,12 +348,13 @@ export default function CategoriesPage() {
         />
       </div>
 
-      {/* ===== Charts ===== */}
+      {/* Charts */}
       <div className="flex flex-wrap lg:flex-nowrap gap-4">
         <div className="w-full lg:w-3/4">
           <BudgetVsSpendingChart
             fullData={data}
             data={budgetVsSpendingData}
+            cumulativeBudget={sumBudgetAmount}
           />
         </div>
         <div className="w-full lg:w-1/4">
@@ -331,12 +362,10 @@ export default function CategoriesPage() {
         </div>
       </div>
 
-      {/* ===== Categories Table/Card ===== */}
-      <Card className="border-none drop-shadow-sm">
+      {/* Categories Table/Card */}
+      <Card className="border-none drop-shadow-sm mt-6">
         <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between">
-          <CardTitle className="line-clamp-1 text-xl">
-            Set Categories
-          </CardTitle>
+          <CardTitle className="line-clamp-1 text-xl">Set Categories</CardTitle>
           <Button size="sm" onClick={newCategory.onOpen}>
             <Plus className="mr-2 size-4" /> Add new
           </Button>

@@ -23,7 +23,7 @@ const app = new Hono().get(
   async (ctx) => {
     const auth = getAuth(ctx);
     const { from, to, accountId } = ctx.req.valid("query");
-      if (!auth?.userId) {
+    if (!auth?.userId) {
       return ctx.json({ error: "Unauthorized." }, 401);
     }
 
@@ -37,17 +37,21 @@ const app = new Hono().get(
       : defaultFrom;
     const endDate = to ? parse(to, "yyyy-MM-dd", new Date()) : defaultTo;
 
-
     const normalizedStartDate = new Date(startDate);
     normalizedStartDate.setUTCHours(0, 0, 0, 0); // Start of the day in UTC
 
     const normalizedEndDate = new Date(endDate);
     normalizedEndDate.setUTCHours(23, 59, 59, 999); // End of the day in UTC
 
-
     const periodLength = differenceInDays(endDate, startDate) + 1;
     const lastPeriodStart = subDays(startDate, periodLength);
     const lastPeriodEnd = subDays(endDate, periodLength);
+
+    // SQL snippet to exclude transfer transactions by checking category type.
+    // If a transaction has no category, COALESCE returns an empty string.
+    const excludeTransfersSQL = sql`
+      (COALESCE(LOWER(${categories.type}), '') <> 'transfer')
+    `;
 
     // Fetch financial data (income, expenses, remaining)
     async function fetchFinancialData(
@@ -58,10 +62,22 @@ const app = new Hono().get(
       return await db
         .select({
           income: sql`
-            SUM(CAST(CASE WHEN ${transactions.amount} >= '0' THEN ${transactions.amount} ELSE '0' END AS numeric))
+            SUM(
+              CAST(
+                CASE WHEN ${transactions.amount} >= '0'
+                  THEN ${transactions.amount} ELSE '0'
+                END AS numeric
+              )
+            )
           `.mapWith(Number),
           expenses: sql`
-            SUM(CAST(CASE WHEN ${transactions.amount} < '0' THEN ${transactions.amount} ELSE '0' END AS numeric))
+            SUM(
+              CAST(
+                CASE WHEN ${transactions.amount} < '0'
+                  THEN ${transactions.amount} ELSE '0'
+                END AS numeric
+              )
+            )
           `.mapWith(Number),
           remaining: sum(
             sql`CAST(${transactions.amount} AS numeric)`
@@ -69,12 +85,21 @@ const app = new Hono().get(
         })
         .from(transactions)
         .innerJoin(accounts, eq(transactions.accountId, accounts.id))
+        // Left join categories so that transactions with no category are still included.
+        .leftJoin(categories, eq(transactions.categoryId, categories.id))
         .where(
           and(
             accountId ? eq(transactions.accountId, accountId) : undefined,
             eq(accounts.userId, userId),
-            gte(sql`DATE(${transactions.date})`, sql`DATE(${normalizedStartDate.toISOString()})`),
-            lte(sql`DATE(${transactions.date})`, sql`DATE(${normalizedEndDate.toISOString()})`)
+            gte(
+              sql`DATE(${transactions.date})`,
+              sql`DATE(${normalizedStartDate.toISOString()})`
+            ),
+            lte(
+              sql`DATE(${transactions.date})`,
+              sql`DATE(${normalizedEndDate.toISOString()})`
+            ),
+            excludeTransfersSQL
           )
         );
     }
@@ -125,23 +150,26 @@ const app = new Hono().get(
     const daysInRange = differenceInDays(endDate, startDate) + 1;
 
     const dailyBudgets = Array.from({ length: daysInRange }).map((_, index) => {
-     
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + index);
-      
       return {
         date: date.toISOString().split("T")[0],
         budget: budgetPerDay * (index + 1),
       };
     });
 
-
-    // Fetch category spending and group by categories
+    // Fetch category spending and group by categories.
+    // Note: This query uses an inner join on categories so only transactions with a category are included.
+    // We add the condition to exclude transfers.
     const category = await db
       .select({
         name: categories.name,
         value: sql`
-          SUM(CAST(ABS(CAST(${transactions.amount} AS numeric)) AS numeric))
+          SUM(
+            CAST(
+              ABS(CAST(${transactions.amount} AS numeric)) AS numeric
+            )
+          )
         `.mapWith(Number),
       })
       .from(transactions)
@@ -151,13 +179,25 @@ const app = new Hono().get(
         and(
           accountId ? eq(transactions.accountId, accountId) : undefined,
           eq(accounts.userId, auth.userId),
-          gte(sql`DATE(${transactions.date})`, sql`DATE(${normalizedStartDate.toISOString()})`),
-          lte(sql`DATE(${transactions.date})`, sql`DATE(${normalizedEndDate.toISOString()})`),
-          sql`CAST(${transactions.amount} AS numeric) < 0`
+          gte(
+            sql`DATE(${transactions.date})`,
+            sql`DATE(${normalizedStartDate.toISOString()})`
+          ),
+          lte(
+            sql`DATE(${transactions.date})`,
+            sql`DATE(${normalizedEndDate.toISOString()})`
+          ),
+          sql`CAST(${transactions.amount} AS numeric) < 0`,
+          // Exclude transfer transactions by checking category type
+          sql`COALESCE(LOWER(${categories.type}), '') <> 'transfer'`
         )
       )
       .groupBy(categories.name)
-      .orderBy(desc(sql`SUM(CAST(ABS(CAST(${transactions.amount} AS numeric)) AS numeric))`));
+      .orderBy(
+        desc(
+          sql`SUM(CAST(ABS(CAST(${transactions.amount} AS numeric)) AS numeric))`
+        )
+      );
 
     const topCategories = category.slice(0, 3);
     const otherCategories = category.slice(3);
@@ -167,29 +207,49 @@ const app = new Hono().get(
     );
 
     const finalCategories = topCategories;
-
     if (otherCategories.length > 0)
       finalCategories.push({ name: "Other", value: otherSum });
 
-    // Fetch daily income and expenses, fill missing days
+    // Fetch daily income and expenses, filling missing days.
+    // We use a left join on categories so that transactions with no category are included.
     const activeDays = await db
       .select({
         date: transactions.date,
         income: sql`
-          SUM(CAST(CASE WHEN ${transactions.amount} >= '0' THEN ${transactions.amount} ELSE '0' END AS numeric))
+          SUM(
+            CAST(
+              CASE WHEN ${transactions.amount} >= '0'
+                THEN ${transactions.amount} ELSE '0'
+              END AS numeric
+            )
+          )
         `.mapWith(Number),
         expenses: sql`
-          SUM(CAST(CASE WHEN ${transactions.amount} < '0' THEN ABS(CAST(${transactions.amount} AS numeric)) ELSE '0' END AS numeric))
+          SUM(
+            CAST(
+              CASE WHEN ${transactions.amount} < '0'
+                THEN ABS(CAST(${transactions.amount} AS numeric)) ELSE '0'
+              END AS numeric
+            )
+          )
         `.mapWith(Number),
       })
       .from(transactions)
       .innerJoin(accounts, eq(transactions.accountId, accounts.id))
+      .leftJoin(categories, eq(transactions.categoryId, categories.id))
       .where(
         and(
           accountId ? eq(transactions.accountId, accountId) : undefined,
           eq(accounts.userId, auth.userId),
-          gte(sql`DATE(${transactions.date})`, sql`DATE(${normalizedStartDate.toISOString()})`),
-          lte(sql`DATE(${transactions.date})`, sql`DATE(${normalizedEndDate.toISOString()})`)
+          gte(
+            sql`DATE(${transactions.date})`,
+            sql`DATE(${normalizedStartDate.toISOString()})`
+          ),
+          lte(
+            sql`DATE(${transactions.date})`,
+            sql`DATE(${normalizedEndDate.toISOString()})`
+          ),
+          excludeTransfersSQL
         )
       )
       .groupBy(transactions.date)
@@ -199,7 +259,10 @@ const app = new Hono().get(
 
     // Merge the budget data with the daily expenses data
     const daysWithBudget = days.map((day) => {
-      const budgetData = dailyBudgets.find((d) => isSameDay(d.date, day.date));
+      // Compare dates by converting the startDate to a Date object if needed
+      const budgetData = dailyBudgets.find((d) =>
+        isSameDay(new Date(d.date), day.date)
+      );
       return {
         ...day,
         budget: budgetData ? budgetData.budget : 0,
@@ -209,13 +272,31 @@ const app = new Hono().get(
     const { liabilities, assets, availableAssets } = await db
       .select({
         liabilities: sql`
-          SUM(CAST(CASE WHEN ${accounts.currentBalance} < '0' THEN ${accounts.currentBalance} ELSE '0' END AS numeric))
+          SUM(
+            CAST(
+              CASE WHEN ${accounts.currentBalance} < '0'
+                THEN ${accounts.currentBalance} ELSE '0'
+              END AS numeric
+            )
+          )
         `.mapWith(Number),
         assets: sql`
-          SUM(CAST(CASE WHEN ${accounts.currentBalance} >= '0' THEN ${accounts.currentBalance} ELSE '0' END AS numeric))
+          SUM(
+            CAST(
+              CASE WHEN ${accounts.currentBalance} >= '0'
+                THEN ${accounts.currentBalance} ELSE '0'
+              END AS numeric
+            )
+          )
         `.mapWith(Number),
         availableAssets: sql`
-          SUM(CAST(CASE WHEN ${accounts.currentBalance} >= '0' THEN ${accounts.availableBalance} ELSE '0' END AS numeric))
+          SUM(
+            CAST(
+              CASE WHEN ${accounts.currentBalance} >= '0'
+                THEN ${accounts.availableBalance} ELSE '0'
+              END AS numeric
+            )
+          )
         `.mapWith(Number),
       })
       .from(accounts)
@@ -225,7 +306,6 @@ const app = new Hono().get(
         assets: (result.assets || 0).toString(),
         availableAssets: (result.availableAssets || 0).toString(),
       }));
-
 
     return ctx.json({
       data: {

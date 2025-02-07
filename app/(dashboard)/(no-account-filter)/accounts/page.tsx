@@ -84,7 +84,7 @@ const AccountsPage = () => {
     };
   }, []);
 
-  const Categories = ["Credit cards", "Depositories", "Investments", "Loans", "Others"];
+  const Categories = ["Credit cards", "Depository", "Investments", "Loans", "Others"];
   const formSchema = insertAccountSchema.pick({
     name: true,
     category: true,
@@ -98,6 +98,19 @@ const AccountsPage = () => {
     resolver: zodResolver(formSchema),
     defaultValues: { name: "", category: "", currentBalance: "" },
   });
+
+  useEffect(() => {
+    if (user?.id) {
+      // Check and insert default categories
+      fetch("/api/categories/set-default", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
+      .catch((error) => {
+        console.error("Error checking default categories:", error);
+      });
+    }
+  }, [user]);
 
   useEffect(() => {
     const fetchLinkToken = async () => {
