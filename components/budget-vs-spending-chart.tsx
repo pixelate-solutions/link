@@ -1,10 +1,10 @@
 import { XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid, Area, AreaChart } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { format, parseISO, differenceInDays, getDate, isFirstDayOfMonth, isLastDayOfMonth, endOfToday, subMonths, lastDayOfMonth } from 'date-fns';
+import { format, parseISO, differenceInDays } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { FileSearch } from 'lucide-react';
 import { CountUp } from './count-up';
-import { formatCurrency, formatDateRange } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 
 type BudgetVsSpendingChartProps = {
   data: {
