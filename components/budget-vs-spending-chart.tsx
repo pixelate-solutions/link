@@ -25,7 +25,8 @@ import {
   endOfToday,
   isSameDay,
   subMonths,
-  lastDayOfMonth
+  lastDayOfMonth,
+  addDays
 } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { FileSearch } from 'lucide-react';
@@ -98,7 +99,7 @@ export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartP
     if (to === "" || from === "") {
       const today = endOfToday();
       const previousMonthSameDay = subMonths(today, 1);
-      const newFrom = previousMonthSameDay.toISOString();
+      const newFrom = addDays(previousMonthSameDay, 1).toISOString();
       const newTo = today.toISOString();
       from = newFrom;
       to = newTo;
@@ -109,7 +110,7 @@ export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartP
 
     const isFullMonth =
       (isFirstDayOfMonth(fromDate) && isSameDay(toDate, lastDayOfMonth(toDate))) ||
-      (fromDate.getDate() === toDate.getDate());
+      (fromDate.getDate() === toDate.getDate() + 1);
 
     const adjustedBudgetAmount = isFullMonth
       ? parseFloat(category.budgetAmount || "0")
