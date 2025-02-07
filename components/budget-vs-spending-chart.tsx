@@ -31,12 +31,12 @@ type BudgetVsSpendingChartProps = {
     incomeChange: number;
     expensesChange: number;
   };
-  cumulativeBudget: number; // NEW prop
+  cumulativeBudget?: number;
 };
 
 export const BudgetVsSpendingChart = ({ data, fullData, cumulativeBudget }: BudgetVsSpendingChartProps) => {
   const mainCumulativeSpending = fullData?.expensesAmount || 0;
-  const budgetLeft = cumulativeBudget + mainCumulativeSpending;
+  const budgetLeft = (cumulativeBudget || 0) + mainCumulativeSpending;
   
   const [isLargeScreen, setIsLargeScreen] = useState<boolean>(false);
   
@@ -62,7 +62,7 @@ export const BudgetVsSpendingChart = ({ data, fullData, cumulativeBudget }: Budg
     cumulativeSpending += entry.spending;
   
     const totalDays = data.length;
-    const cumulativeBudgetForDay = (cumulativeBudget / totalDays) * (index + 1);
+    const cumulativeBudgetForDay = ((cumulativeBudget || 0) / totalDays) * (index + 1);
   
     return {
       ...entry,
@@ -136,7 +136,7 @@ export const BudgetVsSpendingChart = ({ data, fullData, cumulativeBudget }: Budg
                 className="text-[12px] text-gray-500"
                 preserveValue
                 start={0}
-                end={cumulativeBudget}
+                end={(cumulativeBudget || 0)}
                 decimals={2}
                 formattingFn={formatCurrency}
               />
