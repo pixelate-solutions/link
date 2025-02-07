@@ -372,6 +372,7 @@ const SettingsPage = () => {
                   className="input border border-gray-300 rounded-lg px-4 py-2 shadow-sm w-full md:w-auto focus:outline-none mt-2"
                   placeholder="Enter promo code"
                 />
+                {subscriptionStatus !== "Free" && (<p className="font-semibold text-sm mt-2 text-gray-500">Promo codes are for free accounts.</p>)}
               </div>
               <Button
                 disabled={subscriptionStatus !== "Free" || promoCode === ""}
