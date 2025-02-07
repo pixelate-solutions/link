@@ -22,6 +22,8 @@ import {
 import { Montserrat } from "next/font/google";
 import { formatCurrency } from "@/lib/utils";
 
+import { ColorRing } from 'react-loader-spinner'
+
 const montserratP = Montserrat({
   weight: "500",
   subsets: ["latin"],
@@ -177,7 +179,15 @@ export default function CategoryDetails() {
   if (!category) {
     return (
       <div className="flex justify-center items-center h-32">
-        <div className="h-10 w-10 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 animate-spin" />
+        <ColorRing
+          visible={true}
+          height="80"
+          width="80"
+          ariaLabel="color-ring-loading"
+          wrapperStyle={{}}
+          wrapperClass="color-ring-wrapper"
+          colors={['#3B82F6', '#6366F1', '#7C3AED', '#9333EA', '#A855F7']}
+        />
       </div>
     );
   }

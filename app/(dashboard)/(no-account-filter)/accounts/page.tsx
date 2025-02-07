@@ -36,6 +36,8 @@ import { AccountsGrid } from "@/components/accounts-grid";
 // Import the new MobileAccounts component
 import { MobileAccounts } from "@/components/mobile-accounts";
 
+import { ColorRing } from 'react-loader-spinner'
+
 const montserratP = Montserrat({
   weight: "500",
   subsets: ["latin"],
@@ -351,32 +353,46 @@ const AccountsPage = () => {
     >
       <AccountsGrid />
       {plaidIsOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
-          <div className="bg-white p-8 rounded-lg shadow-lg w-80 text-center">
-            <h2 className="text-2xl font-bold mb-4">Connecting</h2>
-            <p className="text-lg text-gray-600">
-              <Typewriter
-                words={[
-                  "This will take a few minutes...",
-                  "Please be patient...",
-                  "Waiting for Plaid connections...",
-                  "Waiting for Plaid connections...",
-                  "Fetching your financial data...",
-                  "Categorizing transactions...",
-                  "Creating accounts...",
-                  "Training virtual assistant...",
-                ]}
-                loop={true}
-                cursor
-                cursorStyle="|"
-                typeSpeed={70}
-                deleteSpeed={50}
-                delaySpeed={1000}
-              />
-            </p>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-md">
+        <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md mx-4 text-center space-y-6">
+          
+          {/* Spinner */}
+          <div className="flex justify-center">
+            <ColorRing
+              visible={true}
+              height="80"
+              width="80"
+              ariaLabel="color-ring-loading"
+              wrapperStyle={{}}
+              wrapperClass="color-ring-wrapper"
+              colors={['#3B82F6', '#6366F1', '#7C3AED', '#9333EA', '#A855F7']}
+            />
           </div>
+
+          <h2 className="text-2xl font-semibold text-gray-800">Connecting</h2>
+
+          <p className="text-lg text-gray-600">
+            <Typewriter
+              words={[
+                "This will take a few minutes...",
+                "Please be patient...",
+                "Waiting for Plaid connections...",
+                "Fetching your financial data...",
+                "Categorizing transactions...",
+                "Creating accounts...",
+                "Training virtual assistant...",
+              ]}
+              loop={true}
+              cursor
+              cursorStyle="|"
+              typeSpeed={70}
+              deleteSpeed={50}
+              delaySpeed={1000}
+            />
+          </p>
         </div>
-      )}
+      </div>
+    )}
 
       {/* ========== LINKED (Plaid) ACCOUNTS ========== */}
       {isPremiumUser && (
