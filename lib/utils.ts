@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { eachDayOfInterval, format, isSameDay, parse, subDays } from "date-fns";
+import { differenceInDays, eachDayOfInterval, format, isFirstDayOfMonth, isSameDay, parse, subDays } from "date-fns";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -103,3 +103,22 @@ export function formatPercentage(
 
   return result;
 }
+
+export const calculateAdjustedBudget = (
+  monthlyBudget: number,
+  fromDate: Date,
+  toDate: Date
+): number => {
+  const dayCount = differenceInDays(toDate, fromDate) + 1;
+  const isFullMonth =
+    (isFirstDayOfMonth(fromDate) && isSameDay(toDate, new Date(toDate.getFullYear(), toDate.getMonth() + 1, 0))) ||
+    fromDate.getDate() === toDate.getDate() + 1;
+    
+  if (isSameDay(fromDate, toDate)) {
+    // For a single day, assume an average month length (30.44 days)
+    return monthlyBudget / 30.44;
+  }
+  return isFullMonth
+    ? monthlyBudget
+    : (monthlyBudget * dayCount) / 30.44;
+};
