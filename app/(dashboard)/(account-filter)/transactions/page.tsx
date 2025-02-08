@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
+import { ColorRing } from 'react-loader-spinner'
 import { toast } from "sonner";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
@@ -238,7 +239,15 @@ export default function TransactionsPage() {
 
           <CardContent>
             <div className="flex h-[500px] w-full items-center justify-center">
-              <Loader2 className="size-6 animate-spin text-slate-300" />
+              <ColorRing
+                visible={true}
+                height="80"
+                width="80"
+                ariaLabel="color-ring-loading"
+                wrapperStyle={{}}
+                wrapperClass="color-ring-wrapper"
+                colors={['#3B82F6', '#6366F1', '#7C3AED', '#9333EA', '#A855F7']}
+              />
             </div>
           </CardContent>
         </Card>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Link, Loader2, Plus } from "lucide-react";
+import { Link, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -323,7 +323,15 @@ const AccountsPage = () => {
 
           <CardContent>
             <div className="flex h-[500px] w-full items-center justify-center">
-              <Loader2 className="size-6 animate-spin text-slate-300" />
+              <ColorRing
+                visible={true}
+                height="80"
+                width="80"
+                ariaLabel="color-ring-loading"
+                wrapperStyle={{}}
+                wrapperClass="color-ring-wrapper"
+                colors={['#3B82F6', '#6366F1', '#7C3AED', '#9333EA', '#A855F7']}
+              />
             </div>
           </CardContent>
         </Card>
@@ -334,7 +342,15 @@ const AccountsPage = () => {
 
           <CardContent>
             <div className="flex h-[500px] w-full items-center justify-center">
-              <Loader2 className="size-6 animate-spin text-slate-300" />
+              <ColorRing
+                visible={true}
+                height="80"
+                width="80"
+                ariaLabel="color-ring-loading"
+                wrapperStyle={{}}
+                wrapperClass="color-ring-wrapper"
+                colors={['#3B82F6', '#6366F1', '#7C3AED', '#9333EA', '#A855F7']}
+              />
             </div>
           </CardContent>
         </Card>

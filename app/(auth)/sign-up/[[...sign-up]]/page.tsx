@@ -1,5 +1,5 @@
 import { SignUp, ClerkLoaded, ClerkLoading } from "@clerk/nextjs";
-import { Loader2 } from "lucide-react";
+import { ColorRing } from 'react-loader-spinner'
 import Image from "next/image";
 
 const SignUpPage = () => {
@@ -19,7 +19,15 @@ const SignUpPage = () => {
           </ClerkLoaded>
 
           <ClerkLoading>
-            <Loader2 className="animate-spin text-muted-foreground" />
+            <ColorRing
+              visible={true}
+              height="80"
+              width="80"
+              ariaLabel="color-ring-loading"
+              wrapperStyle={{}}
+              wrapperClass="color-ring-wrapper"
+              colors={['#3B82F6', '#6366F1', '#7C3AED', '#9333EA', '#A855F7']}
+            />
           </ClerkLoading>
         </div>
       </div>

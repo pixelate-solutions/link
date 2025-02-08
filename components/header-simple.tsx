@@ -3,7 +3,7 @@
 import { useUser } from "@clerk/nextjs";
 
 import { ClerkLoaded, ClerkLoading, UserButton } from "@clerk/nextjs";
-import { Loader2 } from "lucide-react";
+import { ColorRing } from 'react-loader-spinner'
 
 import { HeaderLogo } from "./header-logo";
 import { Navigation } from "./navigation";
@@ -38,7 +38,15 @@ export const HeaderSimple = () => {
             </ClerkLoaded>
 
             <ClerkLoading>
-              <Loader2 className="size-8 animate-spin text-slate-400" />
+              <ColorRing
+                visible={true}
+                height="80"
+                width="80"
+                ariaLabel="color-ring-loading"
+                wrapperStyle={{}}
+                wrapperClass="color-ring-wrapper"
+                colors={['#3B82F6', '#6366F1', '#7C3AED', '#9333EA', '#A855F7']}
+              />
             </ClerkLoading>
           </div>
         </div>

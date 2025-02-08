@@ -3,9 +3,10 @@ import {
   BarChart3,
   FileSearch,
   LineChart,
-  Loader2,
 } from "lucide-react";
 import { useState } from "react";
+
+import { ColorRing } from 'react-loader-spinner'
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -115,7 +116,15 @@ export const ChartLoading = () => {
 
       <CardContent>
         <div className="flex h-[350px] w-full items-center justify-center">
-          <Loader2 className="size-6 animate-spin text-slate-300" />
+          <ColorRing
+                visible={true}
+                height="80"
+                width="80"
+                ariaLabel="color-ring-loading"
+                wrapperStyle={{}}
+                wrapperClass="color-ring-wrapper"
+                colors={['#3B82F6', '#6366F1', '#7C3AED', '#9333EA', '#A855F7']}
+              />
         </div>
       </CardContent>
     </Card>

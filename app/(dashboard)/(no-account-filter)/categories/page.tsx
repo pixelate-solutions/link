@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -16,6 +16,7 @@ import { useBulkDeleteCategories } from "@/features/categories/api/use-bulk-dele
 import { useGetCategories } from "@/features/categories/api/use-get-categories";
 import { useNewCategory } from "@/features/categories/hooks/use-new-category";
 
+import { ColorRing } from 'react-loader-spinner'
 
 // Date utilities
 import {
@@ -236,7 +237,15 @@ export default function CategoriesPage() {
           </CardHeader>
           <CardContent>
             <div className="flex h-[500px] w-full items-center justify-center">
-              <Loader2 className="size-6 animate-spin text-slate-300" />
+              <ColorRing
+                visible={true}
+                height="80"
+                width="80"
+                ariaLabel="color-ring-loading"
+                wrapperStyle={{}}
+                wrapperClass="color-ring-wrapper"
+                colors={['#3B82F6', '#6366F1', '#7C3AED', '#9333EA', '#A855F7']}
+              />
             </div>
           </CardContent>
         </Card>

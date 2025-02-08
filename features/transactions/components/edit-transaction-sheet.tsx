@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import { ColorRing } from 'react-loader-spinner'
 import { z } from "zod";
 
 import {
@@ -142,7 +142,15 @@ export const EditTransactionSheet = () => {
 
           {isLoading ? (
             <div className="absolute inset-0 flex items-center justify-center">
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+              <ColorRing
+                visible={true}
+                height="60"
+                width="60"
+                ariaLabel="color-ring-loading"
+                wrapperStyle={{}}
+                wrapperClass="color-ring-wrapper"
+                colors={['#3B82F6', '#6366F1', '#7C3AED', '#9333EA', '#A855F7']}
+              />
             </div>
           ) : (
             <TransactionForm
