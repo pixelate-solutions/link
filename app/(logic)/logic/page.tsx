@@ -75,7 +75,9 @@ const LogicPage = () => {
     queryFn: () => fetchSummary(monthlyFromStr, monthlyToStr, accountId),
   });
 
-  if (weeklyError || monthlyError) return <div>Error loading summary data.</div>;
+  if (weeklyError || monthlyError) {
+    console.log("Error reading summary data.");
+  };
 
   // In case the API response is missing any data, fall back to defaults.
   const weeklyData = weeklyRawData?.data ?? {

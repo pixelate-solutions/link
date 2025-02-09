@@ -247,6 +247,8 @@ const SpendingBudgetChart: React.FC<SpendingBudgetChartProps> = ({
               </linearGradient>
               <linearGradient id="spendingLegendGradient" x1="0" y1="0" x2="1" y2="1">
                 <stop offset="0%" stopColor="#22C55E" />
+                <stop offset="49%" stopColor="#22C55E" />
+                <stop offset="51%" stopColor="#EF4444" />
                 <stop offset="100%" stopColor="#EF4444" />
               </linearGradient>
             </defs>
