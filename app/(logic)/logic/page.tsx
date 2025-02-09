@@ -8,7 +8,6 @@ import { Montserrat } from "next/font/google";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import SpendingBudgetChart from "@/components/logic-chart";
 import { subWeeks, subMonths, format } from "date-fns";
-import { Skeleton } from "@/components/ui/skeleton";
 
 const montserratP = Montserrat({
   weight: "500",
