@@ -25,6 +25,7 @@ import stripeBalance from './stripe-balance'
 import deleteToken from './delete-access-token'
 import accountCount from './get-plaid-account-count'
 import recurringTransactionsPage from './recurring-transactions'
+import notifications from './notifications'
 
 const app = new Hono().basePath('/api');
 
@@ -53,6 +54,7 @@ const routes = app
   .route('/delete-token', deleteToken)
   .route('/plaid/account-count', accountCount)
   .route('/recurring-page', recurringTransactionsPage)
+  .route('/notifications', notifications)
   
 export const GET = handle(app);
 export const POST = handle(app);

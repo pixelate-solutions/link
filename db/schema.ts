@@ -177,3 +177,12 @@ export const categorizationRulesRelations = relations(categorizationRules, ({ on
 export const insertCategorizationRuleSchema = createInsertSchema(categorizationRules, {
   priority: z.number().min(1).default(1),
 });
+
+export const notifications = pgTable("notifications", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  name: text("name").notNull(),
+  toggled: boolean("toggled").notNull(),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications);
