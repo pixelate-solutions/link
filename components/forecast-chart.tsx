@@ -8,6 +8,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  ReferenceArea,
 } from "recharts";
 import { format, parseISO, addDays, endOfDay } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
@@ -141,19 +142,15 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
   historicalData,
   monthlyBudget,
 }) => {
-  // Aggregate daily net data into weekly intervals.
+  // Always compute historicalWeeks.
   const historicalWeeks = aggregateHistoricalIntoWeeks(
     historicalData.map((d) => ({ date: d.date, net: d.net }))
   );
-  if (!historicalWeeks.length) {
-    return <div>No historical data available.</div>;
-  }
 
-  const lastHistEnd = historicalWeeks[historicalWeeks.length - 1].end;
-
-  // Pass the number of historical weeks to the forecast endpoint.
+  // Get forecastWeeksCount (will be 0 if no historical data).
   const forecastWeeksCount = historicalWeeks.length;
 
+  // Always call useQuery, but disable it if no historical data.
   const { data: forecastData, isLoading, error } = useQuery({
     queryKey: ["forecast", forecastWeeksCount, monthlyBudget],
     queryFn: async () => {
@@ -166,23 +163,28 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       }
       return res.json();
     },
+    enabled: forecastWeeksCount > 0,
   });
 
-    if (isLoading) {
-        return (<div className="shadow-lg rounded-xl p-5 w-full">
-            <div className="flex flex-row w-full justify-items-center items-center justify-center px-10">
-                <Skeleton className="h-[280px] w-[10%]" />
-                <Skeleton className="h-[280px] w-[10%] mx-2" />
+  if (!historicalWeeks.length) {
+    return <div>No historical data available.</div>;
+  }
 
-                <Skeleton className="h-[280px] w-[10%] ml-4" />
-                <Skeleton className="h-[280px] w-[10%] mx-2" />
-
-                <Skeleton className="h-[280px] w-[10%] ml-4" />
-                <Skeleton className="h-[280px] w-[10%] mx-2" />
-            </div>
-            <Skeleton className="h-[40px] md:h-[60px] w-[78%] ml-[11%] mt-2" />
-        </div>)
-    };
+  if (isLoading) {
+    return (
+      <div className="shadow-lg rounded-xl p-5 w-full">
+        <div className="flex flex-row w-full justify-center items-center px-10">
+          <Skeleton className="h-[280px] w-[10%]" />
+          <Skeleton className="h-[280px] w-[10%] mx-2" />
+          <Skeleton className="h-[280px] w-[10%] ml-4" />
+          <Skeleton className="h-[280px] w-[10%] mx-2" />
+          <Skeleton className="h-[280px] w-[10%] ml-4" />
+          <Skeleton className="h-[280px] w-[10%] mx-2" />
+        </div>
+        <Skeleton className="h-[40px] md:h-[60px] w-[78%] ml-[11%] mt-2" />
+      </div>
+    );
+  }
   if (error)
     return <div>Error loading forecast data: {(error as Error).message}</div>;
   if (!forecastData || !Array.isArray(forecastData) || forecastData.length === 0) {
@@ -190,9 +192,9 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
   }
 
   // Convert forecast data into weekly intervals.
-  const forecastWeeks = buildForecastWeeks(forecastData, lastHistEnd);
+  const forecastWeeks = buildForecastWeeks(forecastData, historicalWeeks[historicalWeeks.length - 1].end);
 
-  // Ensure continuity: set the first forecast point’s net equal to the last historical net.
+  // Ensure continuity: set the first forecast point's net equal to the last historical net.
   if (forecastWeeks.length > 0) {
     forecastWeeks[0].net = historicalWeeks[historicalWeeks.length - 1].net;
   }
