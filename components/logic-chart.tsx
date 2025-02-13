@@ -260,7 +260,7 @@ const SpendingBudgetChart: React.FC<SpendingBudgetChartProps> = ({
               content={({ active, payload }) => {
                 if (active && payload && payload.length) {
                   return (
-                    <div className="bg-gray-100 p-3 rounded-xl shadow-md transition-all duration-300">
+                    <div className="bg-white border p-3 rounded-xl shadow-md transition-all duration-300">
                       <p className="text-gray-800 font-semibold">
                         {payload[0].payload.period}
                       </p>

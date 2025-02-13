@@ -136,7 +136,7 @@ export const sendEmail = async (body: string, userId?: string, to?: string) => {
         <body>
           <div class="container">
             <div class="header">
-              <img class="logo" src="Link_Logo_Current.png" alt="Company Logo">
+              <img class="logo" src="/caution.png" alt="Company Logo">
               <h1>Transaction Webhook Alert</h1>
             </div>
             <div class="content">

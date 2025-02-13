@@ -79,6 +79,7 @@
     "recharts": "^2.15.1",
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.0",
+    "simple-statistics": "^7.8.7",
     "sonner": "^1.4.41",
     "stripe": "^16.9.0",
     "tailwind-merge": "^2.3.0",

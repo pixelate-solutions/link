@@ -8,6 +8,7 @@ import { Montserrat } from "next/font/google";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import SpendingBudgetChart from "@/components/logic-chart";
 import { subWeeks, subMonths, format } from "date-fns";
+import ForecastChart from "@/components/forecast-chart";
 
 const montserratP = Montserrat({
   weight: "500",
@@ -37,25 +38,41 @@ const fetchSummary = async (
 };
 
 const LogicPage = () => {
-  // We still get the accountId from the URL (if needed)
+  // Get accountId from the URL if needed.
   const searchParams = useSearchParams();
   const accountId = searchParams.get("accountId") || "";
 
   const today = new Date();
 
-  // For weekly comparisons: from 3 weeks ago until today
+  // For forecasting, we use a period of 52 weeks (but later we filter by the first day of data)
+  const forecastFrom = subWeeks(today, 52);
+  const forecastTo = today;
+  const forecastFromStr = format(forecastFrom, "yyyy-MM-dd");
+  const forecastToStr = format(forecastTo, "yyyy-MM-dd");
+
+  // For weekly comparisons: from 3 weeks ago until today.
   const weeklyFrom = subWeeks(today, 3);
   const weeklyTo = today;
   const weeklyFromStr = format(weeklyFrom, "yyyy-MM-dd");
   const weeklyToStr = format(weeklyTo, "yyyy-MM-dd");
 
-  // For monthly comparisons: from 3 months ago until today
+  // For monthly comparisons: from 3 months ago until today.
   const monthlyFrom = subMonths(today, 3);
   const monthlyTo = today;
   const monthlyFromStr = format(monthlyFrom, "yyyy-MM-dd");
   const monthlyToStr = format(monthlyTo, "yyyy-MM-dd");
 
-  // Query for the weekly summary data (last 3 weeks)
+  // Query for the forecast summary data.
+  const {
+    data: forecastRawData,
+    isLoading: isForecastLoading,
+    error: forecastError,
+  } = useQuery({
+    queryKey: ["summary-forecast", { forecastFromStr, forecastToStr, accountId }],
+    queryFn: () => fetchSummary(forecastFromStr, forecastToStr, accountId),
+  });
+
+  // Query for the weekly summary data (last 3 weeks).
   const {
     data: weeklyRawData,
     isLoading: isWeeklyLoading,
@@ -65,7 +82,7 @@ const LogicPage = () => {
     queryFn: () => fetchSummary(weeklyFromStr, weeklyToStr, accountId),
   });
 
-  // Query for the monthly summary data (last 3 months)
+  // Query for the monthly summary data (last 3 months).
   const {
     data: monthlyRawData,
     isLoading: isMonthlyLoading,
@@ -77,14 +94,25 @@ const LogicPage = () => {
 
   if (weeklyError || monthlyError) {
     console.log("Error reading summary data.");
-  };
+  }
 
   // In case the API response is missing any data, fall back to defaults.
+  // (Ensure that each day object includes both income and expenses.)
+  const forecastData = forecastRawData?.data ?? {
+    monthlyBudget: 0,
+    incomeAmount: 0,
+    expensesAmount: 0,
+    categories: [],
+    days: [],
+    remainingChange: 0,
+    incomeChange: 0,
+    expensesChange: 0,
+  };
+
   const weeklyData = weeklyRawData?.data ?? {
     monthlyBudget: 0,
     incomeAmount: 0,
     expensesAmount: 0,
-    remainingAmount: 0,
     categories: [],
     days: [],
     remainingChange: 0,
@@ -96,7 +124,6 @@ const LogicPage = () => {
     monthlyBudget: 0,
     incomeAmount: 0,
     expensesAmount: 0,
-    remainingAmount: 0,
     categories: [],
     days: [],
     remainingChange: 0,
@@ -104,21 +131,27 @@ const LogicPage = () => {
     expensesChange: 0,
   };
 
-  // Map the daily data into the chart’s format.
-  // (Each day object includes a date, spending, and budget value.)
-  const weeklyBudgetVsSpendingData =
-    weeklyData.days.map((day: any) => ({
+  // Map daily data into the format needed for forecasting.
+  // We now compute the net as (income - expenses).
+  const forecastNetData =
+    forecastData.days.map((day: any) => ({
       date: day.date,
-      spending: day.expenses,
-      budget: day.budget,
+      net: day.income - day.expenses,
     })) || [];
 
-  const monthlyBudgetVsSpendingData =
-    monthlyData.days.map((day: any) => ({
-      date: day.date,
-      spending: day.expenses,
-      budget: day.budget,
-    })) || [];
+  // --- Filter out days prior to the effective start date ---
+  // Effective start date: no earlier than 52 weeks ago,
+  // but if the first day with nonzero net is later, use that.
+  const fiftyTwoWeeksAgoStr = format(subWeeks(today, 52), "yyyy-MM-dd");
+  const firstTxnObj = forecastNetData.find((d: any) => d.net !== 0);
+  const effectiveStartDate =
+    firstTxnObj && firstTxnObj.date > fiftyTwoWeeksAgoStr
+      ? firstTxnObj.date
+      : fiftyTwoWeeksAgoStr;
+
+  const filteredForecastData = forecastNetData.filter(
+    (d: any) => d.date >= effectiveStartDate
+  );
 
   return (
     <div className="min-h-screen">
@@ -131,39 +164,51 @@ const LogicPage = () => {
           Link Logic
         </p>
       </div>
-      <Tabs defaultValue="main" className="lg:w-[74%] lg:ml-[13%]">
+      <Tabs defaultValue="monthly" className="lg:w-[74%] lg:ml-[13%]">
         <TabsList
           className="sticky top-[220px] flex lg:w-full border border-gray-300 rounded-md mt-[130px] mb-[30px] lg:mt-[60px] lg:mb-[30px] z-50 mx-2 lg:mx-0"
         >
-          <TabsTrigger value="goals" className="w-1/3 text-center">
+          <TabsTrigger value="weekly" className="w-1/3 text-center">
             Weekly
           </TabsTrigger>
-          <TabsTrigger value="main" className="w-1/3 text-center">
+          <TabsTrigger value="monthly" className="w-1/3 text-center">
             Monthly
           </TabsTrigger>
-          <TabsTrigger value="chat" className="w-1/3 text-center">
+          <TabsTrigger value="forecast" className="w-1/3 text-center">
             Forecast
           </TabsTrigger>
         </TabsList>
         <div className="h-[200px] rounded-b-2xl">
-          {/* Weekly tab: using the weekly data (last 3 weeks) */}
-          <TabsContent value="goals" className="mt-4">
+          {/* Weekly tab: showing net values from the last 3 weeks */}
+          <TabsContent value="weekly" className="mt-4">
             <SpendingBudgetChart
-              data={monthlyBudgetVsSpendingData}
+              data={monthlyData.days.map((day: any) => ({
+                date: day.date,
+                spending: day.expenses,
+                budget: day.budget,
+              }))}
               monthlyBudget={monthlyData.monthlyBudget}
               aggregation="week"
             />
           </TabsContent>
-          {/* Monthly tab: using the monthly data (last 3 months) */}
-          <TabsContent value="main" className="mt-4">
+          {/* Monthly tab: showing net values from the last 3 months */}
+          <TabsContent value="monthly" className="mt-4">
             <SpendingBudgetChart
-              data={monthlyBudgetVsSpendingData}
+              data={monthlyData.days.map((day: any) => ({
+                date: day.date,
+                spending: day.expenses,
+                budget: day.budget,
+              }))}
               monthlyBudget={monthlyData.monthlyBudget}
               aggregation="month"
             />
           </TabsContent>
-          <TabsContent value="chat" className="mt-4">
-            Forecast content goes here.
+          {/* Forecast tab: displaying historical net and projected net */}
+          <TabsContent value="forecast" className="mt-4">
+            <ForecastChart
+              historicalData={filteredForecastData}
+              monthlyBudget={monthlyData.monthlyBudget}
+            />
           </TabsContent>
         </div>
       </Tabs>
