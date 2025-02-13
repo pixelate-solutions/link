@@ -8,7 +8,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceArea,
 } from "recharts";
 import { format, parseISO, addDays, endOfDay } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
