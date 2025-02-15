@@ -23,7 +23,7 @@ const RootLayout = ({ children }: Readonly<PropsWithChildren>) => {
     <ClerkProvider>
       <html lang="en">
         <head>
-          <link rel="icon" href="/Link_Logo_Simple.png" />
+          <link rel="icon" href="/favicon.ico" />
         </head>
         <body className={inter.className}>
           <QueryProviders>

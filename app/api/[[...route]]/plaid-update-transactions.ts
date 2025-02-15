@@ -76,6 +76,7 @@ export const sendEmail = async (body: string, userId?: string, to?: string) => {
     if (!recipient) {
       recipient = "support@budgetwithlink.com";
     }
+
     const subject = "Transaction Webhook Notification";
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
@@ -86,7 +87,7 @@ export const sendEmail = async (body: string, userId?: string, to?: string) => {
         pass: process.env.SMTP_PASSWORD,
       },
     });
-    
+
     const htmlContent = `
       <html>
         <head>
@@ -100,63 +101,70 @@ export const sendEmail = async (body: string, userId?: string, to?: string) => {
             .container {
               background-color: #ffffff;
               max-width: 600px;
-              margin: 30px auto;
-              border: 1px solid #ddd;
-              box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
+              margin: 40px auto;
+              border-radius: 12px;
+              overflow: hidden;
+              box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             }
             .header {
               background-color: #4a90e2;
               color: #ffffff;
-              padding: 20px;
+              padding: 24px;
               text-align: center;
+              border-top-left-radius: 12px;
+              border-top-right-radius: 12px;
             }
             .header h1 {
               margin: 0;
-              font-size: 24px;
+              font-size: 22px;
+              font-weight: 600;
             }
             .logo {
-              max-width: 100px;
-              margin-bottom: 10px;
+              max-width: 60px;
+              margin-bottom: 12px;
             }
             .content {
-              padding: 20px;
+              padding: 24px;
               font-size: 16px;
               line-height: 1.6;
               color: #333333;
+              text-align: center;
             }
             .footer {
               background-color: #f7f7f7;
               text-align: center;
-              padding: 10px;
+              padding: 12px;
               font-size: 12px;
               color: #777777;
+              border-bottom-left-radius: 12px;
+              border-bottom-right-radius: 12px;
             }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <img class="logo" src="/caution.png" alt="Company Logo">
+              <img class="logo" src="https://www.budgetwithlink.com/caution.png" alt="Caution Icon">
               <h1>Transaction Webhook Alert</h1>
             </div>
             <div class="content">
               ${body}
             </div>
             <div class="footer">
-              &copy; ${new Date().getFullYear()} BudgetWithLink. All Rights Reserved.
+              &copy; ${new Date().getFullYear()} LinkLogic LLC. All Rights Reserved.
             </div>
           </div>
         </body>
       </html>
     `;
-    
+
     const mailOptions = {
       from: process.env.SMTP_USER,
       to: recipient,
       subject,
       html: htmlContent,
     };
-    
+
     await transporter.sendMail(mailOptions);
   } catch (error) {
     console.error("Error sending email:", error);
@@ -660,12 +668,11 @@ app.post("/transactions", clerkMiddleware(), async (ctx) => {
           }
           const absSumAfter = Math.abs(sumAfter);
           // === Comparison: Trigger over-budget notification if condition met ===
-          await sendEmail(`Checking spending.\nBefore: $${absSumBefore.toFixed(2)}\nAfter: $${absSumAfter.toFixed(2)}\nMonthly Budget: $${totalBudget.toFixed(2)}`)
           if (absSumBefore <= totalBudget && absSumAfter > totalBudget) {
             // Send the over-budget email to the user (using their primary email via Clerk)
             await sendEmail(
               `You have gone over budget for this month.\nCurrent spending this month: $${absSumAfter.toFixed(2)}\nMonthly budget: $${totalBudget.toFixed(2)}`,
-              userId  // Passing the userId fetches the primary email from Clerk
+              userId 
             );
           }
         }
@@ -720,5 +727,10 @@ app.post("/transactions", clerkMiddleware(), async (ctx) => {
 app.get("/transactions", clerkMiddleware(), async (ctx) => {
   return ctx.json({ message: "Plaid Transactions Webhook" }, 200);
 });
+
+app.post("/email", clerkMiddleware(), async (ctx) => {
+  const { body, userId } = await ctx.req.json();
+  await sendEmail(body, userId);
+})
 
 export default app;

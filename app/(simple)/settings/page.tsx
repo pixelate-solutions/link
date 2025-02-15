@@ -24,6 +24,7 @@ import {
 import { ColorRing } from 'react-loader-spinner';
 // Import the shadcn ui Switch component
 import { Switch } from "@/components/ui/switch";
+import { sendEmail } from "@/app/api/[[...route]]/plaid-update-transactions";
 
 const montserratP = Montserrat({
   weight: "500",
@@ -351,6 +352,37 @@ const SettingsPage = () => {
               });
             }}>
               Delete Tokens
+            </Button>
+            <Button
+              className="hidden"
+              disabled={true}
+              onClick={async () => {
+                const body = "Testing email send";
+                const userId = user?.id || "";
+
+                if (!userId) {
+                  alert("User ID not found.");
+                  return;
+                }
+
+                const response = await fetch("/api/plaid/webhook/email", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ userId, body }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                  alert("Email sent successfully!");
+                } else {
+                  alert(`Failed to send email: ${data.error}`);
+                }
+              }}
+            >
+              Send Email
             </Button>
           </CardHeader>
           <CardContent className="p-8 space-y-10 z-0">
