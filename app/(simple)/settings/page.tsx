@@ -24,7 +24,6 @@ import {
 import { ColorRing } from 'react-loader-spinner';
 // Import the shadcn ui Switch component
 import { Switch } from "@/components/ui/switch";
-import { sendEmail } from "@/app/api/[[...route]]/plaid-update-transactions";
 
 const montserratP = Montserrat({
   weight: "500",
