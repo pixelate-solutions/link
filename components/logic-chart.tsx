@@ -23,7 +23,7 @@ import {
   format,
 } from 'date-fns';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
-import { useRouter } from 'next/navigation'; // For routing
+import { useRouter } from 'next/navigation';
 import { formatCurrency } from '@/lib/utils';
 import { Skeleton } from './ui/skeleton';
 
