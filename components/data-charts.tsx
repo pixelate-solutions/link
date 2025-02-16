@@ -189,7 +189,7 @@ export const DataCharts = () => {
           cumulativeBudget={sumBudgetAmount}
         />
       </div>
-      <div className="col-span-6 p-4 rounded-2xl shadow-md">
+      <div className="col-span-1 lg:col-span-6 p-4 rounded-2xl shadow-md">
         <p className="text-xl font-bold">Spending Comparison</p>
         <SpendingTabs />
       </div>
