@@ -271,7 +271,7 @@ export default function TransactionsPage() {
   return (
     <div
       className={cn(
-        "mx-auto -mt-6 lg:-mt-12 w-full max-w-screen-2xl pb-10 bg-white rounded-2xl p-2",
+        "mx-auto w-full max-w-screen-2xl pb-10 bg-white rounded-2xl p-2 z-10 border-2 drop-shadow-md mb-8",
         montserratP.className
       )}
     >
@@ -281,7 +281,7 @@ export default function TransactionsPage() {
         </div>
       )}
       <Tabs defaultValue="transactions" onValueChange={setCurrentTab}>
-        <TabsList className="mb-6 grid w-full grid-cols-2 lg:h-[50px]">
+        <TabsList className="mb-6 grid w-full grid-cols-2 lg:h-[50px] z-10">
           <TabsTrigger
             className="text-xs md:text-sm lg:text-md lg:h-[40px]"
             value="transactions"

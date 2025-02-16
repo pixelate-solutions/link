@@ -412,7 +412,7 @@ const AccountsPage = () => {
 
       {/* ========== LINKED (Plaid) ACCOUNTS ========== */}
       {isPremiumUser && (
-        <Card>
+        <Card className="border-2 drop-shadow-md">
           <CardHeader className="gap-y-2 md:flex-row md:items-center md:justify-between">
             <CardTitle className="line-clamp-1 text-2xl font-bold">
               Linked Accounts
@@ -531,7 +531,7 @@ const AccountsPage = () => {
       )}
 
       {/* ========== MANUAL ACCOUNTS ========== */}
-      <Card className={cn("border-none drop-shadow-sm", isPremiumUser ? "mt-10" : "")}>
+      <Card className={cn("border-2 drop-shadow-md", isPremiumUser ? "mt-10" : "")}>
         <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between">
           <CardTitle className="line-clamp-1 text-2xl font-bold">
             {isPremiumUser ? "Manual Accounts" : "Accounts"}

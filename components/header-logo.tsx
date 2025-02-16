@@ -26,13 +26,13 @@ export const HeaderLogo = ({ withLink = true }: HeaderLogoProps) => {
 
   const { user } = useUser();
 
-  useEffect(() => {
+useEffect(() => {
     setLogoRoute(user ? "/" : "/"); // Adjust this logic to your routing needs
   }, [user]);
 
   const LogoContent = (
     <div className={cn("hidden lg:flex items-center", montserratP.className)}>
-      <Image src="/Link_Logo_Current.png" alt="Link logo" height={85} width={85} />
+      <Image src="/Link_Inline.png" alt="Link logo" height={45} width={135} />
     </div>
   );
 

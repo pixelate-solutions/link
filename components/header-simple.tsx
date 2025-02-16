@@ -24,7 +24,17 @@ export const HeaderSimple = () => {
   const { user, isLoaded } = useUser();
 
   return (
-    <header className={cn("sticky top-0 bg-gradient-to-br from-blue-500 to-purple-500 px-4 py-8 lg:px-14 lg:pb-16 z-30", montserratP.className)}>
+    <header className={cn("sticky bg-white top-0 px-4 py-8 lg:px-14 lg:pb-16 z-30 overflow-hidden", montserratP.className)}>
+      <div className="absolute inset-0 -z-10">
+        {/* Shape 1 */}
+        <div className="absolute -top-44 left-[40%] w-[200px] h-[400px] md:w-[400px] md:h-[700px] rotate-[40deg] bg-blue-400 opacity-30 rounded-full blur-3xl" />
+        {/* Shape 2 */}
+        <div className="absolute top-[300px] right-0 w-[200px] h-[400px] md:w-[400px] md:h-[800px] rotate-[45deg] bg-blue-400 opacity-30 rounded-full blur-3xl" />
+        {/* Shape 3 */}
+        <div className="absolute top-[10%] left-10 w-[200px] h-[400px] md:w-[400px] md:h-[400px] bg-purple-400 opacity-30 rounded-full blur-3xl" />
+        {/* Shape 4 */}
+        <div className="absolute -bottom-96 right-[65%] w-[200px] h-[400px] md:w-[300px] md:h-[500px] bg-purple-400 opacity-30 rounded-full blur-3xl" />
+      </div>
       <div className="mx-auto max-w-screen-2xl">
         <div className="mb-14 flex w-full items-center justify-between">
           <div className="flex items-center lg:gap-x-16">

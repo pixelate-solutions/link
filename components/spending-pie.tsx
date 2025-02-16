@@ -31,7 +31,7 @@ export const SpendingPie = ({ data = [] }: SpendingPieProps) => {
     setChartType(type);
   };
   return (
-    <Card className="border-none drop-shadow-md">
+    <Card className="border-2 drop-shadow-md">
       <CardHeader className="flex justify-between space-y-2 lg:flex-row lg:items-center lg:space-y-0">
         <CardTitle className="line-clamp-1 text-xl">Categorized Expenses</CardTitle>
 

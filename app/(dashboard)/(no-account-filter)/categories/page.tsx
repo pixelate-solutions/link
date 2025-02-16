@@ -373,7 +373,7 @@ export default function CategoriesPage() {
       </div>
 
       {/* Categories Table/Card */}
-      <Card className="border-none drop-shadow-sm mt-6">
+      <Card className="border-2 drop-shadow-md mt-6">
         <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between">
           <CardTitle className="line-clamp-1 text-xl">Set Categories</CardTitle>
           <Button size="sm" onClick={newCategory.onOpen}>

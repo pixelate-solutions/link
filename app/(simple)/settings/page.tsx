@@ -338,8 +338,8 @@ const SettingsPage = () => {
       )}
 
       <UpgradePopup open={openUpgradeDialog} onOpenChange={setOpenUpgradeDialog} />
-      <div className="max-w-5xl mx-auto -mt-[80px]">
-        <Card className="shadow-lg rounded-lg bg-transparent border-none">
+      <div className="max-w-6xl mx-auto -mt-[80px] bg-white">
+        <Card className="shadow-lg rounded-xl bg-white border-none">
           <CardHeader className={`sticky top-[100px] lg:top-[140px] p-8 border-b bg-white rounded-lg ${plaidIsOpen ? 'z-40' : 'z-50'}`}>
             <CardTitle className="text-4xl font-extrabold z-10">Settings</CardTitle>
             <Button className="hidden" disabled={true} onClick={async () => {
@@ -384,7 +384,7 @@ const SettingsPage = () => {
               Send Email
             </Button>
           </CardHeader>
-          <CardContent className="p-8 space-y-10 z-0">
+          <CardContent className="p-8 space-y-10 bg-white">
 
             {/* Subscription Section */}
             <div className="space-y-4 relative md:flex md:justify-between md:items-center">
@@ -480,8 +480,9 @@ const SettingsPage = () => {
                 </p>
               </div>
               <Switch 
+                disabled={subscriptionStatus === "Free"}
                 className="data-[state=checked]:bg-gradient-to-br from-blue-500 to-purple-500 data-[state=unchecked]:bg-red-500 border-transparent border-none pl-[2px]"
-                checked={budgetExceeding}
+                checked={subscriptionStatus === "Free" ? false : budgetExceeding}
                 onCheckedChange={handleNotificationToggle}
               />
             </div>

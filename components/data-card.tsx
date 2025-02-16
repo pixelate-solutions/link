@@ -63,7 +63,7 @@ export const DataCard = ({
   dateRange,
 }: DataCardProps) => {
   return (
-    <Card className="border-none drop-shadow-sm">
+    <Card className="border-2 drop-shadow-md">
       <CardHeader className="flex flex-row items-center justify-between gap-x-4">
         <div className="space-y-2">
           <CardTitle className={`line-clamp-1 text-2xl`}>{title}</CardTitle>
@@ -117,7 +117,7 @@ export const ExpensesDataCard = ({
   dateRange,
 }: DataCardProps) => {
   return (
-    <Card className="border-none drop-shadow-sm">
+    <Card className="border-2 drop-shadow-md">
       <CardHeader className="flex flex-row items-center justify-between gap-x-4">
         <div className="space-y-2">
           <CardTitle className="line-clamp-1 text-2xl">{title}</CardTitle>
@@ -169,7 +169,7 @@ export const AccountsDataCard = ({
   dateRange,
 }: DataCardProps) => {
   return (
-    <Card className="border-none drop-shadow-sm">
+    <Card className="border-2 drop-shadow-md">
       <CardHeader className="flex flex-row items-center justify-between gap-x-4">
         <div className="space-y-2">
           <CardTitle className="line-clamp-1 text-2xl">{title}</CardTitle>

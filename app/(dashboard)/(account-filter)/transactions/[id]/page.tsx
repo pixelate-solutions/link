@@ -288,7 +288,7 @@ const TransactionDetails = () => {
   const currentAccountName = currentAccount?.name || "Unknown Account";
 
   return (
-    <div className="p-4 -mt-6 mb-6 max-w-md mx-auto border border-gray-200 rounded-md shadow-md bg-white">
+    <div className="p-4 -mt-6 mb-6 max-w-md mx-auto border border-gray-200 rounded-xl shadow-md bg-white">
       {!isEditing && (
         <div className="mb-4 -ml-2 flex justify-start">
           <Button

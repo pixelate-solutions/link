@@ -14,10 +14,9 @@ export const NavButton = ({ href, label, isActive, onClick }: NavButtonProps) =>
   return (
     <Button
       size="sm"
-      variant="outline"
       className={cn(
-        "w-full justify-between border-none font-normal text-white outline-offset-0 transition hover:bg-white/20 hover:text-white focus:bg-white/30 focus-visible:ring-transparent focus-visible:ring-offset-0 lg:w-auto text-md",
-        isActive ? "bg-white/10 text-white" : "bg-transparent"
+        "w-full justify-between font-normal bg-white/50 hover:bg-white/40 text-black transition hover:scale-[102%] hover:text-black focus:opacity-90 focus-visible:ring-transparent focus-visible:ring-offset-0 lg:w-auto text-md",
+        isActive ? "bg-gradient-to-br from-white to-indigo-500/30" : "bg-transparent"
       )}
       asChild
       onClick={onClick}

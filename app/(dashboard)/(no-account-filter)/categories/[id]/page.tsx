@@ -193,7 +193,7 @@ export default function CategoryDetails() {
   }
 
   return (
-    <div className={`p-4 max-w-md mx-auto bg-white rounded-md shadow-sm ${montserratP.className}`}>
+    <div className={`p-4 max-w-md mx-auto bg-white rounded-xl shadow-sm ${montserratP.className}`}>
       {/* “Back” button, only if not editing */}
       {!isEditing && (
         <div className="mb-4 -ml-2">
