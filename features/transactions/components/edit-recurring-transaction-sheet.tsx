@@ -20,7 +20,7 @@ import { RecurringTransactionForm } from "./recurring-transaction-form";
 const formSchema = z.object({
   name: z.string().min(1, "Transaction name is required"), // Recurring transaction name
   frequency: z.string().min(1, "Frequency is required"), // Frequency of transaction (e.g., monthly, weekly)
-  averageAmount: z.string().min(1, "Average amount is required"), // Average transaction amount
+  lastAmount: z.string().min(1, "Last amount is required"), // Last transaction amount
   accountId: z.string().nullable().optional(), // Account selection (dropdown)
   categoryId: z.string().nullable().optional(), // Category selection (dropdown)
   date: z.coerce.date().optional(), // Updated to coerce date strings into Date objects
@@ -83,7 +83,7 @@ export const EditRecurringTransactionSheet = ({ id, onClose }: EditRecurringTran
     ? {
         accountId: recurringTransactionQuery.data.accountId || "",
         categoryId: recurringTransactionQuery.data.categoryId || "", // Use categoryId here
-        averageAmount: recurringTransactionQuery.data.averageAmount?.toString() || "",
+        lastAmount: recurringTransactionQuery.data.lastAmount?.toString() || "",
         name: recurringTransactionQuery.data.name || "",
         frequency: recurringTransactionQuery.data.frequency || "",
         date: recurringTransactionQuery.data.date ? new Date(recurringTransactionQuery.data.date) : new Date(), // Convert string to Date
@@ -92,7 +92,7 @@ export const EditRecurringTransactionSheet = ({ id, onClose }: EditRecurringTran
     : {
         accountId: "",
         categoryId: "",
-        averageAmount: "",
+        lastAmount: "",
         name: "",
         frequency: "",
         date: new Date(), // Default to current date

@@ -470,6 +470,20 @@
       "when": 1739139743663,
       "tag": "0066_green_maverick",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "6",
+      "when": 1739662841815,
+      "tag": "0067_nosy_living_lightning",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "6",
+      "when": 1739677672067,
+      "tag": "0068_dusty_shinobi_shaw",
+      "breakpoints": true
     }
   ]
 }

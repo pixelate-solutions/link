@@ -223,7 +223,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
 
   return (
     <div className="p-4 bg-white rounded shadow">
-      <ResponsiveContainer width="100%" height={320}>
+      <ResponsiveContainer className="p-4 lg:p-2" width="100%" height={320}>
         <LineChart data={[...historicalLine, ...forecastLine]} margin={{ top: 20, right: 20, left: 20, bottom: 20 }}>
           <defs>
             <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">

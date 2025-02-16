@@ -27,6 +27,7 @@ import accountCount from './get-plaid-account-count'
 import recurringTransactionsPage from './recurring-transactions'
 import notifications from './notifications'
 import forecast from './forecast'
+import goals from './goals'
 
 const app = new Hono().basePath('/api');
 
@@ -57,6 +58,7 @@ const routes = app
   .route('/recurring-page', recurringTransactionsPage)
   .route('/notifications', notifications)
   .route('/forecast', forecast)
+  .route('/goals', goals)
   
 export const GET = handle(app);
 export const POST = handle(app);

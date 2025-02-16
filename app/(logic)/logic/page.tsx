@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import SpendingBudgetChart from "@/components/logic-chart";
 import { subWeeks, subMonths, format } from "date-fns";
 import ForecastChart from "@/components/forecast-chart";
+import GoalGrid from "@/components/goal-grid";
 
 const montserratP = Montserrat({
   weight: "500",
@@ -36,6 +37,23 @@ const fetchSummary = async (
   }
   return res.json();
 };
+
+const fetchAccounts = async (): Promise<any> => {
+  const resTrue = await fetch("/api/accounts?isFromPlaid=true", {
+    credentials: "include",
+  });
+  const resFalse = await fetch("/api/accounts?isFromPlaid=false", {
+    credentials: "include",
+  });
+  if (!resTrue.ok || !resFalse.ok) {
+    throw new Error("Failed to fetch accounts");
+  }
+  const jsonTrue = await resTrue.json();
+  const jsonFalse = await resFalse.json();
+  // Merge both arrays
+  return [...jsonTrue.data, ...jsonFalse.data];
+};
+
 
 const LogicPage = () => {
   // Get accountId from the URL if needed.
@@ -90,6 +108,15 @@ const LogicPage = () => {
   } = useQuery({
     queryKey: ["summary-monthly", { monthlyFromStr, monthlyToStr, accountId }],
     queryFn: () => fetchSummary(monthlyFromStr, monthlyToStr, accountId),
+  });
+
+  const {
+    data: accountsData,
+    isLoading: isAccountsLoading,
+    error: accountsError,
+  } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: fetchAccounts,
   });
 
   if (weeklyError || monthlyError) {
@@ -166,7 +193,7 @@ const LogicPage = () => {
       </div>
       <Tabs defaultValue="monthly" className="lg:w-[74%] lg:ml-[13%]">
         <TabsList
-          className="sticky top-[220px] flex lg:w-full border border-gray-300 rounded-md mt-[130px] mb-[30px] lg:mt-[60px] lg:mb-[30px] z-50 mx-2 lg:mx-0"
+          className="flex lg:w-full border border-gray-300 rounded-md mt-[130px] mb-[30px] lg:mt-[60px] lg:mb-[30px] z-50 mx-2 lg:mx-0"
         >
           <TabsTrigger value="weekly" className="w-1/3 text-center">
             Weekly
@@ -212,6 +239,15 @@ const LogicPage = () => {
           </TabsContent>
         </div>
       </Tabs>
+      <div className="mt-[200px]"></div>
+      {/* Insert the GoalPlanner below the charts */}
+      <h1 className={cn(`w-full text-center text-4xl font-bold my-10 pt-5`, montserratH.className)}>Goals</h1>
+      {!isAccountsLoading && accountsData && (
+        <div className="lg:mx-[13%] px-5 pt-[1px] mx-1 pb-5 mb-10 shadow-md hover:shadow-lg rounded-xl bg-gray-50">
+          <GoalGrid accounts={accountsData} />
+        </div>
+      )}
+      {accountsError && <p className="w-full py-[100px] text-gray-600">Error loading accounts</p>}
     </div>
   );
 };

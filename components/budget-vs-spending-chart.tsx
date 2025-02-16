@@ -252,7 +252,7 @@ export const BudgetVsSpendingChart = ({ data, fullData }: BudgetVsSpendingChartP
   };
 
   return (
-    <Card className="border-none drop-shadow-sm">
+    <Card className="border-none drop-shadow-md">
       <CardHeader>
         <CardTitle className="line-clamp-1 text-xl">Budget vs Spending</CardTitle>
         <div className="w-full text-center flex justify-center">

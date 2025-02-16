@@ -18,7 +18,7 @@ type FormValues = {
     userId: string;
     name: string;
     frequency: string;
-    averageAmount: string;
+    lastAmount: string;
     accountId: string | null;
     categoryId: string | null;
     date: Date;

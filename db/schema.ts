@@ -138,11 +138,11 @@ export const transactionUpdates = pgTable('transaction_updates', {
 });
 
 export const referrals = pgTable('referrals', {
-  id: text('id').primaryKey(), // Referral record ID
-  userId: text('user_id').notNull(), // Referring user's ID
-  effectiveDate: text('effective_date').notNull(), // Date in MM-DD-YYYY format
-  amount: integer('amount').notNull(), // Amount of the referral credit
-  applied: boolean('applied').default(false), // Whether the credit has been applied
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  effectiveDate: text('effective_date').notNull(),
+  amount: integer('amount').notNull(),
+  applied: boolean('applied').default(false),
 });
 
 export const insertReferralSchema = createInsertSchema(referrals);
@@ -160,7 +160,7 @@ export const categorizationRules = pgTable("categorization_rules", {
   userId: text("user_id").notNull(),
   categoryId: text("category_id")
     .references(() => categories.id, { onDelete: "cascade" })
-    .notNull(), // Points to the categories table
+    .notNull(),
   matchType: text("match_type").notNull(),
   matchValue: text("match_value").notNull(),
   priority: integer("priority").notNull().default(1),
@@ -186,3 +186,26 @@ export const notifications = pgTable("notifications", {
 });
 
 export const insertNotificationSchema = createInsertSchema(notifications);
+
+export const goals = pgTable("goals", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  goalName: text("goal_name").notNull(),
+  targetAmount: text("target_amount").notNull(),
+  startDate: timestamp("start_date", { mode: "date" }).notNull(),
+  goalDate: timestamp("goal_date", { mode: "date" }).notNull(),
+  accountIds: text("account_ids").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertGoalSchema = createInsertSchema(goals, {
+  startDate: z.coerce.date(),
+  goalDate: z.coerce.date(),
+  accountIds: z.array(z.string()),
+}).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+});

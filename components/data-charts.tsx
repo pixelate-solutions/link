@@ -17,6 +17,7 @@ import {
 import { formatDateRange } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useGetCategories } from "@/features/categories/api/use-get-categories";
+import SpendingTabs from "./spending-tabs";
 
 export const DataCharts = () => {
   // Call all hooks unconditionally at the top.
@@ -187,6 +188,10 @@ export const DataCharts = () => {
           data={budgetVsSpendingData}
           cumulativeBudget={sumBudgetAmount}
         />
+      </div>
+      <div className="col-span-6 p-4 rounded-2xl shadow-md">
+        <p className="text-xl font-bold">Spending Comparison</p>
+        <SpendingTabs />
       </div>
 
       <div className="col-span-1 lg:col-span-3 xl:col-span-4">

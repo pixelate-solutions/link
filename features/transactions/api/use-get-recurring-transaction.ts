@@ -18,11 +18,11 @@ export const useGetRecurringTransaction = (id?: string) => {
 
       const { data } = await response.json();
 
-      const averageAmount = data.averageAmount;
+      const lastAmount = data.lastAmount;
 
       return {
         ...data,
-        averageAmount: averageAmount,
+        lastAmount: lastAmount,
       };
     },
   });

@@ -233,9 +233,9 @@ const SpendingBudgetChart: React.FC<SpendingBudgetChartProps> = ({
   };
 
   return (
-    <div className="bg-gray-50 p-4 rounded shadow-md hover:shadow-lg relative">
+    <div className="bg-gray-50 p-2 rounded relative">
       <div key={offset} className="transition-transform duration-500">
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer className="p-4 lg:p-2" width="100%" height={300}>
           <BarChart
             data={barData}
             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
@@ -264,7 +264,7 @@ const SpendingBudgetChart: React.FC<SpendingBudgetChartProps> = ({
                       <p className="text-gray-800 font-semibold">
                         {payload[0].payload.period}
                       </p>
-                      <p className="text-green-600">
+                      <p className={`${Number(payload[0].value) <= Number(payload[1].value) ? "text-green-600" : "text-red-600"}`}>
                         Spending: {formatCurrency(Number(payload[0].value))}
                       </p>
                       <p className="text-purple-500">

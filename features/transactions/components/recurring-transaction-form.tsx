@@ -21,7 +21,7 @@ import { DatePicker } from "@/components/date-picker";
 const formSchema = z.object({
   name: z.string().min(1, "Transaction name is required"), // Recurring transaction name
   frequency: z.string().min(1, "Frequency is required"), // Frequency of transaction (e.g., monthly, weekly)
-  averageAmount: z.string().min(1, "Average amount is required"), // Average transaction amount
+  lastAmount: z.string().min(1, "Last amount is required"), // Last transaction amount
   accountId: z.string().nullable().optional(), // Account selection (dropdown)
   categoryId: z.string().nullable().optional(), // Category selection (dropdown)
   date: z.coerce.date().optional(), // Coerce date strings into Date objects
@@ -31,7 +31,7 @@ const formSchema = z.object({
 type FormValues = {
   name: string;
   frequency: string;
-  averageAmount: string;
+  lastAmount: string;
   accountId: string | null;
   categoryId: string | null;
   date: Date;
@@ -164,18 +164,18 @@ export const RecurringTransactionForm = ({
           )}
         />
 
-        {/* Average Amount */}
+        {/* Last Amount */}
         <FormField
-          name="averageAmount"
+          name="lastAmount"
           control={form.control}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Average Amount</FormLabel>
+              <FormLabel>Last Amount</FormLabel>
               <FormControl>
                 <AmountInput
                   {...field}
                   disabled={disabled}
-                  placeholder="Enter the average amount"
+                  placeholder="Enter the last amount"
                   value={field.value || ""} // Ensure string
                   onChange={field.onChange}
                 />
