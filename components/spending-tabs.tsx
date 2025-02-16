@@ -3,7 +3,7 @@
 import React from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import SpendingBudgetChart from "./logic-chart";
-import ForecastChart from "./forecast-chart";
+// import ForecastChart from "./forecast-chart";
 import { useSearchParams } from "next/navigation";
 import { format, subMonths, subWeeks } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
@@ -145,9 +145,9 @@ const SpendingTabs: React.FC<SpendingTabsProps> = ({
           <TabsTrigger value="monthly" className="flex-1 text-center">
             Monthly
           </TabsTrigger>
-          <TabsTrigger value="forecast" className="flex-1 text-center">
+          {/* <TabsTrigger value="forecast" className="flex-1 text-center">
             Forecast
-          </TabsTrigger>
+          </TabsTrigger> */}
         </TabsList>
         {/* Removing fixed height to allow content to size naturally */}
         <TabsContent value="weekly" className="mt-4">
@@ -172,12 +172,12 @@ const SpendingTabs: React.FC<SpendingTabsProps> = ({
             aggregation="month"
           />
         </TabsContent>
-        <TabsContent value="forecast" className="mt-4">
+        {/* <TabsContent value="forecast" className="mt-4">
           <ForecastChart
             historicalData={filteredForecastData}
             monthlyBudget={monthlyData.monthlyBudget}
           />
-        </TabsContent>
+        </TabsContent> */}
       </Tabs>
     </div>
   );
