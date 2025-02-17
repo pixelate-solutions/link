@@ -101,7 +101,7 @@ export default function LandingPage() {
               playsInline
               className="w-full h-auto rounded-[25px] lg:rounded-[50px] border-4 border-gray-300"
             >
-              <source src="/demo.mp4" type="video/mp4" />
+              <source src="/Link_Demo.mp4" type="video/mp4" />
               {/* Fallback text for older browsers */}
               Your browser does not support the video tag.
             </video>
