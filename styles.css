@@ -32,6 +32,10 @@
   }
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 .gradient-text {
   font-weight: bold;
   background: linear-gradient(45deg, #bdb9db 0%, #575CFC 50%, #383ca5 100%);

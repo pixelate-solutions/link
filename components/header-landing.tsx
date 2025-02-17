@@ -7,6 +7,7 @@ import { Button } from "./ui/button";
 import { useRouter } from "next/navigation";
 import { LandingNavigation } from "./landing-navigation";
 import { HeaderLogo } from "./header-logo";
+import "@/styles.css"
 
 export const HeaderLanding = () => {
   const { user, isLoaded } = useUser();

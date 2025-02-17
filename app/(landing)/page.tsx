@@ -13,6 +13,7 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
+import "@/styles.css"
 
 // Fonts
 const montserratP = Montserrat({
@@ -45,13 +46,12 @@ export default function LandingPage() {
         <div className="absolute top-0 right-[45%] w-[200px] h-[400px] md:w-[300px] md:h-[500px] bg-purple-400 opacity-30 rounded-full filter blur-3xl" />
       </div>
 
-      {/* Navbar (stays as is) */}
       <HeaderLanding />
 
       {/* Main content container */}
       <main className="relative z-10">
         {/* Hero Section */}
-        <section className="w-full pt-16 pb-12 px-6 text-center flex flex-col items-center">
+        <section className="w-full pt-5 pb-12 px-6 text-center flex flex-col items-center">
           <img src="/Link_Logo_Simple_Outline.png" height={150} width={150} />
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
