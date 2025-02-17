@@ -396,7 +396,6 @@ const AccountsPage = () => {
                 "Fetching your financial data...",
                 "Categorizing transactions...",
                 "Creating accounts...",
-                "Training virtual assistant...",
               ]}
               loop={true}
               cursor
