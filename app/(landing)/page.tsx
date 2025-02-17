@@ -99,9 +99,9 @@ export default function LandingPage() {
               loop
               muted
               playsInline
-              className="w-full h-auto rounded-lg border-4 border-gray-300"
+              className="w-full h-auto rounded-[25px] lg:rounded-[50px] border-4 border-gray-300"
             >
-              <source src="/your-video.mp4" type="video/mp4" />
+              <source src="/demo.mp4" type="video/mp4" />
               {/* Fallback text for older browsers */}
               Your browser does not support the video tag.
             </video>
@@ -226,8 +226,7 @@ export default function LandingPage() {
               Simple, Transparent Pricing
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              Whether you’re just starting or want a fully automated budgeting
-              system, we have a plan for you.
+              Whether you’re just starting or want a fully automated budgeting system, we have a plan for you.
             </p>
           </div>
 
@@ -238,11 +237,26 @@ export default function LandingPage() {
               <p className="text-3xl font-bold text-gray-800 mt-4">$0</p>
               <p className="text-gray-500 mb-6">forever</p>
               <ul className="text-left text-gray-600 flex-grow">
-                <li className="mb-2">• Manual account creation</li>
-                <li className="mb-2">• Manual transaction tracking</li>
-                <li className="mb-2">• Manual category creation</li>
-                <li className="mb-2">• Budget creation</li>
-                <li className="mb-2">• Full dashboard</li>
+                <li className="mb-2 flex items-center">
+                  <span className="text-green-500 mr-2">✔</span>
+                  Manual account creation
+                </li>
+                <li className="mb-2 flex items-center">
+                  <span className="text-green-500 mr-2">✔</span>
+                  Manual transaction tracking
+                </li>
+                <li className="mb-2 flex items-center">
+                  <span className="text-green-500 mr-2">✔</span>
+                  Manual category creation
+                </li>
+                <li className="mb-2 flex items-center">
+                  <span className="text-green-500 mr-2">✔</span>
+                  Budget creation
+                </li>
+                <li className="mb-2 flex items-center">
+                  <span className="text-green-500 mr-2">✔</span>
+                  Full dashboard
+                </li>
               </ul>
               <Button
                 onClick={() =>
@@ -266,11 +280,26 @@ export default function LandingPage() {
               <p className="text-3xl font-bold text-gray-800 mt-4">$7.90</p>
               <p className="text-gray-500 mb-6">per month</p>
               <ul className="text-left text-gray-600 flex-grow">
-                <li className="mb-2">• Automatic account linking</li>
-                <li className="mb-2">• Automatic transaction syncing</li>
-                <li className="mb-2">• Automatic categorization</li>
-                <li className="mb-2">• Full dashboard & budgets</li>
-                <li className="mb-2">• Email alerts & notifications</li>
+                <li className="mb-2 flex items-center">
+                  <span className="text-green-500 mr-2">✔</span>
+                  Automatic account linking
+                </li>
+                <li className="mb-2 flex items-center">
+                  <span className="text-green-500 mr-2">✔</span>
+                  Automatic transaction syncing
+                </li>
+                <li className="mb-2 flex items-center">
+                  <span className="text-green-500 mr-2">✔</span>
+                  Automatic categorization
+                </li>
+                <li className="mb-2 flex items-center">
+                  <span className="text-green-500 mr-2">✔</span>
+                  Full dashboard &amp; budgets
+                </li>
+                <li className="mb-2 flex items-center">
+                  <span className="text-green-500 mr-2">✔</span>
+                  Email alerts &amp; notifications
+                </li>
               </ul>
               <Button
                 onClick={() =>
@@ -294,11 +323,26 @@ export default function LandingPage() {
               <p className="text-3xl font-bold text-gray-800 mt-4">$79</p>
               <p className="text-gray-500 mb-6">per year</p>
               <ul className="text-left text-gray-600 flex-grow">
-                <li className="mb-2">• Automatic account linking</li>
-                <li className="mb-2">• Automatic transaction syncing</li>
-                <li className="mb-2">• Automatic categorization</li>
-                <li className="mb-2">• Full dashboard & budgets</li>
-                <li className="mb-2">• Email alerts & notifications</li>
+                <li className="mb-2 flex items-center">
+                  <span className="text-green-500 mr-2">✔</span>
+                  Automatic account linking
+                </li>
+                <li className="mb-2 flex items-center">
+                  <span className="text-green-500 mr-2">✔</span>
+                  Automatic transaction syncing
+                </li>
+                <li className="mb-2 flex items-center">
+                  <span className="text-green-500 mr-2">✔</span>
+                  Automatic categorization
+                </li>
+                <li className="mb-2 flex items-center">
+                  <span className="text-green-500 mr-2">✔</span>
+                  Full dashboard &amp; budgets
+                </li>
+                <li className="mb-2 flex items-center">
+                  <span className="text-green-500 mr-2">✔</span>
+                  Email alerts &amp; notifications
+                </li>
               </ul>
               <Button
                 onClick={() =>
@@ -322,8 +366,14 @@ export default function LandingPage() {
               <p className="text-3xl font-bold text-gray-800 mt-4">$395</p>
               <p className="text-gray-500 mb-6">one-time</p>
               <ul className="text-left text-gray-600 flex-grow">
-                <li className="mb-2">• All Premium features forever</li>
-                <li className="mb-2">• No monthly or yearly fees</li>
+                <li className="mb-2 flex items-center">
+                  <span className="text-green-500 mr-2">✔</span>
+                  All Premium features forever
+                </li>
+                <li className="mb-2 flex items-center">
+                  <span className="text-green-500 mr-2">✔</span>
+                  No monthly or yearly fees
+                </li>
               </ul>
               <Button
                 onClick={() =>

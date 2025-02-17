@@ -117,10 +117,6 @@ export default function CategoriesPage() {
   const { user } = useUser();
   const queryClient = useQueryClient();
 
-  if (!user) {
-    console.log("Error, user not signed in.");
-    return
-  }
   useEffect(() => {
     if (user?.id) {
       fetch("/api/categories/clear-default", {
