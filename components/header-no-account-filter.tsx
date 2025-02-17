@@ -27,7 +27,7 @@ export const HeaderNoAccountFilter = () => {
 
   return (
     <header className={cn("relative px-4 py-8 lg:px-14 lg:pb-14", montserratP.className)}>
-      <div className="absolute inset-0 -z-10">
+      <div className="absolute inset-0 -z-10 overflow-x-clip">
         {/* Shape 1 */}
         <div className="absolute -top-44 left-[40%] w-[200px] h-[400px] md:w-[400px] md:h-[700px] rotate-[40deg] bg-blue-400 opacity-30 rounded-full blur-3xl" />
         {/* Shape 2 */}
