@@ -319,13 +319,13 @@ export default function TransactionsPage() {
                 </div>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button
+                    {/* <Button
                       size="sm"
                       className="w-3/4 lg:w-auto text-[12px] lg:text-[14px]"
                       onClick={handleRecategorizeClick}
                     >
                       Recategorize
-                    </Button>
+                    </Button> */}
                   </AlertDialogTrigger>
                   <AlertDialogContent className="rounded-lg lg:rounded-2xl">
                     <AlertDialogHeader>
