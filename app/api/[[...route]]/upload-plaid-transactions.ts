@@ -103,6 +103,8 @@ const fetchPlaidTransactionsWithRetry = async (
             `Skipping access token for item ${itemId} due to invalid token.`
           );
           return [];
+        } else {
+          console.warn(`ERROR SYNCING TRANSACTIONS: ${errData?.error_code}`);
         }
 
         // Retry on other errors

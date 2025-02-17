@@ -160,14 +160,15 @@ const AccountsPage = () => {
         body: JSON.stringify({ public_token, userId: user?.id }),
       });
 
-      // Wait a moment or handle the response
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       await fetch("/api/plaid/upload-accounts", {
         method: "POST",
         body: JSON.stringify({ category: accountCategoryRef.current }),
         headers: { "Content-Type": "application/json" },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       await fetch("/api/plaid/upload-transactions", { method: "POST" });
       await fetch("/api/plaid/recurring", { method: "POST" });
