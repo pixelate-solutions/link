@@ -86,7 +86,7 @@ const TransactionDetails = () => {
     accountId: "",
     date: "",       // "YYYY-MM-DD"
     categoryId: "",
-    amount: "",     // "99.95" (will convert to number)
+    amount: "",    
     notes: "",
   });
 

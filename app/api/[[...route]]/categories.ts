@@ -1,12 +1,12 @@
 import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 import { zValidator } from "@hono/zod-validator";
 import { createId } from "@paralleldrive/cuid2";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 
 import { db } from "@/db/drizzle";
-import { categories, categorizationRules } from "@/db/schema";
+import { categories, categorizationRules, transactions } from "@/db/schema";
 
 const app = new Hono()
   .get("/", clerkMiddleware(), async (ctx) => {
@@ -120,8 +120,51 @@ const app = new Hono()
 
       return ctx.json({ message: "Default categories checked and updated." }, 200);
     }
-  )
-  .post(
+  ).post(
+  "/clear-default",
+  clerkMiddleware(),
+  async (ctx) => {
+    const auth = getAuth(ctx);
+    const userId = auth?.userId;
+
+    if (!userId) {
+      return ctx.json({ error: "Unauthorized" }, 401);
+    }
+
+    // Get all default categories for this user.
+    const existingCategories = await db
+      .select({ id: categories.id })
+      .from(categories)
+      .where(
+        and(
+          eq(categories.userId, userId),
+          eq(categories.isDefault, true)
+        )
+      );
+
+    let categoriesToDelete: string[] = [];
+    for (const cat of existingCategories) {
+      const txnCountResult = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(transactions)
+        .where(eq(transactions.categoryId, cat.id));
+
+      // Convert count to a number (if it's a BigInt) before comparing.
+      const txnCount = Number(txnCountResult[0].count);
+
+      if (txnCount === 0) {
+        categoriesToDelete.push(cat.id);
+      }
+    }
+
+    // Delete default categories with 0 transactions
+    if (categoriesToDelete.length > 0) {
+      await db.delete(categories).where(inArray(categories.id, categoriesToDelete));
+    }
+
+    return ctx.json({ message: "Default categories cleared." }, 200);
+  }
+).post(
     "/",
     clerkMiddleware(),
     zValidator(

@@ -109,7 +109,7 @@ export default function LandingPage() {
         </section>
 
         {/* Features Section */}
-        <section className="w-full py-12 px-6">
+        <section id="features" className="w-full pt-36 py-12 px-6">
           <div className="mx-auto max-w-5xl text-center mb-10">
             <h2
               className={cn(
@@ -215,7 +215,7 @@ export default function LandingPage() {
         </section>
 
         {/* Pricing Section */}
-        <section id="pricing" className="w-full py-12 px-6 bg-gray-50">
+        <section id="pricing" className="w-full pt-36 py-12 px-6 bg-gray-50">
           <div className="mx-auto max-w-4xl text-center mb-10">
             <h2
               className={cn(
@@ -342,7 +342,7 @@ export default function LandingPage() {
         </section>
 
         {/* FAQ Section (optional) */}
-        <section className="w-full py-12 px-6">
+        <section id="faq" className="w-full pt-36 py-12 px-6">
           <div className="mx-auto max-w-3xl text-center mb-8">
             <h2
               className={cn(

@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 // Data Table & UI
 import { DataTable } from "@/components/data-table";
@@ -47,6 +48,7 @@ import { BudgetVsSpendingChart } from "@/components/budget-vs-spending-chart";
 
 // Mobile version
 import { MobileCategories } from "@/components/mobile-categories";
+import { useUser } from "@clerk/nextjs";
 
 const montserratP = Montserrat({
   weight: "500",
@@ -112,6 +114,30 @@ const fetchCategoryTotals = async (
 // Main Component
 // -----------------------------------------------------------------
 export default function CategoriesPage() {
+  const { user } = useUser();
+  const queryClient = useQueryClient();
+
+  if (!user) {
+    console.log("Error, user not signed in.");
+    return
+  }
+  useEffect(() => {
+    if (user?.id) {
+      fetch("/api/categories/clear-default", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
+        .then(() => {
+          // Invalidate the categories query so that it refetches
+          queryClient.invalidateQueries({ queryKey: ["categories"] });
+        })
+        .catch((error) => {
+          console.error("Error checking default categories:", error);
+        });
+    }
+  }, [user, queryClient]);
+
+
   // ------------------------------
   // 1) Track window width
   // ------------------------------
