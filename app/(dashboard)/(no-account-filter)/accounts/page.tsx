@@ -161,7 +161,7 @@ const AccountsPage = () => {
       });
 
       // Wait a moment or handle the response
-      setTimeout(() => {}, 2000);
+      setTimeout(() => {}, 3000);
 
       await fetch("/api/plaid/upload-accounts", {
         method: "POST",
