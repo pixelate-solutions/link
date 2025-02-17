@@ -43,8 +43,8 @@ export const HeaderLanding = () => {
             <ClerkLoading>
               <ColorRing
                 visible={true}
-                height="80"
-                width="80"
+                height="40"
+                width="40"
                 ariaLabel="color-ring-loading"
                 wrapperStyle={{}}
                 wrapperClass="color-ring-wrapper"
