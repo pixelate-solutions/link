@@ -116,7 +116,7 @@ const SettingsPage = () => {
         body: JSON.stringify({ public_token, userId: user?.id }),
       });
 
-      setTimeout(() => {}, 2000);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
       await fetch('/api/plaid/upload-accounts', { method: 'POST' });
       await fetch('/api/plaid/upload-transactions', { method: 'POST' });
