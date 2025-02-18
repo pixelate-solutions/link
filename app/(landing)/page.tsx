@@ -260,7 +260,7 @@ export default function LandingPage() {
                 Email Notifications
               </h3>
               <p className="text-gray-600">
-                Get notified when you’re nearing budget limits so you never miss a beat.
+                Get notified when you&apos;re nearing budget limits so you never miss a beat.
               </p>
             </motion.div>
           </div>
@@ -278,7 +278,7 @@ export default function LandingPage() {
               Simple, Transparent Pricing
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              Whether you’re just starting or want a fully automated budgeting system, we have a plan for you.
+              Whether you&apos;re just starting or want a fully automated budgeting system, we have a plan for you.
             </p>
           </div>
 
@@ -498,7 +498,7 @@ export default function LandingPage() {
                 </AccordionTrigger>
                 <AccordionContent className="px-4 pt-4 mb-2 rounded-lg text-md bg-white shadow-inner">
                   You can add transactions from the transactions page by entering the
-                  relevant information and amount. It’s quick and
+                  relevant information and amount. It&apos;s quick and
                   straightforward to keep everything up to date.
                 </AccordionContent>
               </MotionAccordionItem>
