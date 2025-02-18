@@ -520,7 +520,7 @@ export default function LandingPage() {
                   Yes. If you start monthly, you can switch to yearly or
                   lifetime anytime to save money in the long run. You will
                   be refunded for your remaining payment period. You should never
-                  have to pay for something you didn't use.
+                  have to pay for something you didn&apos;t use.
                 </AccordionContent>
               </MotionAccordionItem>
               <MotionAccordionItem value="item-4" {...fadeUp}>
