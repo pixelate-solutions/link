@@ -89,7 +89,7 @@ export default function LandingPage() {
       <main className="relative z-10">
         {/* Hero Section */}
         <section className="w-full pt-5 pb-12 px-6 text-center flex flex-col items-center">
-          <img src="/Link_Logo_Simple_Outline.png" height={150} width={150} />
+          <img className="h-[100px] w-[100px] lg:h-[150px] lg:w-[150px]" src="/Link_Logo_Simple_Outline.png" />
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -156,7 +156,7 @@ export default function LandingPage() {
         </section>
 
         {/* Features Section */}
-        <section id="features" className="w-full pt-36 py-12 px-6">
+        <section id="features" className="w-full pt-24 lg:pt-36 py-12 px-6">
           <div className="mx-auto max-w-5xl text-center mb-10">
             <h2
               className={cn(
@@ -267,7 +267,7 @@ export default function LandingPage() {
         </section>
 
         {/* Pricing Section */}
-        <section id="pricing" className="w-full pt-36 py-12 px-6 bg-gray-50">
+        <section id="pricing" className="w-full pt-24 lg:pt-36 py-12 px-6 bg-gray-50">
           <div className="mx-auto max-w-4xl text-center mb-10">
             <h2
               className={cn(
@@ -474,7 +474,7 @@ export default function LandingPage() {
         </section>
 
         {/* FAQ Section (optional) */}
-        <section id="faq" className="w-full pt-36 py-12 px-6">
+        <section id="faq" className="w-full pt-24 lg:pt-36 py-12 px-6">
           <div className="mx-auto max-w-3xl text-center mb-8">
             <h2
               className={cn(
