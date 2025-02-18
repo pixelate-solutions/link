@@ -2,7 +2,7 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, useScroll, useTransform } from "framer-motion";
 import { Montserrat } from "next/font/google";
 import { Button } from "@/components/ui/button";
 import { HeaderLanding } from "@/components/header-landing";
@@ -13,7 +13,11 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
-import "@/styles.css"
+import "@/styles.css";
+import { useRef } from "react";
+
+// Create a motion version of AccordionItem for the FAQ section.
+const MotionAccordionItem = motion(AccordionItem);
 
 // Fonts
 const montserratP = Montserrat({
@@ -26,9 +30,30 @@ const montserratH = Montserrat({
   subsets: ["latin"],
 });
 
+// Reusable animation settings that will now revert to initial when out of view
+const fadeUp = {
+  initial: { opacity: 0, y: 20 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: false, amount: 0.3 },
+  transition: { duration: 0.5 },
+};
+
 export default function LandingPage() {
   const { user } = useUser();
   const router = useRouter();
+
+  // Create a ref for the video container
+  const videoRef = useRef<HTMLDivElement>(null);
+  // Get scroll progress relative to the video container.
+  // The offset means: when the top of the container is at the bottom of the viewport (start) and when the bottom of the container is at the top (end)
+  const { scrollYProgress } = useScroll({
+    target: videoRef,
+    offset: ["start end", "end start"],
+  });
+  // Map scroll progress [0.2, 0.4] to rotateX [11deg, 0deg]
+  const rotateX = useTransform(scrollYProgress, [0.2, 0.4], [11.0, 0]);
+  // Map scroll progress [0.2, 0.4] to scale [0.79, 1]
+  const scale = useTransform(scrollYProgress, [0.2, 0.4], [0.79, 1]);
 
   return (
     <div className={cn("relative min-h-screen", montserratP.className)}>
@@ -38,7 +63,7 @@ export default function LandingPage() {
          blurred shapes reminiscent of Symph.ai’s style.)
       */}
       <div className="absolute inset-0 z-0 overflow-hidden">
-        {/* Example blurred shape */}
+        {/* Example blurred shapes */}
         <div className="absolute -top-32 left-32 w-[200px] h-[400px] md:w-[400px] md:h-[700px] -rotate-[40deg] bg-blue-400 opacity-30 rounded-full filter blur-3xl" />
         <div className="absolute top-[300px] right-0 w-[200px] h-[400px] md:w-[400px] md:h-[800px] rotate-[45deg] bg-blue-400 opacity-30 rounded-full filter blur-3xl overflow-hidden" />
         <div className="absolute top-[40%] left-10 w-[200px] h-[400px] md:w-[400px] md:h-[400px] bg-purple-400 opacity-30 rounded-full filter blur-3xl" />
@@ -82,7 +107,7 @@ export default function LandingPage() {
           >
             <Button
               onClick={() =>
-                user ? router.push("/overview") : router.push("/sign-up")
+                router.push("/overview")
               }
               className="px-8 py-4 text-md rounded-full bg-blue-600 text-white hover:bg-blue-700"
             >
@@ -93,18 +118,28 @@ export default function LandingPage() {
 
         {/* Looping Video Section */}
         <section className="w-full px-6 mb-12 flex justify-center">
-          <div className="w-full max-w-[90%] md:max-w-[80%] lg:max-w-[70%]">
-            <video
+          {/* The parent div has the ref and perspective to create a 3D effect */}
+          <div
+            ref={videoRef}
+            className="w-full max-w-[90%] md:max-w-[80%] lg:max-w-[70%]"
+            style={{ perspective: "1200px" }}
+          >
+            <motion.video
               autoPlay
               loop
               muted
               playsInline
+              // Apply the scroll-driven transform values
+              style={{
+                scale,
+                rotateX,
+              }}
               className="w-full h-auto rounded-[25px] lg:rounded-[50px] border-4 border-gray-300"
             >
               <source src="/LinkDemo.mp4" type="video/mp4" />
               {/* Fallback text for older browsers */}
               Your browser does not support the video tag.
-            </video>
+            </motion.video>
           </div>
         </section>
 
@@ -130,6 +165,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {/* Feature 1: Full Analytic Dashboard */}
             <motion.div
+              {...fadeUp}
               whileHover={{ scale: 1.02 }}
               className="bg-white rounded-xl shadow-md p-6 text-left"
             >
@@ -144,6 +180,7 @@ export default function LandingPage() {
 
             {/* Feature 2: Transaction Tracking */}
             <motion.div
+              {...fadeUp}
               whileHover={{ scale: 1.02 }}
               className="bg-white rounded-xl shadow-md p-6 text-left"
             >
@@ -158,6 +195,7 @@ export default function LandingPage() {
 
             {/* Feature 3: Budget Creation */}
             <motion.div
+              {...fadeUp}
               whileHover={{ scale: 1.02 }}
               className="bg-white rounded-xl shadow-md p-6 text-left"
             >
@@ -172,6 +210,7 @@ export default function LandingPage() {
 
             {/* Feature 4: Automatic Account Linking (Premium) */}
             <motion.div
+              {...fadeUp}
               whileHover={{ scale: 1.02 }}
               className="bg-white rounded-xl shadow-md p-6 text-left"
             >
@@ -186,6 +225,7 @@ export default function LandingPage() {
 
             {/* Feature 5: Automatic Categorization (Premium) */}
             <motion.div
+              {...fadeUp}
               whileHover={{ scale: 1.02 }}
               className="bg-white rounded-xl shadow-md p-6 text-left"
             >
@@ -200,6 +240,7 @@ export default function LandingPage() {
 
             {/* Feature 6: Alerts & Notifications (Premium) */}
             <motion.div
+              {...fadeUp}
               whileHover={{ scale: 1.02 }}
               className="bg-white rounded-xl shadow-md p-6 text-left"
             >
@@ -232,7 +273,10 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
             {/* Free Plan */}
-            <div className="bg-white rounded-xl shadow-md p-6 flex flex-col">
+            <motion.div
+              {...fadeUp}
+              className="bg-white rounded-xl shadow-md p-6 flex flex-col"
+            >
               <h3 className="text-xl font-semibold text-gray-800">Free</h3>
               <p className="text-3xl font-bold text-gray-800 mt-4">$0</p>
               <p className="text-gray-500 mb-6">forever</p>
@@ -260,7 +304,7 @@ export default function LandingPage() {
               </ul>
               <Button
                 onClick={() =>
-                  user ? router.push("/overview") : router.push("/sign-up")
+                  router.push("/overview")
                 }
                 className={`mt-4 w-full ${
                   user
@@ -270,10 +314,13 @@ export default function LandingPage() {
               >
                 {user ? "Go to Dashboard" : "Get Started"}
               </Button>
-            </div>
+            </motion.div>
 
             {/* Premium Monthly */}
-            <div className="bg-white rounded-xl shadow-md p-6 flex flex-col">
+            <motion.div
+              {...fadeUp}
+              className="bg-white rounded-xl shadow-md p-6 flex flex-col"
+            >
               <h3 className="text-xl font-semibold text-gray-800">
                 Premium (Monthly)
               </h3>
@@ -303,7 +350,7 @@ export default function LandingPage() {
               </ul>
               <Button
                 onClick={() =>
-                  user ? router.push("/overview") : router.push("/sign-up")
+                  user ? router.push("/overview") : router.push("/settings")
                 }
                 className={`mt-4 w-full ${
                   user
@@ -313,10 +360,13 @@ export default function LandingPage() {
               >
                 {user ? "Go to Dashboard" : "Upgrade"}
               </Button>
-            </div>
+            </motion.div>
 
             {/* Premium Yearly */}
-            <div className="bg-white rounded-xl shadow-md p-6 flex flex-col">
+            <motion.div
+              {...fadeUp}
+              className="bg-white rounded-xl shadow-md p-6 flex flex-col"
+            >
               <h3 className="text-xl font-semibold text-gray-800">
                 Premium (Yearly)
               </h3>
@@ -346,7 +396,7 @@ export default function LandingPage() {
               </ul>
               <Button
                 onClick={() =>
-                  user ? router.push("/overview") : router.push("/sign-up")
+                  user ? router.push("/overview") : router.push("/settings")
                 }
                 className={`mt-4 w-full ${
                   user
@@ -356,10 +406,13 @@ export default function LandingPage() {
               >
                 {user ? "Go to Dashboard" : "Upgrade"}
               </Button>
-            </div>
+            </motion.div>
 
             {/* Premium Lifetime */}
-            <div className="bg-white rounded-xl shadow-md p-6 flex flex-col">
+            <motion.div
+              {...fadeUp}
+              className="bg-white rounded-xl shadow-md p-6 flex flex-col"
+            >
               <h3 className="text-xl font-semibold text-gray-800">
                 Premium (Lifetime)
               </h3>
@@ -377,7 +430,7 @@ export default function LandingPage() {
               </ul>
               <Button
                 onClick={() =>
-                  user ? router.push("/overview") : router.push("/sign-up")
+                  user ? router.push("/overview") : router.push("/settings")
                 }
                 className={`mt-4 w-full ${
                   user
@@ -387,7 +440,7 @@ export default function LandingPage() {
               >
                 {user ? "Go to Dashboard" : "Upgrade"}
               </Button>
-            </div>
+            </motion.div>
           </div>
         </section>
 
@@ -410,7 +463,7 @@ export default function LandingPage() {
 
           <div className="max-w-3xl mx-auto text-left">
             <Accordion type="single" collapsible>
-              <AccordionItem value="item-1">
+              <MotionAccordionItem value="item-1" {...fadeUp}>
                 <AccordionTrigger className="text-lg text-left p-4 rounded-2xl my-2 bg-white shadow-sm border hover:no-underline hover:bg-gray-100">
                   How do I manually track my transactions?
                 </AccordionTrigger>
@@ -419,8 +472,8 @@ export default function LandingPage() {
                   relevant account, date, amount, and category. It’s quick and
                   straightforward to keep everything up to date.
                 </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="item-2">
+              </MotionAccordionItem>
+              <MotionAccordionItem value="item-2" {...fadeUp}>
                 <AccordionTrigger className="text-lg text-left p-4 rounded-2xl my-2 bg-white shadow-sm border hover:no-underline hover:bg-gray-100">
                   What happens when I upgrade to Premium?
                 </AccordionTrigger>
@@ -429,8 +482,8 @@ export default function LandingPage() {
                   automatic categorization, and email notifications—so you can
                   spend less time updating and more time analyzing your finances.
                 </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="item-3">
+              </MotionAccordionItem>
+              <MotionAccordionItem value="item-3" {...fadeUp}>
                 <AccordionTrigger className="text-lg text-left p-4 rounded-2xl my-2 bg-white shadow-sm border hover:no-underline hover:bg-gray-100">
                   Can I switch between Premium plans?
                 </AccordionTrigger>
@@ -438,8 +491,8 @@ export default function LandingPage() {
                   Yes. If you start monthly, you can switch to yearly or
                   lifetime anytime to save money in the long run.
                 </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="item-4">
+              </MotionAccordionItem>
+              <MotionAccordionItem value="item-4" {...fadeUp}>
                 <AccordionTrigger className="text-lg text-left p-4 rounded-2xl my-2 bg-white shadow-sm border hover:no-underline hover:bg-gray-100">
                   Is my financial data secure?
                 </AccordionTrigger>
@@ -448,7 +501,7 @@ export default function LandingPage() {
                   your bank credentials on our servers. Your security is our
                   top priority.
                 </AccordionContent>
-              </AccordionItem>
+              </MotionAccordionItem>
             </Accordion>
           </div>
         </section>
@@ -456,7 +509,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="relative z-10 w-full py-6 px-6 text-center text-sm text-gray-500 bg-white border-t border-gray-200">
-        <p>© {new Date().getFullYear()} Link Budgeting Tool. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} LinkLogic LLC. All rights reserved.</p>
       </footer>
     </div>
   );
