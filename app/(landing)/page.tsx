@@ -260,8 +260,7 @@ export default function LandingPage() {
                 Email Notifications
               </h3>
               <p className="text-gray-600">
-                Get notified when you’re nearing budget limits or when new
-                transactions post—so you never miss a beat.
+                Get notified when you’re nearing budget limits so you never miss a beat.
               </p>
             </motion.div>
           </div>
@@ -498,8 +497,8 @@ export default function LandingPage() {
                   How do I manually track my transactions?
                 </AccordionTrigger>
                 <AccordionContent className="px-4 pt-4 mb-2 rounded-lg text-md bg-white shadow-inner">
-                  You can add transactions from the dashboard by selecting the
-                  relevant account, date, amount, and category. It’s quick and
+                  You can add transactions from the transactions page by entering the
+                  relevant information and amount. It’s quick and
                   straightforward to keep everything up to date.
                 </AccordionContent>
               </MotionAccordionItem>
@@ -519,7 +518,9 @@ export default function LandingPage() {
                 </AccordionTrigger>
                 <AccordionContent className="px-4 pt-4 mb-2 rounded-lg text-md bg-white shadow-inner">
                   Yes. If you start monthly, you can switch to yearly or
-                  lifetime anytime to save money in the long run.
+                  lifetime anytime to save money in the long run. You will
+                  be refunded for your remaining payment period. You should never
+                  have to pay for something you didn't use.
                 </AccordionContent>
               </MotionAccordionItem>
               <MotionAccordionItem value="item-4" {...fadeUp}>
