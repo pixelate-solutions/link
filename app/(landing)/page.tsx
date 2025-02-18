@@ -123,7 +123,7 @@ export default function LandingPage() {
               }
               className="px-8 py-4 text-md rounded-full bg-blue-600 text-white hover:bg-blue-700"
             >
-              {user ? "Go to Dashboard" : "Get Started Free"}
+              {user ? "Dashboard" : "Get Started"}
             </Button>
           </motion.div>
         </section>
