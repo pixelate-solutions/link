@@ -101,7 +101,7 @@ const SubscribePage = () => {
 
       <Card className="relative z-10 w-full max-w-lg bg-white shadow-2xl rounded-xl overflow-hidden">
         <CardHeader className="flex justify-between items-center bg-white border p-6">
-          <CardTitle className="text-2xl font-bold text-white">Link Premium</CardTitle>
+          <CardTitle className="text-2xl font-bold text-black">Link Premium</CardTitle>
         </CardHeader>
         <CardContent className="p-8 flex flex-col items-center space-y-6">
           {loading && (
