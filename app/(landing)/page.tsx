@@ -42,6 +42,18 @@ export default function LandingPage() {
   const { user } = useUser();
   const router = useRouter();
 
+  const monthlyPriceId = process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
+  ? process.env.NEXT_PUBLIC_STRIPE_MONTHLY_TEST_PRICE_ID
+  : process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
+  
+  const annualPriceId = process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
+  ? process.env.NEXT_PUBLIC_STRIPE_ANNUAL_TEST_PRICE_ID
+  : process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
+  
+  const lifetimePriceId = process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
+  ? process.env.NEXT_PUBLIC_STRIPE_LIFETIME_TEST_PRICE_ID
+  : process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID;
+
   // Create a ref for the video container
   const videoRef = useRef<HTMLDivElement>(null);
   // Get scroll progress relative to the video container.
@@ -349,16 +361,24 @@ export default function LandingPage() {
                 </li>
               </ul>
               <Button
-                onClick={() =>
-                  user ? router.push("/overview") : router.push("/settings")
-                }
+                onClick={() => {
+                  const priceId = monthlyPriceId; // This is your monthly Stripe price ID
+                  if (user) {
+                    router.push(`/overview`);
+                  } else {
+                    // If the user is not signed in, redirect them to sign-up.
+                    // Clerk supports passing a redirect URL after sign-up.
+                    router.push(`/sign-up?redirect_url=/subscribe?priceId=${priceId}`);
+                  }
+                }}
                 className={`mt-4 w-full ${
                   user
                     ? "text-white bg-blue-600 hover:bg-blue-700"
                     : "bg-white hover:bg-gray-100 text-black border"
                 }`}
+
               >
-                {user ? "Go to Dashboard" : "Upgrade"}
+                {user ? "Dashboard" : "Upgrade"}
               </Button>
             </motion.div>
 
@@ -395,16 +415,21 @@ export default function LandingPage() {
                 </li>
               </ul>
               <Button
-                onClick={() =>
-                  user ? router.push("/overview") : router.push("/settings")
-                }
+                onClick={() => {
+                  const priceId = annualPriceId;
+                  if (user) {
+                    router.push(`/overview`);
+                  } else {
+                    router.push(`/sign-up?redirect_url=/subscribe?priceId=${priceId}`);
+                  }
+                }}
                 className={`mt-4 w-full ${
                   user
                     ? "text-white bg-blue-600 hover:bg-blue-700"
-                    : "bg-gradient-to-br from-blue-500 to-purple-500 text-white hover:opacity-80 transition-all"
+                    : "bg-white hover:bg-gray-100 text-black border"
                 }`}
               >
-                {user ? "Go to Dashboard" : "Upgrade"}
+                {user ? "Dashboard" : "Upgrade"}
               </Button>
             </motion.div>
 
@@ -429,16 +454,21 @@ export default function LandingPage() {
                 </li>
               </ul>
               <Button
-                onClick={() =>
-                  user ? router.push("/overview") : router.push("/settings")
-                }
+                onClick={() => {
+                  const priceId = lifetimePriceId;
+                  if (user) {
+                    router.push(`/overview`);
+                  } else {
+                    router.push(`/sign-up?redirect_url=/subscribe?priceId=${priceId}`);
+                  }
+                }}
                 className={`mt-4 w-full ${
                   user
                     ? "text-white bg-blue-600 hover:bg-blue-700"
                     : "bg-white hover:bg-gray-100 text-black border"
                 }`}
               >
-                {user ? "Go to Dashboard" : "Upgrade"}
+                {user ? "Dashboard" : "Upgrade"}
               </Button>
             </motion.div>
           </div>
