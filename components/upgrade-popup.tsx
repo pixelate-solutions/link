@@ -153,7 +153,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
           {/* MONTHLY */}
           <div className="flex items-center border-b pb-4">
             <div className="ml-[10%] w-1/3 font-semibold">Monthly</div>
-            <div className="hidden md:inline w-1/3 text-gray-500">$7.90/mo</div>
+            <div className="hidden md:inline w-1/3 text-gray-500">$8/mo</div>
             {(currentSubscription !== "Monthly") && (
               <AlertDialogAction asChild className="w-1/3">
                 <Button variant="ghost" onClick={() => {
@@ -176,7 +176,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
                     handleSwitch(monthlyPriceId!);
                   }
                 }} className="bg-gray-100 text-black hover:bg-200 md:hidden w-1/2 border border-transparent hover:border-gray-300">
-                  $7.90
+                  $8.00
                 </Button>
               </AlertDialogAction>
             )}

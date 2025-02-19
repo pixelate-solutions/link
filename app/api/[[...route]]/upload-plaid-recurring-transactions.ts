@@ -14,9 +14,6 @@ import { eq, and, sql, inArray, desc } from "drizzle-orm";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
-// Fetch the AI URL from environment variables
-const AI_URL = process.env.NEXT_PUBLIC_AI_URL;
-
 const app = new Hono();
 
 const MAX_RETRIES = 6;

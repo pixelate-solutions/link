@@ -241,23 +241,6 @@ const app = new Hono()
         }
       }
 
-      // Make requests to delete resources from AI backend
-      for (const account of accountsToDelete) {
-        const name = `Transactions from ${account.id} for ${auth.userId}`;
-        try {
-          const aiResponse = await fetch(`${AI_URL}/resources/delete/${encodeURIComponent(name)}`, {
-            method: 'DELETE',
-          });
-
-          if (!aiResponse.ok) {
-            const errorText = await aiResponse.text();
-            console.error(`Failed to delete from AI backend: ${errorText}`);
-          }
-        } catch (error) {
-          console.error(`Error deleting from AI backend for account ${account.id}:`, error);
-        }
-      }
-
       await cleanUpUserTokens(auth.userId);
 
       return ctx.json({ data });

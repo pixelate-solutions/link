@@ -245,30 +245,6 @@ const app = new Hono()
         `;
       }).join("\n");
 
-      // Upsert the formatted transactions to AI API
-      try {
-        const aiResponse = await fetch(
-          `${AI_URL}/resource/upsert_text?user_id=${auth.userId}&name=Transactions from ${data[0].accountId} for ${auth.userId}&account=${data[0].accountId}`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'text/plain',
-            },
-            body: formattedTransactions.trim(), // Ensure it's a properly formatted plain string
-          }
-        );
-
-        if (!aiResponse.ok) {
-          const errorText = await aiResponse.text();
-          throw new Error(`Upsert failed: ${errorText}`);
-        }
-
-        const responseData = await aiResponse.json();
-      } catch (error) {
-        console.error('Error upserting transactions to AI:', error);
-        return ctx.json({ error: 'Failed to upsert transactions to AI' }, 500);
-      }
-
       return ctx.json({ data });
     }
   )

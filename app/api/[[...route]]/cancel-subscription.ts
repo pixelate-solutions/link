@@ -62,23 +62,6 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       .from(accounts)
       .where(and(eq(accounts.userId, auth.userId), eq(accounts.isFromPlaid, true)));
 
-    // Make requests to delete resources from AI backend before deleting accounts
-    for (const account of accountsToDelete) {
-      const name = `Transactions from ${account.id} for ${auth.userId}`;
-      try {
-        const aiResponse = await fetch(`${AI_URL}/resources/delete/${encodeURIComponent(name)}`, {
-          method: 'DELETE',
-        });
-
-        if (!aiResponse.ok) {
-          const errorText = await aiResponse.text();
-          console.error(`Failed to delete from AI backend: ${errorText}`);
-        }
-      } catch (error) {
-        console.error(`Error deleting from AI backend for account ${account.id}:`, error);
-      }
-    }
-
     // Delete all accounts for the user where isFromPlaid is True
     await db.delete(accounts)
       .where(and(eq(accounts.userId, auth.userId), eq(accounts.isFromPlaid, true)));

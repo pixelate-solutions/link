@@ -38,25 +38,6 @@ app.post('/', clerkMiddleware(), async (ctx) => {
     await db.delete(userTokens)
       .where(eq(userTokens.userId, userId));
 
-    // Make requests to delete resources from AI backend
-    for (const account of plaidAccounts) {
-      const accountId = account.accountId;
-      const name = `Transactions from ${accountId} for ${userId}`;
-
-      try {
-        const aiResponse = await fetch(`${AI_URL}/resources/delete/${encodeURIComponent(name)}`, {
-          method: 'DELETE',
-        });
-
-        if (!aiResponse.ok) {
-          const errorText = await aiResponse.text();
-          console.error(`Failed to delete from AI backend: ${errorText}`);
-        }
-      } catch (error) {
-        console.error(`Error deleting from AI backend for account ${accountId}:`, error);
-      }
-    }
-
     return ctx.json({ message: 'Plaid-related data and customer info deleted successfully.' }, 200);
   } catch (error) {
     console.error('Error deleting Plaid-related data:', error);

@@ -18,10 +18,10 @@ const routes = [
     href: "/overview",
     label: "Overview",
   },
-  // {
-  //   href: "/logic",
-  //   label: "Logic",
-  // },
+  {
+    href: "/logic",
+    label: "Logic",
+  },
   {
     href: "/categories",
     label: "Categories",

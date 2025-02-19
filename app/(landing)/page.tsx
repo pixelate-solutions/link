@@ -335,7 +335,7 @@ export default function LandingPage() {
               <h3 className="text-xl font-semibold text-gray-800">
                 Premium (Monthly)
               </h3>
-              <p className="text-3xl font-bold text-gray-800 mt-4">$7.90</p>
+              <p className="text-3xl font-bold text-gray-800 mt-4">$8</p>
               <p className="text-gray-500 mb-6">per month</p>
               <ul className="text-left text-gray-600 flex-grow">
                 <li className="mb-2 flex items-center">
