@@ -209,3 +209,11 @@ export const insertGoalSchema = createInsertSchema(goals, {
   createdAt: true,
   updatedAt: true,
 });
+
+export const chatResponses = pgTable("chat_responses", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  question: text("question").notNull(),
+  response: text("response").notNull(),
+  responseDate: timestamp("response_date", { mode: "date" }).notNull(),
+});

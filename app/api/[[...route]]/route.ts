@@ -28,6 +28,7 @@ import recurringTransactionsPage from './recurring-transactions'
 import notifications from './notifications'
 import forecast from './forecast'
 import goals from './goals'
+import logic from './logic'
 
 const app = new Hono().basePath('/api');
 
@@ -59,6 +60,7 @@ const routes = app
   .route('/notifications', notifications)
   .route('/forecast', forecast)
   .route('/goals', goals)
+  .route('/logic', logic)
   
 export const GET = handle(app);
 export const POST = handle(app);

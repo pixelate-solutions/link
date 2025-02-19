@@ -484,6 +484,13 @@
       "when": 1739677672067,
       "tag": "0068_dusty_shinobi_shaw",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "6",
+      "when": 1739937450846,
+      "tag": "0069_funny_talos",
+      "breakpoints": true
     }
   ]
 }

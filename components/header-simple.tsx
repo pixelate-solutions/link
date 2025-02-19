@@ -24,7 +24,7 @@ export const HeaderSimple = () => {
   const { user, isLoaded } = useUser();
 
   return (
-    <header className={cn("sticky bg-white top-0 px-4 py-8 lg:px-14 lg:pb-16 z-30 overflow-hidden", montserratP.className)}>
+    <header className={cn("sticky bg-white top-0 px-4 py-8 lg:px-14 lg:pb-16 z-30 overflow-hidden border-b", montserratP.className)}>
       <div className="absolute inset-0 -z-10 overflow-x-clip">
         {/* Shape 1 */}
         <div className="absolute -top-44 left-[40%] w-[200px] h-[400px] md:w-[400px] md:h-[700px] rotate-[40deg] bg-blue-400 opacity-30 rounded-full blur-3xl" />
