@@ -193,6 +193,34 @@ const fetchPlaidTransactionsWithRetry = async (
           cursor: cursor ?? undefined,
         });
         const { added, modified, removed, next_cursor, has_more, accounts: plaidAccounts } = response.data;
+
+        if (plaidAccounts && Array.isArray(plaidAccounts)) {
+          for (const account of plaidAccounts) {
+            const { account_id, balances, type, subtype, official_name } = account;
+            let { current, available } = balances;
+            
+            // Normalize balances based on account type
+            if (type === "credit" || (type === "loan" && subtype !== "student")) {
+              current = -Math.abs(current || 0);
+              available = available !== null ? Math.abs(available) : null;
+            } else if (type === "loan" && subtype === "student" && official_name?.includes("Sallie Mae")) {
+              current = -Math.abs(current || 0);
+            } else {
+              current = Math.abs(current || 0);
+              available = available !== null ? Math.abs(available) : null;
+            }
+            
+            await db
+              .update(accounts)
+              .set({
+                currentBalance: current?.toString() || "0",
+                availableBalance: available !== null ? available.toString() : "0",
+              })
+              .where(eq(accounts.plaidAccountId, account_id))
+              .execute();
+          }
+        }
+
         // Update account balances in DB
         for (const account of plaidAccounts) {
           const { account_id, balances, type, subtype } = account;
