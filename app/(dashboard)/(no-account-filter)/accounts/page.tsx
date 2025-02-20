@@ -256,7 +256,7 @@ const AccountsPage = () => {
     fetchSubscriptionStatus();
   }, [userId]);
 
-  const categories = ["Credit card", "Depository", "Investment", "Loan", "Other"];
+  const categories = ["Credit cards", "Depository", "Investments", "Loans", "Others"];
 
   type Account = {
     id: string;

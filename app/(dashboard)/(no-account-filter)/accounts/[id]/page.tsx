@@ -51,7 +51,7 @@ interface TotalsData {
 // If you store categories separately, you might fetch them here:
 const accountCategories = [
   "Credit cards",
-  "Depositories",
+  "Depository",
   "Investments",
   "Loans",
   "Others",
