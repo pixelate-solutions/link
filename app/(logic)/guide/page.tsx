@@ -125,7 +125,7 @@ const GuidePage = () => {
         </div>
         {/* User Data Section */}
         <div className="lg:w-[74%] lg:ml-[13%] mt-32 lg:mt-12 lg:border-2 border-t-0 rounded-2xl rounded-t-none p-2">
-          <div className="px-8 pb-8 flex flex-col items-center">
+          <div className="lg:px-8 pb-8 flex flex-col items-center">
             <p className={cn("lg:text-xl text-lg mt-[15px] text-gray-700 text-center mb-[10px]", montserratM.className)}>
               Here to help you learn more about managing your finances.
             </p>
@@ -166,7 +166,7 @@ const GuidePage = () => {
             )}
             {selectedQuestion && (
               <div
-                className="w-full mt-4 p-6 rounded-xl bg-gradient-to-br from-blue-100 to-purple-100 transition-all duration-500"
+                className="w-full mt-4 p-2 lg:p-6 rounded-xl bg-gradient-to-br from-blue-100 to-purple-100 transition-all duration-500"
                 style={{ animation: "fadeIn 1s ease-in" }}
               >
                 <div className="mb-4">
@@ -196,7 +196,7 @@ const GuidePage = () => {
                 )}
                 {aiResponse && (
                   <div
-                    className="mt-4 p-4 bg-white rounded shadow transition-all duration-500"
+                    className="mt-4 pb-4 pt-2 bg-white rounded-xl text-sm lg:text-base shadow transition-all duration-500"
                     style={{ animation: "fadeIn 1s ease-in" }}
                   >
                     <MarkdownRenderer content={aiResponse} />
