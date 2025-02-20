@@ -92,7 +92,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
     const referringUserId = `user_${promoCode}`;
     if (userId === referringUserId) {
-      return ctx.json({ error: 'Unable to apply promo code to self.' }, 400)
+      return ctx.json({ error: 'Unable to apply referral code to self.' }, 400)
     }
     const [referringCustomer] = await db
       .select({ stripeCustomerId: stripeCustomers.stripeCustomerId })
@@ -100,7 +100,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
       .where(eq(stripeCustomers.userId, referringUserId))
       .limit(1);
 
-    if (!referringCustomer) return ctx.json({ error: 'Invalid promo code or referrer not found.' }, 400);
+    if (!referringCustomer) return ctx.json({ error: 'Invalid referral code or referrer not found.' }, 400);
 
     const [pastReferral] = await db
       .select({ effectiveDate: referrals.effectiveDate })
@@ -126,7 +126,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
 
     return ctx.json({ sessionId: sessionData.sessionId });
   } catch (error) {
-    console.error('Error handling promo code and checkout session:', error);
+    console.error('Error handling referral code and checkout session:', error);
     return ctx.json({ error: 'Internal Server Error' }, 500);
   }
 });

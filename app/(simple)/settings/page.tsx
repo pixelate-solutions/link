@@ -240,7 +240,7 @@ const SettingsPage = () => {
             body: JSON.stringify({ referringUserId }),
           });
 
-          toast.success("Successfully applied promo code and credited referral!");
+          toast.success("Successfully applied code and credited referral!");
 
           const result = await stripe.redirectToCheckout({ sessionId });
 
@@ -250,18 +250,18 @@ const SettingsPage = () => {
           }
         } else {
           if (data.message === "Friends & Family") {
-            toast.success("Successfully applied promo code");
+            toast.success("Successfully applied code");
             window.location.reload();
           } else {
-            toast.error("Invalid promo code");
+            toast.error("Invalid code");
           }
         }
       } else {
         console.error("Stripe object or user information is missing.");
       }
     } catch (error) {
-      console.error("Error applying promo code:", error);
-      toast.error("Failed to apply promo code. Please try again.");
+      console.error("Error applying code:", error);
+      toast.error("Failed to apply code. Please try again.");
     }
   };
 
@@ -426,7 +426,7 @@ const SettingsPage = () => {
               </Button>
             </div>
 
-            {/* Promo Code Section */}
+            {/* Referral Code Section */}
             <div className="space-y-4 relative md:flex md:justify-between md:items-center">
               <div>
                 <p className="font-semibold text-lg">Referral Code</p>
@@ -437,7 +437,7 @@ const SettingsPage = () => {
                   className="input border border-gray-300 rounded-lg px-4 py-2 shadow-sm w-full md:w-auto focus:outline-none mt-2"
                   placeholder="Enter code"
                 />
-                {subscriptionStatus !== "Free" && (<p className="font-semibold text-sm mt-2 text-gray-500">Promo codes are for free accounts.</p>)}
+                {subscriptionStatus !== "Free" && (<p className="font-semibold text-sm mt-2 text-gray-500">Referral codes are for free accounts.</p>)}
               </div>
               <Button
                 disabled={subscriptionStatus !== "Free" || promoCode === ""}
