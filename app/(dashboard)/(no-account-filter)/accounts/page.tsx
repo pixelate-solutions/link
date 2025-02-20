@@ -1,6 +1,6 @@
 "use client";
 
-import { Link, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -18,25 +18,27 @@ import { cn } from "@/lib/utils";
 import { Montserrat } from "next/font/google";
 import { usePlaidLink } from "react-plaid-link";
 import { Typewriter } from "react-simple-typewriter";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { insertAccountSchema } from "@/db/schema";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AccountsGrid } from "@/components/accounts-grid";
 
-// Import the new MobileAccounts component
+// Import MobileAccounts component
 import { MobileAccounts } from "@/components/mobile-accounts";
 
-import { ColorRing } from 'react-loader-spinner'
+// Import shadcn Dialog and Tooltip components
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+
+import { ColorRing } from "react-loader-spinner";
+import { UpgradePopup } from "@/components/upgrade-popup";
 
 const montserratP = Montserrat({
   weight: "500",
@@ -69,11 +71,16 @@ const AccountsPage = () => {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [openPlaid, setOpenPlaid] = useState<() => void>(() => () => {});
   const [isBelowAccountLimit, setIsBelowAccountLimit] = useState<boolean>(false);
+  const [openUpgradeDialog, setOpenUpgradeDialog] = useState<boolean>(false);
 
   // NEW: track window width for conditional rendering
   const [windowWidth, setWindowWidth] = useState<number>(
     typeof window !== "undefined" ? window.innerWidth : 9999
   );
+
+  // NEW: state for the add-account dialog and selected category
+  const [showAddAccountDialog, setShowAddAccountDialog] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
 
   useEffect(() => {
     const handleResize = () => {
@@ -86,7 +93,6 @@ const AccountsPage = () => {
     };
   }, []);
 
-  const Categories = ["Credit cards", "Depository", "Investments", "Loans", "Others"];
   const formSchema = insertAccountSchema.pick({
     name: true,
     category: true,
@@ -107,8 +113,7 @@ const AccountsPage = () => {
       fetch("/api/categories/set-default", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-      })
-      .catch((error) => {
+      }).catch((error) => {
         console.error("Error checking default categories:", error);
       });
     }
@@ -251,7 +256,7 @@ const AccountsPage = () => {
     fetchSubscriptionStatus();
   }, [userId]);
 
-  const categories = ["Credit cards", "Depository", "Investments", "Loans", "Others"];
+  const categories = ["Credit card", "Depository", "Investment", "Loan", "Other"];
 
   type Account = {
     id: string;
@@ -263,7 +268,7 @@ const AccountsPage = () => {
     plaidAccessToken: string;
     currentBalance: string;
     availableBalance: string;
-    [key: string]: any; // Additional dynamic fields if needed
+    [key: string]: any;
   };
 
   const groupByCategory = (accounts: Account[]): Record<string, Account[]> => {
@@ -300,8 +305,9 @@ const AccountsPage = () => {
     availableBalance: account.availableBalance || "0",
   }));
 
-  const groupedManualAccounts = groupByCategory(manualAccountsWithTotals);
-  const groupedPlaidAccounts = groupByCategory(plaidAccountsWithTotals);
+  // Combine manual and linked (Plaid) accounts into one list
+  const combinedAccounts = [...manualAccountsWithTotals, ...plaidAccountsWithTotals];
+  const groupedAccounts = groupByCategory(combinedAccounts);
 
   // Loading state
   if (
@@ -310,18 +316,12 @@ const AccountsPage = () => {
     totalsQuery.isLoading
   ) {
     return (
-      <div
-        className={cn(
-          "mx-auto -mt-6 w-full max-w-screen-2xl pb-10",
-          montserratP.className
-        )}
-      >
+      <div className={cn("mx-auto -mt-6 w-full max-w-screen-2xl pb-10", montserratP.className)}>
         <AccountsGrid />
         <Card className="border-none drop-shadow-sm">
           <CardHeader>
             <Skeleton className="h-8 w-48" />
           </CardHeader>
-
           <CardContent>
             <div className="flex h-[500px] w-full items-center justify-center">
               <ColorRing
@@ -331,7 +331,7 @@ const AccountsPage = () => {
                 ariaLabel="color-ring-loading"
                 wrapperStyle={{}}
                 wrapperClass="color-ring-wrapper"
-                colors={['#3B82F6', '#6366F1', '#7C3AED', '#9333EA', '#A855F7']}
+                colors={["#3B82F6", "#6366F1", "#7C3AED", "#9333EA", "#A855F7"]}
               />
             </div>
           </CardContent>
@@ -340,7 +340,6 @@ const AccountsPage = () => {
           <CardHeader>
             <Skeleton className="h-8 w-48" />
           </CardHeader>
-
           <CardContent>
             <div className="flex h-[500px] w-full items-center justify-center">
               <ColorRing
@@ -350,7 +349,7 @@ const AccountsPage = () => {
                 ariaLabel="color-ring-loading"
                 wrapperStyle={{}}
                 wrapperClass="color-ring-wrapper"
-                colors={['#3B82F6', '#6366F1', '#7C3AED', '#9333EA', '#A855F7']}
+                colors={["#3B82F6", "#6366F1", "#7C3AED", "#9333EA", "#A855F7"]}
               />
             </div>
           </CardContent>
@@ -360,211 +359,140 @@ const AccountsPage = () => {
   }
 
   return (
-    <div
-      className={cn(
-        `mx-auto -mt-6 w-full max-w-screen-2xl pb-10 ${
-          plaidIsOpen ? "plaid-open" : ""
-        }`,
-        montserratP.className
-      )}
-    >
+    <div className={cn("mx-auto -mt-6 w-full max-w-screen-2xl pb-10", montserratP.className)}>
       <AccountsGrid />
+
+      {/* ---------- PLAID POPUP MODAL ---------- */}
       {plaidIsOpen && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-md">
-        <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md mx-4 text-center space-y-6">
-          
-          {/* Spinner */}
-          <div className="flex justify-center">
-            <ColorRing
-              visible={true}
-              height="80"
-              width="80"
-              ariaLabel="color-ring-loading"
-              wrapperStyle={{}}
-              wrapperClass="color-ring-wrapper"
-              colors={['#3B82F6', '#6366F1', '#7C3AED', '#9333EA', '#A855F7']}
-            />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-md">
+          <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md mx-4 text-center space-y-6">
+            <div className="flex justify-center">
+              <ColorRing
+                visible={true}
+                height="80"
+                width="80"
+                ariaLabel="color-ring-loading"
+                wrapperStyle={{}}
+                wrapperClass="color-ring-wrapper"
+                colors={["#3B82F6", "#6366F1", "#7C3AED", "#9333EA", "#A855F7"]}
+              />
+            </div>
+            <h2 className="text-2xl font-semibold text-gray-800">Connecting</h2>
+            <p className="text-lg text-gray-600">
+              <Typewriter
+                words={[
+                  "This will take a few minutes...",
+                  "Please be patient...",
+                  "Waiting for Plaid connections...",
+                  "Fetching your financial data...",
+                  "Categorizing transactions...",
+                  "Creating accounts...",
+                ]}
+                loop={true}
+                cursor
+                cursorStyle="|"
+                typeSpeed={70}
+                deleteSpeed={50}
+                delaySpeed={1000}
+              />
+            </p>
           </div>
-
-          <h2 className="text-2xl font-semibold text-gray-800">Connecting</h2>
-
-          <p className="text-lg text-gray-600">
-            <Typewriter
-              words={[
-                "This will take a few minutes...",
-                "Please be patient...",
-                "Waiting for Plaid connections...",
-                "Fetching your financial data...",
-                "Categorizing transactions...",
-                "Creating accounts...",
-              ]}
-              loop={true}
-              cursor
-              cursorStyle="|"
-              typeSpeed={70}
-              deleteSpeed={50}
-              delaySpeed={1000}
-            />
-          </p>
         </div>
-      </div>
-    )}
+      )}
 
-      {/* ========== LINKED (Plaid) ACCOUNTS ========== */}
-      {isPremiumUser && (
-        <Card className="border-2 drop-shadow-md">
-          <CardHeader className="gap-y-2 md:flex-row md:items-center md:justify-between">
-            <CardTitle className="line-clamp-1 text-2xl font-bold">
-              Linked Accounts
-            </CardTitle>
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit((data) => {
-                  accountCategoryRef.current = data.category || "Others";
+      {/* ---------- ADD ACCOUNT DIALOG ---------- */}
+      <Dialog open={showAddAccountDialog} onOpenChange={setShowAddAccountDialog}>
+        <DialogContent className="max-w-sm rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Select Account Type</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col space-y-4 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAddAccountDialog(false);
+                newAccount.onOpen();
+              }}
+            >
+              Manual
+            </Button>
+            {isPremiumUser ? (
+              <Button
+                className="shadow-lg shadow-indigo-500/20"
+                variant="outline"
+                onClick={() => {
+                  accountCategoryRef.current = selectedCategory;
                   openPlaid();
                   setPlaidIsOpen(true);
-                })}
-                autoCapitalize="off"
-                autoComplete="off"
-                className="space-y-4 pt-4"
+                  setShowAddAccountDialog(false);
+                }}
               >
-                <div className="md:flex items-center md:space-x-4">
-                  {/* Dropdown for Category Selection */}
-                  <FormField
-                    name="category"
-                    control={form.control}
-                    defaultValue="Others"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="sr-only">Category</FormLabel>
-                        <FormControl>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value || ""}
-                          >
-                            <SelectTrigger className="md:w-48 w-full">
-                              <SelectValue placeholder="Select a category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Categories.map((category) => (
-                                <SelectItem key={category} value={category}>
-                                  {category}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Button to Trigger Plaid */}
-                  <Button
-                    type="submit"
-                    className="bg-gradient-to-br from-blue-500 to-purple-500 hover:opacity-80 w-full md:w-auto mt-5 md:mt-0"
-                    disabled={!form.watch("category") || !isBelowAccountLimit}
-                  >
-                    <Link className="mr-2 size-4" />
-                    Link New
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </CardHeader>
-
-          <CardContent>
-            {categories.map((category) => {
-              const accountsForCat = groupedPlaidAccounts[category] || [];
-              const isEmpty = accountsForCat.length === 0;
-
-              return (
-                <div key={category} className="mt-4">
-                  <h3 className="text-lg font-semibold mb-2">{category}</h3>
-
-                  {/* If no accounts in this category, show the "Link new account" button */}
-                  {isEmpty && (
-                    <Button
-                      disabled={!isBelowAccountLimit}
-                      className={cn(
-                        "w-full border border-dashed rounded-2xl py-10 my-2 bg-transparent text-black hover:bg-gray-100 hover:text-black",
-                        montserratH.className
-                      )}
-                      onClick={() => {
-                        accountCategoryRef.current = category;
-                        openPlaid();
-                        setPlaidIsOpen(true);
-                      }}
-                    >
-                      Link new account
+                Linked
+              </Button>
+            ) : (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" onClick={() => setOpenUpgradeDialog(true)}>
+                      Linked
                     </Button>
-                  )}
+                  </TooltipTrigger>
+                  <TooltipContent className="mb-4 shadow-[0_0_10px_rgba(34,68,234,0.2)]">
+                    Premium Feature
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowAddAccountDialog(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-                  {/* Otherwise show either DataTable or MobileAccounts */}
-                  {!isEmpty && (
-                    <>
-                      {windowWidth >= 1024 ? (
-                        <DataTable
-                          data={accountsForCat}
-                          columns={columns}
-                          filterKey="name"
-                          disabled={isDisabled}
-                          onDelete={(row) =>
-                            deleteAccounts.mutate({
-                              ids: row.map((r) => r.original.id),
-                            })
-                          }
-                        />
-                      ) : (
-                        <MobileAccounts
-                          accounts={accountsForCat}
-                          categoryName={category}
-                        />
-                      )}
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ========== MANUAL ACCOUNTS ========== */}
-      <Card className={cn("border-2 drop-shadow-md", isPremiumUser ? "mt-10" : "")}>
+      {/* ---------- ACCOUNTS CARD ---------- */}
+      <Card className="border-2 drop-shadow-md">
         <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between">
-          <CardTitle className="line-clamp-1 text-2xl font-bold">
-            {isPremiumUser ? "Manual Accounts" : "Accounts"}
-          </CardTitle>
-          <Button size="sm" onClick={newAccount.onOpen}>
-            <Plus className="mr-2 size-4" /> Add new
-          </Button>
+          <CardTitle className="line-clamp-1 text-2xl font-bold">Accounts</CardTitle>
         </CardHeader>
         <CardContent>
           {categories.map((category) => {
-            const accountsForCat = groupedManualAccounts[category] || [];
-            const isEmpty = accountsForCat.length === 0;
-
+            const accountsForCat = groupedAccounts[category] || [];
             return (
               <div key={category} className="mt-4">
-                <h3 className="text-lg font-semibold mb-2">{category}</h3>
-
-                {/* If no accounts in this category, show the "Add new account" button */}
-                {isEmpty && (
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold mb-2">{category}</h3>
+                  {(accountsForCat.length !== 0) && (
+                    <Button
+                    className="border-2 shadow-md"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedCategory(category);
+                      setShowAddAccountDialog(true);
+                    }}
+                  >
+                    <Plus className="mr-2 size-4" /> Add {category.toLowerCase()}
+                  </Button>
+                  )}
+                </div>
+                {accountsForCat.length === 0 ? (
                   <Button
                     disabled={!isBelowAccountLimit}
                     className={cn(
                       "w-full border border-dashed rounded-2xl py-10 my-2 bg-transparent text-black hover:bg-gray-100 hover:text-black",
                       montserratH.className
                     )}
-                    onClick={newAccount.onOpen}
+                    onClick={() => {
+                      setSelectedCategory(category);
+                      setShowAddAccountDialog(true);
+                    }}
                   >
                     Add new account
                   </Button>
-                )}
-
-                {/* Otherwise show either DataTable or MobileAccounts */}
-                {!isEmpty && (
+                ) : (
                   <>
                     {windowWidth >= 1024 ? (
                       <DataTable
@@ -579,10 +507,7 @@ const AccountsPage = () => {
                         }
                       />
                     ) : (
-                      <MobileAccounts
-                        accounts={accountsForCat}
-                        categoryName={category}
-                      />
+                      <MobileAccounts accounts={accountsForCat} categoryName={category} />
                     )}
                   </>
                 )}
@@ -591,6 +516,9 @@ const AccountsPage = () => {
           })}
         </CardContent>
       </Card>
+      <div className={`${openUpgradeDialog && "fixed inset-0 z-50 flex items-center justify-center"}`}>
+        <UpgradePopup open={openUpgradeDialog} onOpenChange={setOpenUpgradeDialog} />
+      </div>
     </div>
   );
 };

@@ -4,11 +4,23 @@ import { X } from "lucide-react";
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { useUser } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
+import { Montserrat } from "next/font/google";
+import { cn } from "@/lib/utils";
 
 interface UpgradePopupProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+const montserratP = Montserrat({
+  weight: "500",
+  subsets: ["latin"],
+});
+
+const montserratH = Montserrat({
+  weight: "800",
+  subsets: ["latin"],
+});
 
 export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
   const monthlyPriceId = process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
@@ -138,11 +150,11 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
   }, [user, open, currentSubscription]);
 
   return (
-    <>
+    <div className={montserratP.className}>
       <AlertDialog open={open} onOpenChange={onOpenChange}>
         <AlertDialogContent className="md:p-4 p-4 rounded-lg w-[90%] md:w-full">
           <div className="flex justify-between items-center">
-            <AlertDialogTitle className="text-2xl font-bold w-full text-center">Link Premium</AlertDialogTitle>
+            <AlertDialogTitle className={cn("text-2xl font-bold w-full text-center", montserratH.className)}>Link Premium</AlertDialogTitle>
             <Button className="hover:bg-transparent" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
               <X className="w-8 h-8 p-1 border border-gray-200 shadow-md hover:shadow-none rounded-lg" />
             </Button>
@@ -290,6 +302,6 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
           </div>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 };
