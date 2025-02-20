@@ -11,15 +11,15 @@ import { Montserrat } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { loadStripe, Stripe } from '@stripe/stripe-js';
-import { Copy } from "lucide-react";
+// import { Copy } from "lucide-react";
 import "/styles.css"
 
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+// import {
+//   Accordion,
+//   AccordionContent,
+//   AccordionItem,
+//   AccordionTrigger,
+// } from "@/components/ui/accordion";
 
 import { ColorRing } from 'react-loader-spinner';
 // Import the shadcn ui Switch component
@@ -427,7 +427,7 @@ const SettingsPage = () => {
             </div>
 
             {/* Referral Code Section */}
-            <div className="space-y-4 relative md:flex md:justify-between md:items-center">
+            {/* <div className="space-y-4 relative md:flex md:justify-between md:items-center">
               <div>
                 <p className="font-semibold text-lg">Referral Code</p>
                 <input
@@ -447,7 +447,7 @@ const SettingsPage = () => {
               >
                 Submit
               </Button>
-            </div>
+            </div> */}
 
             {/* Feature/Bug Section */}
             <div className="space-y-4 relative md:flex md:justify-between md:items-center">
@@ -491,7 +491,7 @@ const SettingsPage = () => {
             {/* --- End Notifications Section --- */}
 
             {/* Referral Section */}
-            <div className="border-t pt-10">
+            {/* <div className="border-t pt-10">
               <p className={cn("flex w-full text-sm md:text-md", montserratH.className)}>
                 Referral Code: 
                 <p className={cn("flex text-wrap break-all ml-2 md:ml-0 md:mx-4 max-w-[50%] text-xs md:text-sm", montserratP.className)}>
@@ -523,7 +523,7 @@ const SettingsPage = () => {
               ) : (
                 <p>Current balance: $0.00</p>
               )}
-            </div>
+            </div> */}
           </CardContent>
         </Card>
       </div>
