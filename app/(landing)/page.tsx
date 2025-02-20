@@ -80,7 +80,7 @@ export default function LandingPage() {
       <div className="absolute inset-0 z-0 overflow-hidden">
         {/* Example blurred shapes */}
         <div className="absolute -top-32 left-32 w-[200px] h-[400px] md:w-[400px] md:h-[700px] -rotate-[40deg] bg-blue-400 opacity-30 rounded-full filter blur-3xl" />
-        <div className="absolute top-[300px] right-0 w-[200px] h-[400px] md:w-[400px] md:h-[800px] rotate-[45deg] bg-blue-400 opacity-30 rounded-full filter blur-3xl overflow-hidden" />
+        <div className="absolute top-[300px] right-0 w-[200px] h-[400px] md:w-[400px] md:h-[800px] rotate-[45deg] bg-blue-400 opacity-30 rounded-full filter blur-3xl" />
         <div className="absolute top-[40%] left-10 w-[200px] h-[400px] md:w-[400px] md:h-[400px] bg-purple-400 opacity-30 rounded-full filter blur-3xl" />
         <div className="absolute bottom-[10px] left-[100px] w-[200px] h-[400px] md:w-[400px] md:h-[400px] bg-purple-400 opacity-30 rounded-full filter blur-3xl" />
         <div className="absolute top-0 right-[45%] w-[200px] h-[400px] md:w-[300px] md:h-[500px] bg-purple-400 opacity-30 rounded-full filter blur-3xl" />
