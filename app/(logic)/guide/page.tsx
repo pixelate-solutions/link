@@ -202,6 +202,7 @@ const GuidePage = () => {
                     <MarkdownRenderer content={aiResponse} />
                   </div>
                 )}
+                <p className="w-full text-center text-gray-500 text-sm mt-4">We make mistakes. Check important details.</p>
               </div>
             )}
             {aiResponse && (

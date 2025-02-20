@@ -515,12 +515,16 @@ body {
   font-style: italic;
 }
 
-/* Lists */
-.markdown-content ul,
-.markdown-content ol {
-  margin: 1em 0;
-  padding-left: 2em;
+.markdown-content ul {
+  list-style-type: disc; 
+  margin-left: 1.5em;
 }
+
+.markdown-content ol {
+  list-style-type: decimal;
+  margin-left: 1.5em;
+}
+
 
 .markdown-content li {
   margin-bottom: 0.5em;
