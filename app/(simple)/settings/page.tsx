@@ -429,13 +429,13 @@ const SettingsPage = () => {
             {/* Promo Code Section */}
             <div className="space-y-4 relative md:flex md:justify-between md:items-center">
               <div>
-                <p className="font-semibold text-lg">Promo Code</p>
+                <p className="font-semibold text-lg">Referral Code</p>
                 <input
                   type="text"
                   value={promoCode}
                   onChange={(e) => setPromoCode(e.target.value)}
                   className="input border border-gray-300 rounded-lg px-4 py-2 shadow-sm w-full md:w-auto focus:outline-none mt-2"
-                  placeholder="Enter promo code"
+                  placeholder="Enter code"
                 />
                 {subscriptionStatus !== "Free" && (<p className="font-semibold text-sm mt-2 text-gray-500">Promo codes are for free accounts.</p>)}
               </div>
@@ -507,7 +507,7 @@ const SettingsPage = () => {
                     How does it work?
                   </AccordionTrigger>
                   <AccordionContent className="font-normal px-4 text-xs md:text-sm">
-                    Share your referral code to earn credit! Anyone can use your referral code once per month, and if they use it, you&apos;ll receive a $5 credit towards your next payment. You cannot use your own code, and it only works for users upgrading from a free membership. To use a referral code, enter it in the promo code field and click submit.
+                    Share your referral code to earn credit! Anyone can use your referral code once per month, and if they use it, you&apos;ll receive a $5 credit towards your next payment. You cannot use your own code, and it only works for users upgrading from a free membership. To use a referral code, enter it in the referral code field and click submit.
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
