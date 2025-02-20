@@ -25,8 +25,7 @@ app.post(
     }
     const { question } = ctx.req.valid("json");
 
-    // Get today's date string (YYYY-MM-DD)
-    const todayStr = new Date().toISOString().split("T")[0];
+    const now = new Date();
 
     // Check if there's a cached response for this question for the current user.
     const cachedResponseArr = await db
@@ -42,9 +41,12 @@ app.post(
 
     if (cachedResponseArr.length > 0) {
       const cached = cachedResponseArr[0];
-      const cachedDateStr = new Date(cached.responseDate).toISOString().split("T")[0];
-      if (cachedDateStr === todayStr) {
-        // Return the cached response immediately.
+      const cachedDate = new Date(cached.responseDate);
+      const diffTime = now.getTime() - cachedDate.getTime();
+      const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+      // If cached response is less than 7 days old, return it.
+      if (diffDays < 7) {
         return new Response(cached.response, {
           headers: {
             "Content-Type": "text/plain",
@@ -54,8 +56,6 @@ app.post(
         });
       }
     }
-
-    // If no cached response for today, proceed to query the data and call the AI endpoint.
 
     // Query the user's accounts with only the needed fields.
     const userAccounts = await db
@@ -141,7 +141,7 @@ Question: ${question}`;
         .update(chatResponses)
         .set({
           response: newResponseText,
-          responseDate: new Date(todayStr),
+          responseDate: new Date(),
         })
         .where(
           and(
@@ -156,7 +156,7 @@ Question: ${question}`;
         userId: auth.userId,
         question: question,
         response: newResponseText,
-        responseDate: new Date(todayStr),
+        responseDate: new Date(),
       });
     }
 

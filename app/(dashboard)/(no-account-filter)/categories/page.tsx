@@ -403,6 +403,7 @@ export default function CategoriesPage() {
           </Button>
         </CardHeader>
         <CardContent>
+          <p className="w-full text-left text-gray-500 mb-4 -mt-4">Categories with type <b className="font-extrabold"><i>Transfer</i></b> do not count toward totals</p>
           {windowWidth >= 1024 ? (
             <DataTable
               filterKey="name"

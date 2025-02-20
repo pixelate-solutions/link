@@ -130,7 +130,7 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
     }
     if (currentSubscription === "Free") {
       setStartOrSwitch("Start");
-      setPopupMessage("Choose a subscription plan that suits your needs.");
+      setPopupMessage("Upgrade your plan to access all Premium features.");
     } else {
       setStartOrSwitch("Switch");
       setPopupMessage("Change your subscription status and receive a prorated refund for unused time.")
@@ -142,18 +142,18 @@ export const UpgradePopup = ({ open, onOpenChange }: UpgradePopupProps) => {
       <AlertDialog open={open} onOpenChange={onOpenChange}>
         <AlertDialogContent className="md:p-4 p-4 rounded-lg w-[90%] md:w-full">
           <div className="flex justify-between items-center">
-            <AlertDialogTitle className="text-xl font-bold">Link Premium</AlertDialogTitle>
+            <AlertDialogTitle className="text-2xl font-bold w-full text-center">Link Premium</AlertDialogTitle>
             <Button className="hover:bg-transparent" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
               <X className="w-8 h-8 p-1 border border-gray-200 shadow-md hover:shadow-none rounded-lg" />
             </Button>
           </div>
-          <AlertDialogDescription className="mb-4">
+          <AlertDialogDescription className="mb-4 -mt-2 text-md w-full lg:px-8 px-4">
             {popupMessage}
           </AlertDialogDescription>
           {/* MONTHLY */}
           <div className="flex items-center border-b pb-4">
             <div className="ml-[10%] w-1/3 font-semibold">Monthly</div>
-            <div className="hidden md:inline w-1/3 text-gray-500">$8/mo</div>
+            <div className="hidden md:inline w-1/3 text-gray-500">$8.00/mo</div>
             {(currentSubscription !== "Monthly") && (
               <AlertDialogAction asChild className="w-1/3">
                 <Button variant="ghost" onClick={() => {

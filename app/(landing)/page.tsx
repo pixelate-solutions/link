@@ -42,17 +42,20 @@ export default function LandingPage() {
   const { user } = useUser();
   const router = useRouter();
 
-  const monthlyPriceId = process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
-  ? process.env.NEXT_PUBLIC_STRIPE_MONTHLY_TEST_PRICE_ID
-  : process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
-  
-  const annualPriceId = process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
-  ? process.env.NEXT_PUBLIC_STRIPE_ANNUAL_TEST_PRICE_ID
-  : process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
-  
-  const lifetimePriceId = process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
-  ? process.env.NEXT_PUBLIC_STRIPE_LIFETIME_TEST_PRICE_ID
-  : process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID;
+  const monthlyPriceId =
+    process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
+      ? process.env.NEXT_PUBLIC_STRIPE_MONTHLY_TEST_PRICE_ID
+      : process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
+
+  const annualPriceId =
+    process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
+      ? process.env.NEXT_PUBLIC_STRIPE_ANNUAL_TEST_PRICE_ID
+      : process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
+
+  const lifetimePriceId =
+    process.env.NEXT_PUBLIC_TEST_OR_LIVE === "TEST"
+      ? process.env.NEXT_PUBLIC_STRIPE_LIFETIME_TEST_PRICE_ID
+      : process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID;
 
   // Create a ref for the video container
   const videoRef = useRef<HTMLDivElement>(null);
@@ -89,7 +92,10 @@ export default function LandingPage() {
       <main className="relative z-10">
         {/* Hero Section */}
         <section className="w-full pt-5 pb-12 px-6 text-center flex flex-col items-center">
-          <img className="h-[100px] w-[100px] lg:h-[150px] lg:w-[150px]" src="/Link_Logo_Simple_Outline.png" />
+          <img
+            className="h-[100px] w-[100px] lg:h-[150px] lg:w-[150px]"
+            src="/Link_Logo_Simple_Outline.png"
+          />
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -118,9 +124,7 @@ export default function LandingPage() {
             className="mt-8"
           >
             <Button
-              onClick={() =>
-                router.push("/overview")
-              }
+              onClick={() => router.push("/overview")}
               className="px-8 py-4 text-md rounded-full bg-blue-600 text-white hover:bg-blue-700"
             >
               {user ? "Dashboard" : "Get Started"}
@@ -227,7 +231,7 @@ export default function LandingPage() {
               className="bg-white rounded-xl shadow-md p-6 text-left"
             >
               <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                Automatic Account Linking
+                Account Linking
               </h3>
               <p className="text-gray-600">
                 Upgrade to Premium to securely connect your bank accounts and
@@ -250,17 +254,18 @@ export default function LandingPage() {
               </p>
             </motion.div>
 
-            {/* Feature 6: Alerts & Notifications (Premium) */}
+            {/* Feature 6: Interactive Finance Guide */}
             <motion.div
               {...fadeUp}
               whileHover={{ scale: 1.02 }}
               className="bg-white rounded-xl shadow-md p-6 text-left"
             >
               <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                Email Notifications
+                Interactive Finance Guide
               </h3>
               <p className="text-gray-600">
-                Get notified when you&apos;re nearing budget limits so you never miss a beat.
+                Leverage our AI-powered guide to get personalized financial insights.
+                Updated weekly, it provides tailored advice based on your transactions and spending patterns.
               </p>
             </motion.div>
           </div>
@@ -314,9 +319,7 @@ export default function LandingPage() {
                 </li>
               </ul>
               <Button
-                onClick={() =>
-                  router.push("/overview")
-                }
+                onClick={() => router.push("/overview")}
                 className={`mt-4 w-full ${
                   user
                     ? "text-white bg-blue-600 hover:bg-blue-700"
@@ -361,12 +364,10 @@ export default function LandingPage() {
               </ul>
               <Button
                 onClick={() => {
-                  const priceId = monthlyPriceId; // This is your monthly Stripe price ID
+                  const priceId = monthlyPriceId;
                   if (user) {
                     router.push(`/overview`);
                   } else {
-                    // If the user is not signed in, redirect them to sign-up.
-                    // Clerk supports passing a redirect URL after sign-up.
                     router.push(`/sign-up?redirect_url=/subscribe?priceId=${priceId}`);
                   }
                 }}
@@ -375,7 +376,6 @@ export default function LandingPage() {
                     ? "text-white bg-blue-600 hover:bg-blue-700"
                     : "bg-white hover:bg-gray-100 text-black border"
                 }`}
-
               >
                 {user ? "Dashboard" : "Upgrade"}
               </Button>
@@ -473,7 +473,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* FAQ Section (optional) */}
+        {/* FAQ Section */}
         <section id="faq" className="w-full pt-28 lg:pt-36 py-12 px-6">
           <div className="mx-auto max-w-3xl text-center mb-8">
             <h2
@@ -485,8 +485,7 @@ export default function LandingPage() {
               Frequently Asked Questions
             </h2>
             <p className="text-gray-600">
-              Still have questions? Here are answers to some of the most common
-              ones.
+              Still have questions? Here are answers to some of the most common ones.
             </p>
           </div>
 
@@ -498,8 +497,7 @@ export default function LandingPage() {
                 </AccordionTrigger>
                 <AccordionContent className="px-4 pt-4 mb-2 rounded-lg text-md bg-white shadow-inner">
                   You can add transactions from the transactions page by entering the
-                  relevant information and amount. It&apos;s quick and
-                  straightforward to keep everything up to date.
+                  relevant information and amount. It&apos;s quick and straightforward to keep everything up to date.
                 </AccordionContent>
               </MotionAccordionItem>
               <MotionAccordionItem value="item-2" {...fadeUp}>
@@ -531,6 +529,14 @@ export default function LandingPage() {
                   Absolutely. We use modern encryption standards and never store
                   your bank credentials on our servers. Your security is our
                   top priority.
+                </AccordionContent>
+              </MotionAccordionItem>
+              <MotionAccordionItem value="item-5" {...fadeUp}>
+                <AccordionTrigger className="text-lg text-left p-4 rounded-2xl my-2 bg-white shadow-sm border hover:no-underline hover:bg-gray-100">
+                  How does the interactive Finance Guide work?
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pt-4 mb-2 rounded-lg text-md bg-white shadow-inner">
+                  The guide analyzes your financial data—from your accounts, transactions, and budgets—using advanced AI to generate personalized insights. Its advice refreshes weekly to keep you updated.
                 </AccordionContent>
               </MotionAccordionItem>
             </Accordion>
