@@ -191,6 +191,7 @@ export const DataCharts = () => {
       </div>
       <div className="col-span-1 lg:col-span-6 p-8 rounded-2xl border-2 drop-shadow-md bg-white">
         <p className="text-xl font-bold">Spending Comparison</p>
+        <p className="text-sm text-gray-400">Click on spending to view transactions</p>
         <SpendingTabs />
       </div>
 
