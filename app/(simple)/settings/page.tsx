@@ -507,7 +507,7 @@ const SettingsPage = () => {
                     How does it work?
                   </AccordionTrigger>
                   <AccordionContent className="font-normal px-4 text-xs md:text-sm">
-                    Share your referral code to earn credit! Anyone can use your referral code once per month, and if they use it, you&apos;ll receive a $5 credit towards your next payment. You cannot use your own code, and it only works for users upgrading from a free membership. To use a referral code, enter it in the referral code field and click submit.
+                    Share your referral code to earn credit! Any free user can use your referral code once per month, and if they use it, you&apos;ll receive a $5 credit towards your next payment. You cannot use your own code, and it only works for users upgrading from a free membership. To use a referral code, enter it in the referral code field and click submit.
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
