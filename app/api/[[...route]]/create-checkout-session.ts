@@ -85,6 +85,7 @@ app.post('/', clerkMiddleware(), async (ctx) => {
         quantity: 1,
       }],
       mode: stripeMode,
+      allow_promotion_codes: true,
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/overview`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/overview`,
       customer: customerId,
