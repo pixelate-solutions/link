@@ -2,7 +2,6 @@
 
 import { useUser } from '@clerk/clerk-react';
 import { useEffect, useState } from "react";
-import { usePlaidLink } from 'react-plaid-link';
 import { Typewriter } from 'react-simple-typewriter';
 import { Montserrat } from "next/font/google";
 import { cn } from "@/lib/utils";

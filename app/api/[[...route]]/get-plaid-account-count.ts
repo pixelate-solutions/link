@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 import { db } from "@/db/drizzle";
-import { accounts } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { userTokens } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 const app = new Hono();
 
@@ -14,12 +14,12 @@ app.get('/', clerkMiddleware(), async (ctx) => {
     return ctx.json({ error: "Unauthorized" }, 401);
   }
 
-  const accountList = await db
+  const connectionsList = await db
     .select()
-    .from(accounts)
-    .where(and(eq(accounts.userId, userId), eq(accounts.isFromPlaid, true)));
+    .from(userTokens)
+    .where(eq(userTokens.userId, userId));
 
-  const count = accountList.length;
+  const count = connectionsList.length;
 
   return ctx.json({ count: count });
 });

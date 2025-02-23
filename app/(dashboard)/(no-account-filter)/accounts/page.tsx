@@ -423,6 +423,7 @@ const AccountsPage = () => {
               <Button
                 className="shadow-lg shadow-indigo-500/20"
                 variant="outline"
+                disabled={!isBelowAccountLimit}
                 onClick={() => {
                   accountCategoryRef.current = selectedCategory;
                   openPlaid();
@@ -457,9 +458,15 @@ const AccountsPage = () => {
 
       {/* ---------- ACCOUNTS CARD ---------- */}
       <Card className="border-2 drop-shadow-md">
-        <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between">
-          <CardTitle className="line-clamp-1 text-2xl font-bold">Accounts</CardTitle>
-        </CardHeader>
+        <CardHeader>
+  <CardTitle className="text-2xl font-bold">Accounts</CardTitle>
+  <div className="mt-1 flex flex-wrap items-center text-gray-400 text-sm">
+    <span>Up to ten linked institutions</span>
+    <span className="mx-2">•</span>
+    <span>Unlimited manual entries</span>
+  </div>
+</CardHeader>
+
         <CardContent>
           {categories.map((category) => {
             const accountsForCat = groupedAccounts[category] || [];
@@ -469,7 +476,7 @@ const AccountsPage = () => {
                   <h3 className="text-lg font-semibold mb-2">{category}</h3>
                   {(accountsForCat.length !== 0) && (
                     <Button
-                    className="border-2 shadow-md"
+                    className="border-2 shadow lg:shadow-md  mb-2 lg:mb-0"
                     variant="outline"
                     size="sm"
                     onClick={() => {
@@ -477,7 +484,7 @@ const AccountsPage = () => {
                       setShowAddAccountDialog(true);
                     }}
                   >
-                    <Plus className="mr-2 size-4" /> Add {category.toLowerCase()}
+                    <Plus className="lg:mr-2 size-4" /> <p className="lg:block hidden">Add {category.toLowerCase()}</p>
                   </Button>
                   )}
                 </div>
