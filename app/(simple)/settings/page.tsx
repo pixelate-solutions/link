@@ -1,29 +1,20 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUser } from '@clerk/clerk-react';
 import { useEffect, useState } from "react";
 import { usePlaidLink } from 'react-plaid-link';
-import { UpgradePopup } from "@/components/upgrade-popup";
 import { Typewriter } from 'react-simple-typewriter';
 import { Montserrat } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { loadStripe, Stripe } from '@stripe/stripe-js';
-// import { Copy } from "lucide-react";
 import "/styles.css"
 
-// import {
-//   Accordion,
-//   AccordionContent,
-//   AccordionItem,
-//   AccordionTrigger,
-// } from "@/components/ui/accordion";
-
 import { ColorRing } from 'react-loader-spinner';
-// Import the shadcn ui Switch component
+import { UpgradePopup } from "@/components/upgrade-popup";
 import { Switch } from "@/components/ui/switch";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 const montserratP = Montserrat({
   weight: "500",
@@ -45,6 +36,8 @@ const SettingsPage = () => {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [openPlaid, setOpenPlaid] = useState<() => void>(() => () => { });
   const [isBelowAccountLimit, setIsBelowAccountLimit] = useState<boolean>(false);
+  const [isCanceling, setIsCanceling] = useState<boolean>(false);
+  const [cancelDate, setCancelDate] = useState<string | null>(null);
 
   const [promoCode, setPromoCode] = useState("");
   const [featureBugRequest, setFeatureBugRequest] = useState("");
@@ -106,62 +99,39 @@ const SettingsPage = () => {
     }
   }, [user]);
 
-  const onSuccess = async (public_token: string) => {
-    try {
-      const response = await fetch('/api/plaid/set-access-token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ public_token, userId: user?.id }),
-      });
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      await fetch('/api/plaid/upload-accounts', { method: 'POST' });
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      await fetch('/api/plaid/upload-transactions', { method: 'POST' });
-      await fetch('/api/plaid/recurring', { method: 'POST' });
-
-      setPlaidIsOpen(false);
-
-      window.location.reload();
-    } catch (error) {
-      console.error("Error exchanging public token and uploading data:", error);
-    }
-  };
-
-  const config = {
-    token: linkToken!,
-    onSuccess,
-    onExit: () => {
-      setPlaidIsOpen(false);
-    },
-  };
-
-  const { open, ready } = usePlaidLink(config);
-
-  useEffect(() => {
-    if (ready) {
-      setOpenPlaid(() => open);
-    }
-  }, [ready, open]);
-
+  // This useEffect fetches the subscription status and stores the cancelation info
   useEffect(() => {
     if (user?.id) {
       fetch(`/api/subscription-status?userId=${user.id}`)
         .then(response => response.json())
-        .then(async (data) => {
+        .then((data) => {
           const label = data.plan;
           setSubscriptionStatus(label);
           if (label === "Free") {
             setSubscriptionButton("Upgrade");
+            fetch("/api/cancel-subscription/cleanup", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+            })
+            .catch((err) => console.error("Error calling cleanup:", err));
           } else if (label === "Monthly" || label === "Annual") {
             setSubscriptionButton("Manage");
           } else if (label === "Lifetime") {
             setSubscriptionButton("Complete");
+          }
+          // Store cancelation info if present
+          if (data.cancelAtPeriodEnd) {
+            setIsCanceling(true);
+            // data.cancelAt is assumed to be a Unix timestamp in seconds
+            const formattedDate = new Date(data.cancelAt * 1000).toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "short",
+              day: "numeric"
+            });
+            setCancelDate(formattedDate);
+          } else {
+            setIsCanceling(false);
+            setCancelDate(null);
           }
         })
         .catch(() => setSubscriptionStatus('Error fetching subscription status'));
@@ -392,7 +362,12 @@ const SettingsPage = () => {
             <div className="space-y-4 relative md:flex md:justify-between md:items-center">
               <div>
                 <p className="font-semibold text-lg">Current Subscription</p>
-                <p className="text-gray-500">{subscriptionStatus}</p>
+                <div className="flex items-center space-x-2">
+                  <p className="text-gray-500">{subscriptionStatus}</p>
+                  {isCanceling && cancelDate && (
+                    <p className="text-sm text-red-400">{`(Canceling ${cancelDate})`}</p>
+                  )}
+                </div>
               </div>
               <Button
                 disabled={subscriptionButton === "Loading..." || subscriptionStatus === "Lifetime"}
@@ -425,29 +400,6 @@ const SettingsPage = () => {
                 {subscriptionStatus === "Loading..." ? "Loading..." : isBelowAccountLimit ? "Link" : "Limit Reached"}
               </Button>
             </div>
-
-            {/* Referral Code Section */}
-            {/* <div className="space-y-4 relative md:flex md:justify-between md:items-center">
-              <div>
-                <p className="font-semibold text-lg">Referral Code</p>
-                <input
-                  type="text"
-                  value={promoCode}
-                  onChange={(e) => setPromoCode(e.target.value)}
-                  className="input border border-gray-300 rounded-lg px-4 py-2 shadow-sm w-full md:w-auto focus:outline-none mt-2"
-                  placeholder="Enter code"
-                />
-                {subscriptionStatus !== "Free" && (<p className="font-semibold text-sm mt-2 text-gray-500">Referral codes are for free accounts.</p>)}
-              </div>
-              <Button
-                disabled={subscriptionStatus !== "Free" || promoCode === ""}
-                className="mt-4 md:mt-0 px-6 py-3 w-full md:w-[200px]"
-                variant="outline"
-                onClick={handlePromoSubmit}
-              >
-                Submit
-              </Button>
-            </div> */}
 
             {/* Feature/Bug Section */}
             <div className="space-y-4 relative md:flex md:justify-between md:items-center">
@@ -488,42 +440,6 @@ const SettingsPage = () => {
                 onCheckedChange={handleNotificationToggle}
               />
             </div>
-            {/* --- End Notifications Section --- */}
-
-            {/* Referral Section */}
-            {/* <div className="border-t pt-10">
-              <p className={cn("flex w-full text-sm md:text-md", montserratH.className)}>
-                Referral Code: 
-                <p className={cn("flex text-wrap break-all ml-2 md:ml-0 md:mx-4 max-w-[50%] text-xs md:text-sm", montserratP.className)}>
-                  {user?.id.split("_")[1]}
-                </p>
-                <p onClick={handleCopy} className="text-gray-600 ml-2 hover:text-gray-500 hover:cursor-pointer text-sm md:text-md">
-                  <Copy className="h-4" /> {copyOrCopied}
-                </p>
-              </p>
-              <Accordion type="single" collapsible className={cn("w-[90%] sm:w-[70%] lg:w-[50%] text-left mt-4", montserratP.className)}>
-                <AccordionItem className="border-none" value="item-1">
-                  <AccordionTrigger className="text-xs md:text-sm hover:no-underline border hover:bg-gray-100 p-2 rounded-2xl my-2">
-                    How does it work?
-                  </AccordionTrigger>
-                  <AccordionContent className="font-normal px-4 text-xs md:text-sm">
-                    Share your referral code to earn credit! Any free user can use your referral code once per month, and if they use it, you&apos;ll receive a $5 credit towards your next payment. You cannot use your own code, and it only works for users upgrading from a free membership. To use a referral code, enter it in the referral code field and click submit.
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </div>
-            <div>
-              {(stripeBalance !== null && stripeBalance !== undefined) ? (
-                <p className={cn("flex", montserratH.className)}>
-                  Current balance: 
-                  <p className={stripeBalance < 0 ? "text-green-600 flex ml-2" : stripeBalance > 0 ? "text-red-600 flex ml-2" : "flex ml-2"}>
-                    ${stripeBalance.toFixed(2)}
-                  </p>
-                </p>
-              ) : (
-                <p>Current balance: $0.00</p>
-              )}
-            </div> */}
           </CardContent>
         </Card>
       </div>

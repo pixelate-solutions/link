@@ -39,6 +39,7 @@ import { Montserrat } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { MobileTransactions } from "@/components/mobile-transactions"; // <-- import the new MobileTransactions component
 import { MobileRecurringTransactions } from "@/components/mobile-recurring-transactions"; // optionally create for recurring
+import { useUser } from "@clerk/nextjs";
 // ^ create a component similar to MobileTransactions if you want a different layout for recurring
 
 const montserratP = Montserrat({
@@ -102,6 +103,26 @@ export default function TransactionsPage() {
 
   // track window width
   const [windowWidth, setWindowWidth] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 9999);
+
+  const { user } = useUser();
+
+  useEffect(() => {
+    if (user?.id) {
+      fetch(`/api/subscription-status?userId=${user.id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.plan === "Free") {
+            fetch("/api/cancel-subscription/cleanup", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+            })
+            .catch((err) => console.error("Error calling cleanup:", err));
+          }
+        })
+        .catch((error) => console.error("Error fetching subscription status:", error));
+    }
+  }, [user?.id]);
+
 
   useEffect(() => {
     const handleResize = () => {

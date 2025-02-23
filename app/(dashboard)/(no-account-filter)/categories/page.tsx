@@ -149,6 +149,24 @@ export default function CategoriesPage() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  useEffect(() => {
+    if (user?.id) {
+      fetch(`/api/subscription-status?userId=${user.id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.plan === "Free") {
+            fetch("/api/cancel-subscription/cleanup", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+            })
+            .catch((err) => console.error("Error calling cleanup:", err));
+          }
+        })
+        .catch((error) => console.error("Error fetching subscription status:", error));
+    }
+  }, [user?.id]);
+
+
   // ------------------------------
   // 2) Get summary data
   // ------------------------------

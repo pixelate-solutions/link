@@ -108,6 +108,30 @@ const AccountsPage = () => {
   });
 
   useEffect(() => {
+    if (!user?.id) return;
+    const fetchStatus = async () => {
+      try {
+        const response = await fetch(`/api/subscription-status?userId=${user.id}`);
+        const data = await response.json();
+        // Set premium user flag based on the plan
+        setIsPremiumUser(data.plan !== "Free");
+
+        // If the plan is Free, trigger cleanup
+        if (data.plan === "Free") {
+          await fetch("/api/cancel-subscription/cleanup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching subscription status:", error);
+        setIsPremiumUser(false);
+      }
+    };
+    fetchStatus();
+  }, [user?.id]);
+
+  useEffect(() => {
     if (user?.id) {
       // Check and insert default categories
       fetch("/api/categories/set-default", {
@@ -234,27 +258,6 @@ const AccountsPage = () => {
     plaidAccountsQuery.isLoading ||
     deleteAccounts.isPending ||
     totalsQuery.isLoading;
-
-  const userId = user?.id || "";
-
-  // Check subscription status
-  useEffect(() => {
-    const fetchSubscriptionStatus = async () => {
-      if (userId) {
-        try {
-          await fetch(`/api/subscription-status?userId=${userId}`)
-            .then((response) => response.json())
-            .then((data) => {
-              setIsPremiumUser(data.plan !== "Free");
-            });
-        } catch (error) {
-          console.error("Error fetching subscription status:", error);
-          setIsPremiumUser(false);
-        }
-      }
-    };
-    fetchSubscriptionStatus();
-  }, [userId]);
 
   const categories = ["Credit cards", "Depository", "Investments", "Loans", "Others"];
 

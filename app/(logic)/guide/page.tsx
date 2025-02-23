@@ -56,6 +56,30 @@ const GuidePage = () => {
     sendLogicQuery(question);
   };
 
+  useEffect(() => {
+    const fetchSubscriptionStatus = async () => {
+      if (userId) {
+        try {
+          const res = await fetch(`/api/subscription-status?userId=${userId}`);
+          const data = await res.json();
+          setSubscriptionStatus(data.plan);
+          setOpenUpgradeDialog(data.plan === "Free");
+          if (data.plan === "Free") {
+            await fetch("/api/cancel-subscription/cleanup", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching subscription status:", error);
+          setSubscriptionStatus("Error");
+        }
+      }
+    };
+
+    fetchSubscriptionStatus();
+  }, [userId]);
+
   // Send the query to the backend.
   const sendLogicQuery = async (question: string) => {
     setIsLoading(true);
@@ -94,25 +118,6 @@ const GuidePage = () => {
     setAiResponse("");
     setShowOptions(true);
   };
-
-  useEffect(() => {
-    const fetchSubscriptionStatus = async () => {
-      if (userId) {
-        try {
-          await fetch(`/api/subscription-status?userId=${userId}`)
-            .then(response => response.json())
-            .then(async (data) => {
-              setSubscriptionStatus(data.plan);
-              setOpenUpgradeDialog(data.plan === "Free");
-            });
-        } catch (error) {
-          console.error("Error fetching subscription status:", error);
-          setSubscriptionStatus("Error");
-        }
-      }
-    };
-    fetchSubscriptionStatus();
-  }, [userId]);
 
   return (
     <>

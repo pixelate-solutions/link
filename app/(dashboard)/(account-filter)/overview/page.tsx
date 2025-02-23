@@ -3,6 +3,7 @@
 import { DataCharts } from "@/components/data-charts";
 import { DataGrid } from "@/components/data-grid";
 import { cn } from "@/lib/utils";
+import { useUser } from "@clerk/nextjs";
 import { Montserrat } from "next/font/google";
 import { useEffect } from "react";
 
@@ -17,9 +18,29 @@ const montserratH = Montserrat({
 });
 
 const DashboardPage = () => {
+  const { user } = useUser();
+
   useEffect(() => {
       window.scrollTo(0, 0);
   }, []);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetch(`/api/subscription-status?userId=${user.id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.plan === "Free") {
+            fetch("/api/cancel-subscription/cleanup", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+            })
+            .catch((err) => console.error("Error calling cleanup:", err));
+          }
+        })
+        .catch((error) => console.error("Error fetching subscription status:", error));
+    }
+  }, [user?.id]);
+
   return (
     <div className={cn("mx-auto w-full max-w-screen-2xl pb-10", montserratP.className)}>
       <div className="absolute inset-0 overflow-x-clip">
