@@ -338,7 +338,7 @@ export default function LandingPage() {
               <h3 className="text-xl font-semibold text-gray-800">
                 Premium (Monthly)
               </h3>
-              <p className="text-3xl font-bold text-gray-800 mt-4">$8</p>
+              <p className="text-3xl font-bold text-gray-800 mt-4">$9</p>
               <p className="text-gray-500 mb-6">per month</p>
               <ul className="text-left text-gray-600 flex-grow">
                 <li className="mb-2 flex items-center">
@@ -389,7 +389,7 @@ export default function LandingPage() {
               <h3 className="text-xl font-semibold text-gray-800">
                 Premium (Yearly)
               </h3>
-              <p className="text-3xl font-bold text-gray-800 mt-4">$79</p>
+              <p className="text-3xl font-bold text-gray-800 mt-4">$90</p>
               <p className="text-gray-500 mb-6">per year</p>
               <ul className="text-left text-gray-600 flex-grow">
                 <li className="mb-2 flex items-center">
@@ -440,7 +440,7 @@ export default function LandingPage() {
               <h3 className="text-xl font-semibold text-gray-800">
                 Premium (Lifetime)
               </h3>
-              <p className="text-3xl font-bold text-gray-800 mt-4">$395</p>
+              <p className="text-3xl font-bold text-gray-800 mt-4">$390</p>
               <p className="text-gray-500 mb-6">one-time</p>
               <ul className="text-left text-gray-600 flex-grow">
                 <li className="mb-2 flex items-center">
@@ -515,10 +515,9 @@ export default function LandingPage() {
                   Can I switch between Premium plans?
                 </AccordionTrigger>
                 <AccordionContent className="px-4 pt-4 mb-2 rounded-lg text-md bg-white shadow-inner">
-                  Yes. If you start monthly, you can switch to yearly or
+                  Yes. For example, if you start monthly, you can switch to yearly or
                   lifetime anytime to save money in the long run. You will
-                  be refunded for your remaining payment period. You should never
-                  have to pay for something you didn&apos;t use.
+                  be refunded for your remaining payment period.
                 </AccordionContent>
               </MotionAccordionItem>
               <MotionAccordionItem value="item-4" {...fadeUp}>
