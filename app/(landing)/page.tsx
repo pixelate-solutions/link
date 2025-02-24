@@ -361,6 +361,10 @@ export default function LandingPage() {
                   <span className="text-green-500 mr-2">✔</span>
                   Email alerts &amp; notifications
                 </li>
+                <li className="mb-2 flex items-center">
+                  <span className="text-green-500 mr-2">✔</span>
+                  AI Finance Guide
+                </li>
               </ul>
               <Button
                 onClick={() => {
@@ -411,6 +415,10 @@ export default function LandingPage() {
                 <li className="mb-2 flex items-center">
                   <span className="text-green-500 mr-2">✔</span>
                   Email alerts &amp; notifications
+                </li>
+                <li className="mb-2 flex items-center">
+                  <span className="text-green-500 mr-2">✔</span>
+                  AI Finance Guide
                 </li>
               </ul>
               <Button
