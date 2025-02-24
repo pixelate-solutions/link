@@ -1,20 +1,16 @@
 "use client";
 
+import React, { useRef, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Montserrat } from "next/font/google";
 import { Button } from "@/components/ui/button";
 import { HeaderLanding } from "@/components/header-landing";
-import {
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from "@/components/ui/accordion";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { Switch } from "@/components/ui/switch"; // <-- Add shadcn Switch import
 import { cn } from "@/lib/utils";
 import "@/styles.css";
-import { useRef } from "react";
 
 // Create a motion version of AccordionItem for the FAQ section.
 const MotionAccordionItem = motion(AccordionItem);
@@ -57,10 +53,14 @@ export default function LandingPage() {
       ? process.env.NEXT_PUBLIC_STRIPE_LIFETIME_TEST_PRICE_ID
       : process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID;
 
+  // By default, we want to start on annual billing for the Premium switch:
+  const [isAnnual, setIsAnnual] = useState(true);
+
   // Create a ref for the video container
   const videoRef = useRef<HTMLDivElement>(null);
   // Get scroll progress relative to the video container.
-  // The offset means: when the top of the container is at the bottom of the viewport (start) and when the bottom of the container is at the top (end)
+  // The offset means: when the top of the container is at the bottom of the viewport (start)
+  // and when the bottom of the container is at the top (end)
   const { scrollYProgress } = useScroll({
     target: videoRef,
     offset: ["start end", "end start"],
@@ -95,6 +95,7 @@ export default function LandingPage() {
           <img
             className="h-[100px] w-[100px] lg:h-[150px] lg:w-[150px]"
             src="/Link_Logo_Simple_Outline.png"
+            alt="Link Logo"
           />
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
@@ -271,7 +272,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Pricing Section */}
+        {/* Pricing Section (Replaced) */}
         <section id="pricing" className="w-full pt-28 lg:pt-36 py-12 px-6 bg-gray-50">
           <div className="mx-auto max-w-4xl text-center mb-10">
             <h2
@@ -287,12 +288,10 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
+          {/* 3 Cards: Free, Premium w/ Switch, One-Time */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {/* Free Plan */}
-            <motion.div
-              {...fadeUp}
-              className="bg-white rounded-xl shadow-md p-6 flex flex-col"
-            >
+            <motion.div {...fadeUp} className="bg-white rounded-xl shadow-md p-6 flex flex-col">
               <h3 className="text-xl font-semibold text-gray-800">Free</h3>
               <p className="text-3xl font-bold text-gray-800 mt-4">$0</p>
               <p className="text-gray-500 mb-6">forever</p>
@@ -320,7 +319,7 @@ export default function LandingPage() {
               </ul>
               <Button
                 onClick={() => router.push("/overview")}
-                className={`mt-4 w-full ${
+                className={`mt-auto w-full ${
                   user
                     ? "text-white bg-blue-600 hover:bg-blue-700"
                     : "bg-white hover:bg-gray-100 text-black border"
@@ -330,154 +329,115 @@ export default function LandingPage() {
               </Button>
             </motion.div>
 
-            {/* Premium Monthly */}
-            <motion.div
-              {...fadeUp}
-              className="bg-white rounded-xl shadow-md p-6 flex flex-col"
-            >
-              <h3 className="text-xl font-semibold text-gray-800">
-                Premium (Monthly)
-              </h3>
-              <p className="text-3xl font-bold text-gray-800 mt-4">$9</p>
-              <p className="text-gray-500 mb-6">per month</p>
-              <ul className="text-left text-gray-600 flex-grow">
-                <li className="mb-2 flex items-center">
-                  <span className="text-green-500 mr-2">✔</span>
-                  Automatic account linking
-                </li>
-                <li className="mb-2 flex items-center">
-                  <span className="text-green-500 mr-2">✔</span>
-                  Automatic transaction syncing
-                </li>
-                <li className="mb-2 flex items-center">
-                  <span className="text-green-500 mr-2">✔</span>
-                  Automatic categorization
-                </li>
-                <li className="mb-2 flex items-center">
-                  <span className="text-green-500 mr-2">✔</span>
-                  Full dashboard &amp; budgets
-                </li>
-                <li className="mb-2 flex items-center">
-                  <span className="text-green-500 mr-2">✔</span>
-                  Email alerts &amp; notifications
-                </li>
-                <li className="mb-2 flex items-center">
-                  <span className="text-green-500 mr-2">✔</span>
-                  AI Finance Guide
-                </li>
-              </ul>
-              <Button
-                onClick={() => {
-                  const priceId = monthlyPriceId;
-                  if (user) {
-                    router.push(`/overview`);
-                  } else {
-                    router.push(`/sign-up?redirect_url=/subscribe?priceId=${priceId}`);
-                  }
-                }}
-                className={`mt-4 w-full ${
-                  user
-                    ? "text-white bg-blue-600 hover:bg-blue-700"
-                    : "bg-white hover:bg-gray-100 text-black border"
-                }`}
-              >
-                {user ? "Dashboard" : "Upgrade"}
-              </Button>
-            </motion.div>
+            {/* Premium Plan (Monthly/Annual Switch) */}
+            <motion.div {...fadeUp} className="bg-white rounded-xl py-6 col-span-2 shadow-lg shadow-indigo-500/40">
+              <h1 className="-mt-4 text-2xl font-bold ml-10 pt-5 my-5">Premium</h1>
+              <div className="lg:flex m-6 lg:m-0 justify-evenly">
+              <motion.div {...fadeUp} className="bg-white rounded-xl shadow-md p-6 border flex flex-col mb-6 lg:mb-0">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={isAnnual}
+                      onCheckedChange={(checked) => setIsAnnual(checked)}
+                      className="transition-colors data-[state=checked]:bg-indigo-500 data-[state=checked]:shadow-[0_0_10px_rgba(59,0,255,0.6)]"
+                    />
+                    <span className="text-gray-600 text-sm">Billed yearly</span>
+                  </div>
+                </div>
 
-            {/* Premium Yearly */}
-            <motion.div
-              {...fadeUp}
-              className="bg-white rounded-xl shadow-md p-6 flex flex-col"
-            >
-              <h3 className="text-xl font-semibold text-gray-800">
-                Premium (Yearly)
-              </h3>
-              <p className="text-3xl font-bold text-gray-800 mt-4">$90</p>
-              <p className="text-gray-500 mb-6">per year</p>
-              <ul className="text-left text-gray-600 flex-grow">
-                <li className="mb-2 flex items-center">
-                  <span className="text-green-500 mr-2">✔</span>
-                  Automatic account linking
-                </li>
-                <li className="mb-2 flex items-center">
-                  <span className="text-green-500 mr-2">✔</span>
-                  Automatic transaction syncing
-                </li>
-                <li className="mb-2 flex items-center">
-                  <span className="text-green-500 mr-2">✔</span>
-                  Automatic categorization
-                </li>
-                <li className="mb-2 flex items-center">
-                  <span className="text-green-500 mr-2">✔</span>
-                  Full dashboard &amp; budgets
-                </li>
-                <li className="mb-2 flex items-center">
-                  <span className="text-green-500 mr-2">✔</span>
-                  Email alerts &amp; notifications
-                </li>
-                <li className="mb-2 flex items-center">
-                  <span className="text-green-500 mr-2">✔</span>
-                  AI Finance Guide
-                </li>
-              </ul>
-              <Button
-                onClick={() => {
-                  const priceId = annualPriceId;
-                  if (user) {
-                    router.push(`/overview`);
-                  } else {
-                    router.push(`/sign-up?redirect_url=/subscribe?priceId=${priceId}`);
-                  }
-                }}
-                className={`mt-4 w-full ${
-                  user
-                    ? "text-white bg-blue-600 hover:bg-blue-700"
-                    : "bg-white hover:bg-gray-100 text-black border"
-                }`}
-              >
-                {user ? "Dashboard" : "Upgrade"}
-              </Button>
-            </motion.div>
+                {isAnnual ? (
+                  <>
+                    <p className="text-3xl font-bold text-gray-800 mt-4">$7.50</p>
+                    <p className="text-gray-500 mb-6">per month billed annually</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-3xl font-bold text-gray-800 mt-4">$9</p>
+                    <p className="text-gray-500 mb-6">per month billed monthly</p>
+                  </>
+                )}
 
-            {/* Premium Lifetime */}
-            <motion.div
-              {...fadeUp}
-              className="bg-white rounded-xl shadow-md p-6 flex flex-col"
-            >
-              <h3 className="text-xl font-semibold text-gray-800">
-                Premium (Lifetime)
-              </h3>
-              <p className="text-3xl font-bold text-gray-800 mt-4">$390</p>
-              <p className="text-gray-500 mb-6">one-time</p>
-              <ul className="text-left text-gray-600 flex-grow">
-                <li className="mb-2 flex items-center">
-                  <span className="text-green-500 mr-2">✔</span>
-                  All Premium features forever
-                </li>
-                <li className="mb-2 flex items-center">
-                  <span className="text-green-500 mr-2">✔</span>
-                  No monthly or yearly fees
-                </li>
-              </ul>
-              <Button
-                onClick={() => {
-                  const priceId = lifetimePriceId;
-                  if (user) {
-                    router.push(`/overview`);
-                  } else {
-                    router.push(`/sign-up?redirect_url=/subscribe?priceId=${priceId}`);
-                  }
-                }}
-                className={`mt-4 w-full ${
-                  user
-                    ? "text-white bg-blue-600 hover:bg-blue-700"
-                    : "bg-white hover:bg-gray-100 text-black border"
-                }`}
-              >
-                {user ? "Dashboard" : "Upgrade"}
-              </Button>
-            </motion.div>
+                <ul className="text-left text-gray-600 flex-grow">
+                  <li className="mb-2 flex items-center">
+                    <span className="text-green-500 mr-2">✔</span>
+                    Automatic account linking
+                  </li>
+                  <li className="mb-2 flex items-center">
+                    <span className="text-green-500 mr-2">✔</span>
+                    Automatic transaction syncing
+                  </li>
+                  <li className="mb-2 flex items-center">
+                    <span className="text-green-500 mr-2">✔</span>
+                    Automatic categorization
+                  </li>
+                  <li className="mb-2 flex items-center">
+                    <span className="text-green-500 mr-2">✔</span>
+                    Full dashboard &amp; budgets
+                  </li>
+                  <li className="mb-2 flex items-center">
+                    <span className="text-green-500 mr-2">✔</span>
+                    Email alerts &amp; notifications
+                  </li>
+                  <li className="mb-2 flex items-center">
+                    <span className="text-green-500 mr-2">✔</span>
+                    AI Finance Guide
+                  </li>
+                </ul>
+
+                <Button
+                  onClick={() => {
+                    const priceId = isAnnual ? annualPriceId : monthlyPriceId;
+                    if (user) {
+                      router.push("/overview");
+                    } else {
+                      router.push(`/sign-up?redirect_url=/subscribe?priceId=${priceId}`);
+                    }
+                  }}
+                  className={`mt-auto w-full ${
+                    user
+                      ? "text-white bg-blue-600 hover:bg-blue-700"
+                      : "bg-white hover:bg-gray-100 text-black border"
+                  }`}
+                >
+                  {user ? "Dashboard" : "Upgrade"}
+                </Button>
+              </motion.div>
+
+              {/* One-Time Plan */}
+              <motion.div {...fadeUp} className="bg-white rounded-xl shadow-md p-6 border flex flex-col">
+                <h3 className="text-xl font-semibold text-gray-800">Pay Once</h3>
+                <p className="text-3xl font-bold text-gray-800 mt-4">$390</p>
+                <p className="text-gray-500 mb-6">Premium access forever</p>
+                <ul className="text-left text-gray-600 flex-grow">
+                  <li className="mb-2 flex items-center">
+                    <span className="text-green-500 mr-2">✔</span>
+                    All Premium features forever
+                  </li>
+                  <li className="mb-2 flex items-center">
+                    <span className="text-green-500 mr-2">✔</span>
+                    No monthly or yearly fees
+                  </li>
+                </ul>
+                <Button
+                  onClick={() => {
+                    const priceId = lifetimePriceId;
+                    if (user) {
+                      router.push("/overview");
+                    } else {
+                      router.push(`/sign-up?redirect_url=/subscribe?priceId=${priceId}`);
+                    }
+                  }}
+                  className={`mt-auto w-full ${
+                    user
+                      ? "text-white bg-blue-600 hover:bg-blue-700"
+                      : "bg-white hover:bg-gray-100 text-black border"
+                  }`}
+                >
+                  {user ? "Dashboard" : "Upgrade"}
+                </Button>
+              </motion.div>
+                </div>
+              </motion.div>
           </div>
         </section>
 
