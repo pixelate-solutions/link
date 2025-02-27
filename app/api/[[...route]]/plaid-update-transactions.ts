@@ -543,11 +543,44 @@ async function processRecurringTransactions(plaidData: any, userId: string) {
       const existing = await db
         .select({ id: recurringTransactions.id })
         .from(recurringTransactions)
-        .where(and(eq(recurringTransactions.streamId, stream.stream_id), eq(recurringTransactions.userId, userId)));
+        .where(
+          and(
+            eq(recurringTransactions.streamId, stream.stream_id),
+            eq(recurringTransactions.userId, userId)
+          )
+        );
+
       if (existing.length > 0) {
-        console.log(`Skipping duplicate transaction for streamId: ${stream.stream_id}`);
-        return null;
-      }
+      // Update the existing recurring transaction with new data from Plaid
+      return db
+        .update(recurringTransactions)
+        .set({
+          name: stream.description,
+          payee: stream.merchant_name
+            ? stream.merchant_name
+                .split(" ")
+                .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .join(" ")
+            : "Unknown",
+          categoryId, // determined earlier in your logic
+          frequency: stream.frequency
+            .split("_")
+            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(" "),
+          averageAmount: ((stream.average_amount?.amount ?? 0) * -1).toString(),
+          lastAmount: ((stream.last_amount?.amount ?? 0) * -1).toString(),
+          date: new Date(stream.last_date),
+          isActive: stream.is_active.toString()
+        })
+        .where(
+          and(
+            eq(recurringTransactions.streamId, stream.stream_id),
+            eq(recurringTransactions.userId, userId)
+          )
+        )
+        .returning();
+    } else {
+      // Insert the new recurring transaction
       return db
         .insert(recurringTransactions)
         .values({
@@ -555,23 +588,25 @@ async function processRecurringTransactions(plaidData: any, userId: string) {
           userId,
           name: stream.description,
           accountId,
-          payee:
-            stream.merchant_name
-              ?.split(" ")
-              .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-              .join(" ") || "Unknown",
+          payee: stream.merchant_name
+            ? stream.merchant_name
+                .split(" ")
+                .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .join(" ")
+            : "Unknown",
           categoryId,
           frequency: stream.frequency
             .split("_")
             .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
             .join(" "),
-          averageAmount,
-          lastAmount,
+          averageAmount: ((stream.average_amount?.amount ?? 0) * -1).toString(),
+          lastAmount: ((stream.last_amount?.amount ?? 0) * -1).toString(),
           date: new Date(stream.last_date),
           isActive: stream.is_active.toString(),
-          streamId: stream.stream_id,
+          streamId: stream.stream_id
         })
         .returning();
+      }
     })
   );
 }

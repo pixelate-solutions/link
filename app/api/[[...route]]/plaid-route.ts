@@ -17,6 +17,7 @@ app.post("/", clerkMiddleware(), async (ctx) => {
     country_codes: [CountryCode.Us],
     language: 'en',
     webhook: `https://www.budgetwithlink.com/api/plaid/webhook/transactions`,
+    days_requested: 180,
   };
 
   try {
