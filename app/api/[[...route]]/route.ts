@@ -29,6 +29,7 @@ import notifications from './notifications'
 import forecast from './forecast'
 import goals from './goals'
 import logic from './logic'
+import walkthroughStatus from './walkthrough-status'
 
 const app = new Hono().basePath('/api');
 
@@ -61,6 +62,7 @@ const routes = app
   .route('/forecast', forecast)
   .route('/goals', goals)
   .route('/logic', logic)
+  .route('/walkthrough-status', walkthroughStatus)
   
 export const GET = handle(app);
 export const POST = handle(app);

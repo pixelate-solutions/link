@@ -217,3 +217,12 @@ export const chatResponses = pgTable("chat_responses", {
   response: text("response").notNull(),
   responseDate: timestamp("response_date", { mode: "date" }).notNull(),
 });
+
+export const walkthrough_status = pgTable("walkthrough_status", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  hidden: boolean("hidden").default(false).notNull(),
+});
+
+export const insertWalkthroughStatusSchema = createInsertSchema(walkthrough_status, {
+});
