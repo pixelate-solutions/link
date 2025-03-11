@@ -476,7 +476,7 @@ const AccountsPage = () => {
                   <h3 className="text-lg font-semibold mb-2">{category}</h3>
                   {(accountsForCat.length !== 0) && (
                     <Button
-                    className="border-2 shadow lg:shadow-md  mb-2 lg:mb-0"
+                    className="border-2 shadow lg:shadow-md mb-2 lg:mb-0"
                     variant="outline"
                     size="sm"
                     onClick={() => {
