@@ -77,7 +77,7 @@ export const sendEmail = async (body: string, userId?: string, to?: string) => {
       recipient = "support@budgetwithlink.com";
     }
 
-    const subject = "Transaction Webhook Notification";
+    const subject = "Link Notification";
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || "587", 10),
@@ -145,10 +145,10 @@ export const sendEmail = async (body: string, userId?: string, to?: string) => {
           <div class="container">
             <div class="header">
               <img class="logo" src="https://www.budgetwithlink.com/caution.png" alt="Caution Icon">
-              <h1>Transaction Webhook Alert</h1>
+              <h1>Link Alert</h1>
             </div>
             <div class="content">
-              ${body}
+              ${body.replace(/\n/g, "<br/>")}
             </div>
             <div class="footer">
               &copy; ${new Date().getFullYear()} LinkLogic LLC. All Rights Reserved.
@@ -734,7 +734,7 @@ app.post("/transactions", clerkMiddleware(), async (ctx) => {
           if (absSumBefore <= totalBudget && absSumAfter > totalBudget) {
             // Send the over-budget email to the user (using their primary email via Clerk)
             await sendEmail(
-              `You have gone over budget for this month.\nCurrent spending this month: $${absSumAfter.toFixed(2)}\nMonthly budget: $${totalBudget.toFixed(2)}`,
+              `You have gone over budget for this month.\n\nCurrent spending this month: $${absSumAfter.toFixed(2)}\n\nMonthly budget: $${totalBudget.toFixed(2)}`,
               userId 
             );
           }
