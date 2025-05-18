@@ -14,6 +14,7 @@ import { UpgradePopup } from "@/components/upgrade-popup";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DemoPopup } from '@/components/demo-popup';
 
 const montserratP = Montserrat({
   weight: "500",
@@ -37,6 +38,7 @@ const SettingsPage = () => {
   const [isBelowAccountLimit, setIsBelowAccountLimit] = useState<boolean>(false);
   const [isCanceling, setIsCanceling] = useState<boolean>(false);
   const [cancelDate, setCancelDate] = useState<string | null>(null);
+  const [showDemo, setShowDemo] = useState<boolean>(false);
 
   const [promoCode, setPromoCode] = useState("");
   const [featureBugRequest, setFeatureBugRequest] = useState("");
@@ -372,7 +374,8 @@ const SettingsPage = () => {
                 disabled={subscriptionButton === "Loading..." || subscriptionStatus === "Lifetime"}
                 className="mt-4 md:mt-0 px-6 py-3 w-full md:w-[200px]"
                 variant="outline"
-                onClick={() => setOpenUpgradeDialog(true)}
+                // onClick={() => setOpenUpgradeDialog(true)}
+                onClick={() => {setShowDemo(true)}}
               >
                 {subscriptionButton}
               </Button>
@@ -387,14 +390,15 @@ const SettingsPage = () => {
               <Button
                 disabled={subscriptionStatus === "Loading..." || !isBelowAccountLimit}
                 className={cn("bg-gradient-to-br from-blue-500 to-purple-500 hover:opacity-85 text-white font-bold mt-4 md:mt-0 px-6 py-3 w-full md:w-[200px]", montserratH.className)}
-                onClick={() => {
-                  if (subscriptionStatus !== "Free") {
-                    openPlaid();
-                    setPlaidIsOpen(true);
-                  } else {
-                    setOpenUpgradeDialog(true);
-                  }
-                }}
+                // onClick={() => {
+                //   if (subscriptionStatus !== "Free") {
+                //     openPlaid();
+                //     setPlaidIsOpen(true);
+                //   } else {
+                //     setOpenUpgradeDialog(true);
+                //   }
+                // }}
+                onClick={() => {setShowDemo(true)}}
               >
                 {subscriptionStatus === "Loading..." ? "Loading..." : isBelowAccountLimit ? "Link" : "Limit Reached"}
               </Button>
@@ -415,7 +419,8 @@ const SettingsPage = () => {
               <Button
                 disabled={featureBugRequest === ""}
                 className="mt-4 md:mt-0 px-6 py-3 w-full md:w-[200px]"
-                onClick={handleFeatureBugSubmit}
+                // onClick={handleFeatureBugSubmit}
+                onClick={() => {setShowDemo(true)}}
                 variant="outline"
               >
                 Submit
@@ -442,6 +447,7 @@ const SettingsPage = () => {
           </CardContent>
         </Card>
       </div>
+      <DemoPopup isOpen={showDemo} onClose={() => setShowDemo(false)} />
     </div>
   );
 };

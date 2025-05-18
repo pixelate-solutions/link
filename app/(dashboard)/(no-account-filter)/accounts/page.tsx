@@ -39,6 +39,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 
 import { ColorRing } from "react-loader-spinner";
 import { UpgradePopup } from "@/components/upgrade-popup";
+import { DemoPopup } from "@/components/demo-popup";
 
 const montserratP = Montserrat({
   weight: "500",
@@ -72,6 +73,7 @@ const AccountsPage = () => {
   const [openPlaid, setOpenPlaid] = useState<() => void>(() => () => {});
   const [isBelowAccountLimit, setIsBelowAccountLimit] = useState<boolean>(false);
   const [openUpgradeDialog, setOpenUpgradeDialog] = useState<boolean>(false);
+  const [showDemo, setShowDemo] = useState<boolean>(false);
 
   // NEW: track window width for conditional rendering
   const [windowWidth, setWindowWidth] = useState<number>(
@@ -424,12 +426,13 @@ const AccountsPage = () => {
                 className="shadow-lg shadow-indigo-500/20"
                 variant="outline"
                 disabled={!isBelowAccountLimit}
-                onClick={() => {
-                  accountCategoryRef.current = selectedCategory;
-                  openPlaid();
-                  setPlaidIsOpen(true);
-                  setShowAddAccountDialog(false);
-                }}
+                // onClick={() => {
+                //   accountCategoryRef.current = selectedCategory;
+                //   openPlaid();
+                //   setPlaidIsOpen(true);
+                //   setShowAddAccountDialog(false);
+                // }}
+                onClick={() => {setShowDemo(true)}}
               >
                 Linked
               </Button>
@@ -529,6 +532,7 @@ const AccountsPage = () => {
       <div className={`${openUpgradeDialog && "fixed inset-0 z-50 flex items-center justify-center"}`}>
         <UpgradePopup open={openUpgradeDialog} onOpenChange={setOpenUpgradeDialog} />
       </div>
+      <DemoPopup isOpen={showDemo} onClose={() => setShowDemo(false)} />
     </div>
   );
 };

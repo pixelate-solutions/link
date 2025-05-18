@@ -9,6 +9,7 @@ import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { Typewriter } from "react-simple-typewriter";
 import { useUser } from "@clerk/nextjs";
 import { UpgradePopup } from "@/components/upgrade-popup";
+import { DemoPopup } from "@/components/demo-popup";
 
 const montserratP = Montserrat({
   weight: "500",
@@ -45,6 +46,7 @@ const GuidePage = () => {
   const [showOptions, setShowOptions] = useState(true);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>("Loading...");
   const [openUpgradeDialog, setOpenUpgradeDialog] = useState<boolean>(false);
+  const [showDemo, setShowDemo] = useState<boolean>(false);
 
   const { isLoaded, user } = useUser();
   const userId = user?.id;
@@ -143,13 +145,14 @@ const GuidePage = () => {
                   <button
                     key={idx}
                     className="bg-white rounded-xl border-2 shadow-md p-4 hover:scale-[102%] hover:bg-gray-50 transition-all"
-                    onClick={() => {
-                      if (subscriptionStatus === "Free") {
-                        setOpenUpgradeDialog(true);
-                      } else {
-                        handleOptionClick(option);
-                      }
-                    }}
+                    // onClick={() => {
+                    //   if (subscriptionStatus === "Free") {
+                    //     setOpenUpgradeDialog(true);
+                    //   } else {
+                    //     handleOptionClick(option);
+                    //   }
+                    // }}
+                    onClick={() => setShowDemo(true)}
                   >
                     {option}
                   </button>
@@ -231,6 +234,7 @@ const GuidePage = () => {
           <UpgradePopup open={openUpgradeDialog} onOpenChange={setOpenUpgradeDialog} />
         </div>
       )}
+      <DemoPopup isOpen={showDemo} onClose={() => setShowDemo(false)} />
     </>
   );
 };
