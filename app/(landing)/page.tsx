@@ -135,7 +135,6 @@ export default function LandingPage() {
 
         {/* Looping Video Section */}
         <section className="w-full px-6 mb-12 flex justify-center">
-          {/* The parent div has the ref and perspective to create a 3D effect */}
           <div
             ref={videoRef}
             className="w-full max-w-[90%] md:max-w-[80%] lg:max-w-[70%]"
