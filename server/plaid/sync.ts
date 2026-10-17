@@ -367,6 +367,10 @@ export async function exchangePublicToken(userId: string, publicToken: string, i
     .returning({ id: schema.connections.id });
   if (!conn) throw new Error("This connection already exists");
   await enqueue({ type: "plaid_sync", userId, payload: { connectionId: conn.id }, dedupeKey: `sync:${conn.id}` });
+  if (institution.id) {
+    const { institutionLogo } = await import("./institutions");
+    await db.update(schema.connections).set({ institutionLogo: await institutionLogo(institution.id) }).where(and(eq(schema.connections.id, conn.id), eq(schema.connections.userId, userId)));
+  }
   return conn.id;
 }
 

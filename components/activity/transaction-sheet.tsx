@@ -156,7 +156,6 @@ function TransactionDetail({ id, onChanged }: { id: string; onChanged: () => voi
               {t.classSource !== "user" && ` · ${Math.round(t.confidence * 100)}% sure`}
             </p>
             {t.reason && t.classSource !== "user" && <p className="mt-0.5 text-[13px] text-fg-2">{t.reason}.</p>}
-            {t.pair.length > 0 && <p className="mt-1 text-[13px] text-muted">Paired with the matching transfer, so it isn&apos;t counted as spending or income.</p>}
             {t.corrections.some((c) => !c.revertedAt) && (
               <button
                 onClick={() =>
@@ -229,7 +228,6 @@ function TransactionDetail({ id, onChanged }: { id: string; onChanged: () => voi
             <label htmlFor="note" className="text-[13px] font-medium">
               Context for Link
             </label>
-            <p className="mt-0.5 text-[12px] text-muted">Anything Link should know about this one. It uses this when it answers questions and plans.</p>
             <textarea
               id="note"
               rows={2}
@@ -281,9 +279,6 @@ function ReviewCallout({ t, busy, onConfirm, onChange, onExplained }: { t: Detai
     <div className="mt-6 rounded-md border border-caution/25 bg-caution-soft p-4">
       <p className="text-[12px] font-medium text-caution">Needs a look</p>
       <p className="mt-1 text-[16px] font-semibold tracking-[-0.01em]">{p.ask}</p>
-      <p className="mt-0.5 text-[13px] text-fg-2">
-        {p.why} {isPaymentRail(t.merchantKey) ? "Your answer applies to this payment only." : `Your answer teaches Link how to handle ${t.merchant} from now on.`}
-      </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <Button size="sm" variant="primary" busy={busy} onClick={onConfirm}>
           <Check size={14} /> Yes, that&apos;s right

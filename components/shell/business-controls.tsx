@@ -1,7 +1,7 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
-import { useState, useTransition } from "react";
+import { Check, Trash2 } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
 import { createBusinessAction, deleteBusinessAction, setAccountBusinessAction, updateBusinessAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -75,7 +75,7 @@ export function AccountOwner({ accountId, businessId, businesses, onChanged }: {
   return (
     <>
       <Select value={businessId ?? "personal"} disabled={pending} onValueChange={assign}>
-        <SelectTrigger aria-label="Who this account belongs to" size="sm" className={cn("max-w-[11rem]", businessId ? "bg-accent-soft text-accent-ink hover:bg-accent-soft" : "bg-surface text-fg-2")}>
+        <SelectTrigger aria-label="Who this account belongs to" size="sm" className={cn("max-w-[11rem] disabled:cursor-wait disabled:opacity-100", businessId ? "bg-accent-soft text-accent-ink hover:bg-accent-soft" : "bg-surface text-fg-2")}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -89,6 +89,7 @@ export function AccountOwner({ accountId, businessId, businesses, onChanged }: {
           <SelectItem value="__new">New business…</SelectItem>
         </SelectContent>
       </Select>
+      <SaveStatus pending={pending} saved={false} />
       {error && <span className="text-[12px] text-caution">{error}</span>}
     </>
   );
@@ -98,14 +99,23 @@ export function AccountOwner({ accountId, businessId, businesses, onChanged }: {
 export function BusinessSettings({ business, onChanged }: { business: BusinessSummary; onChanged: () => void }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [structure, setStructure] = useState(business.structure);
+  useEffect(() => {
+    if (!saved) return;
+    const t = setTimeout(() => setSaved(false), 2000);
+    return () => clearTimeout(t);
+  }, [saved]);
   const save = (patch: Parameters<typeof updateBusinessAction>[1]) =>
     start(async () => {
+      setSaved(false);
       const r = await updateBusinessAction(business.id, patch);
       if (!r.ok) setError(r.error);
+      else setSaved(true);
       onChanged();
     });
   return (
-    <div className={cn("rounded-md bg-surface-2 p-3.5", pending && "opacity-70")}>
+    <div className="rounded-md bg-surface-2 p-3.5">
       <div className="flex items-center justify-between gap-2">
         <input
           aria-label="Business name"
@@ -113,6 +123,7 @@ export function BusinessSettings({ business, onChanged }: { business: BusinessSu
           onBlur={(e) => e.target.value.trim() && e.target.value !== business.name && save({ name: e.target.value })}
           className="min-w-0 flex-1 bg-transparent text-[15px] font-medium outline-none"
         />
+        <SaveStatus pending={pending} saved={saved} />
         <button
           onClick={() => start(async () => { const r = await deleteBusinessAction(business.id); if (!r.ok) setError(r.error); onChanged(); })}
           aria-label={`Remove ${business.name}; its accounts become personal`}
@@ -124,7 +135,13 @@ export function BusinessSettings({ business, onChanged }: { business: BusinessSu
       <div className="mt-3 grid grid-cols-2 gap-3 text-[13px]">
         <div className="flex flex-col gap-1">
           <span className="text-muted">Structure</span>
-          <Select defaultValue={business.structure} onValueChange={(v) => save({ structure: v })}>
+          <Select
+            value={structure}
+            onValueChange={(v) => {
+              setStructure(v);
+              save({ structure: v });
+            }}
+          >
             <SelectTrigger aria-label="Structure" className="h-8 bg-surface px-2.5">
               <SelectValue />
             </SelectTrigger>
@@ -165,16 +182,35 @@ export function BusinessSettings({ business, onChanged }: { business: BusinessSu
             % of profit
           </span>
         </label>
-        {business.structure === "sole_prop" ? (
-          <p className="self-end pb-1.5 text-[12px] text-muted">A sole proprietorship&apos;s cash is yours, so it counts toward your goals.</p>
-        ) : (
-          <label className="flex cursor-pointer items-center gap-2 self-end pb-1.5">
+        <label className={cn("flex items-center gap-2 self-end pb-1.5", structure === "sole_prop" ? "cursor-default" : "cursor-pointer")}>
+          {/* A sole proprietorship's money is the owner's: it always counts. */}
+          {structure === "sole_prop" ? (
+            <Checkbox checked disabled />
+          ) : (
             <Checkbox defaultChecked={business.countTowardGoals} onCheckedChange={(c) => save({ countTowardGoals: c === true })} />
-            <span className="text-fg-2">Count its cash toward my goals</span>
-          </label>
-        )}
+          )}
+          <span className="text-fg-2">Count its cash toward my goals</span>
+        </label>
       </div>
       {error && <p className="mt-2 text-[12px] text-caution">{error}</p>}
     </div>
   );
+}
+
+/** Saving feedback that says what's happening, instead of dimming the card. */
+function SaveStatus({ pending, saved }: { pending: boolean; saved: boolean }) {
+  if (pending)
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[12px] text-muted" role="status">
+        <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-r-transparent" aria-hidden />
+        Saving…
+      </span>
+    );
+  if (saved)
+    return (
+      <span className="inline-flex items-center gap-1 text-[12px] text-accent-ink" role="status">
+        <Check size={13} /> Saved
+      </span>
+    );
+  return null;
 }

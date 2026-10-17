@@ -42,15 +42,6 @@ export function BusinessSummaryCard({ b }: { b: BusinessView }) {
   );
 }
 
-/** How Link treats each structure, in one line the owner can check. */
-const STRUCTURE_NOTE: Record<string, string> = {
-  sole_prop: "Sole proprietorship: the business is you. Its profit is your income for taxes whether or not you move it to personal accounts.",
-  llc: "LLC: taxed as a pass-through, so your share of profit is taxed on your personal return whether or not you draw it.",
-  s_corp: "S corp: your salary comes through payroll with taxes withheld; profit beyond it passes through to your personal return.",
-  partnership: "Partnership: only your ownership share of profit is yours, and it's taxed on your personal return.",
-  other: "Taxed on its own: Link counts only what you take out as personal income.",
-};
-
 /** Detailed: the business on its own terms. */
 export function BusinessDetailCard({ b }: { b: BusinessView }) {
   const max = Math.max(1, ...b.months.map((m) => Math.abs(m.profit)));
@@ -132,19 +123,10 @@ export function BusinessDetailCard({ b }: { b: BusinessView }) {
         </li>
         {b.taxSetAsideMonthly > 0 && (
           <li>
-            Estimated taxes: about {formatMoney(b.taxSetAsideMonthly)} a month ({b.taxSetAsidePct}% of your share of profit; change the rate in Account).
-            {b.personalTaxMonthly > 0 && <> {formatMoney(b.personalTaxMonthly)} of it falls on your personal money because you draw the profit out, so your plan sets that aside.</>}
+            Estimated taxes {formatMoney(b.taxSetAsideMonthly)}/mo
+            {b.personalTaxMonthly > 0 && <> · {formatMoney(b.personalTaxMonthly)}/mo from personal</>}
           </li>
         )}
-        <li className="text-muted">{STRUCTURE_NOTE[b.structure] ?? STRUCTURE_NOTE.other}</li>
-        <li className="text-muted">
-          Counted in your net worth at your share ({formatMoney(b.ownerShare)}).{" "}
-          {b.structure === "sole_prop"
-            ? "As a sole proprietorship, its cash and the profit you leave in it count toward your goals."
-            : b.countTowardGoals
-              ? "Its cash, and the profit you leave in it, count toward your goals."
-              : "Its cash isn't counted toward your goals unless you turn that on."}
-        </li>
       </ul>
     </Card>
   );

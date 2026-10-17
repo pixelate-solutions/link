@@ -40,7 +40,6 @@ export function ContextPanel({ items }: { items: { id: string; content: string }
       <h2 id="context-title" className="text-[17px] font-semibold tracking-[-0.01em]">
         What Link should know
       </h2>
-      <p className="mt-1 text-[13px] text-muted">Anything that explains your money. Link keeps it in mind when it sorts transactions and answers questions.</p>
       <form
         className="mt-4 flex items-end gap-2"
         onSubmit={(e) => {

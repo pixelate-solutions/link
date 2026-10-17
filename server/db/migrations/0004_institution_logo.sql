@@ -1,0 +1,1 @@
+ALTER TABLE "link"."connections" ADD COLUMN "institution_logo" text;

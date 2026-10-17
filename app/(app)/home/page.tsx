@@ -77,7 +77,6 @@ export default async function HomePage() {
           <h2 id="understand-title" className="text-[20px] font-semibold tracking-[-0.02em]">
             Help Link understand you
           </h2>
-          <p className="text-[13px] text-muted">The more Link knows about your life, the better your plan fits it.</p>
         </div>
         <div className={question ? "grid gap-4 md:grid-cols-2" : ""}>
           {question && <QuestionCard q={question} />}

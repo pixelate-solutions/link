@@ -110,6 +110,8 @@ export const connections = link.table(
     itemId: text("item_id").notNull(),
     institutionId: text("institution_id"),
     institutionName: text("institution_name"),
+    /** Logo as an https or data: URL; "" once looked up and none was found. */
+    institutionLogo: text("institution_logo"),
     accessTokenEnc: text("access_token_enc").notNull(),
     cursor: text("cursor"),
     status: text("status").notNull().default("active"), // active | login_required | error | disconnected

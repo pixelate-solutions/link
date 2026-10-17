@@ -11,6 +11,7 @@ export async function listConnections(userId: string) {
     .select({
       id: schema.connections.id,
       institutionName: schema.connections.institutionName,
+      institutionLogo: schema.connections.institutionLogo,
       provider: schema.connections.provider,
       status: schema.connections.status,
       errorCode: schema.connections.errorCode,

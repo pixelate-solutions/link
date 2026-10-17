@@ -29,7 +29,6 @@ export function QuestionCard({ q }: { q: { key: string; question: string; why: s
     <Card className="h-full">
       <Eyebrow>A quick question</Eyebrow>
       <p className="mt-2 text-[17px] font-medium tracking-[-0.01em]">{q.question}</p>
-      <p className="mt-1 text-[13px] text-muted">{q.why}</p>
       <form
         onSubmit={(e) => {
           e.preventDefault();

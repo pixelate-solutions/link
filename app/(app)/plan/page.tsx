@@ -103,7 +103,7 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
 
       <Card id="what-if" className="scroll-mt-24">
         <h2 className="text-[17px] font-semibold tracking-[-0.01em]">What if…</h2>
-        <p className="mb-4 mt-1 text-[14px] text-muted">Try a change. Nothing is saved unless you choose to.</p>
+        <div className="mb-4" />
         <WhatIf initial={initialScenario} />
       </Card>
 
@@ -175,8 +175,6 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
           </dl>
           <p className="mt-4 text-[13px] text-muted">
             {formatMoney(assets)} in assets, {formatMoney(debts)} owed.
-            {p.position.loanDebt > 0 && " What your home or car is worth isn't included, only what you owe on them."}
-            {!p.position.investmentsKnown && " Investments you haven't connected aren't included; tell Link about them to sharpen your plan."}
           </p>
         </Disclosure>
       </Card>

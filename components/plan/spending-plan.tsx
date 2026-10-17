@@ -33,7 +33,6 @@ export function SpendingPlan({ budget, asOf }: { budget: Picture["budget"]; asOf
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-[17px] font-semibold tracking-[-0.01em]">{month} spending plan</h2>
-          <p className="mt-1 text-[14px] text-muted">Built from what you usually spend. Tap an amount to change it.</p>
         </div>
         <div className="text-right">
           <p className={cn("text-[24px] font-semibold tracking-[-0.03em] tabular", left < 0 && "text-caution")}>

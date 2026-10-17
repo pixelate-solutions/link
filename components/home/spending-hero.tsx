@@ -51,7 +51,6 @@ export function SpendingHero({ picture }: { picture: Picture }) {
         <div className={cn("absolute inset-y-0 left-0 rounded-full", left < 0 || ahead ? "bg-caution" : "bg-accent")} style={{ width: `${pct * 100}%` }} />
         <div className="absolute -top-1 h-[18px] w-0.5 rounded-full bg-bg/70" style={{ left: `${pacePct * 100}%` }} />
       </div>
-      <p className="mt-2 text-[12px] opacity-60">The tick is where a typical month of yours is by today.</p>
 
       {hot.length > 0 && (
         <ul className="mt-4 flex flex-wrap gap-1.5">

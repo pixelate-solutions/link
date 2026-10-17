@@ -98,7 +98,6 @@ export function Onboarding({ name, hasGoal, hasConnection, plaid, demo }: { name
                   </motion.li>
                 ))}
               </ul>
-              <p className="mt-4 text-[14px] text-muted">You can change this anytime in Plan.</p>
               <Button className="mt-8" variant="primary" size="lg" onClick={() => setStep("connect")}>
                 Next
               </Button>

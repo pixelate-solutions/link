@@ -80,7 +80,6 @@ export function NextMoves({ recs }: { recs: RecView[] }) {
           <h2 id="moves-title" className="text-[20px] font-semibold tracking-[-0.02em]">
             Your next moves
           </h2>
-          <p className="text-[13px] text-muted">Ranked by how much each helps your goals.</p>
         </div>
       </div>
       {visible.length === 0 ? (

@@ -10,7 +10,7 @@ export function ComingUp({ picture, logos }: { picture: Picture; logos: Record<s
   if (!events.length) return null;
   return (
     <Card className="h-full">
-      <Eyebrow>Coming up in the next two weeks</Eyebrow>
+      <Eyebrow>Coming up</Eyebrow>
       <ul className="mt-3 space-y-3">
         {events.map((e, i) => (
           <li key={`${e.date}-${e.label}-${i}`} className="flex items-center gap-3 text-[14px]">

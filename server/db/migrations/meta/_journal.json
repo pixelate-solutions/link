@@ -29,6 +29,13 @@
       "when": 1792260788574,
       "tag": "0003_ask_attachments",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792268944579,
+      "tag": "0004_institution_logo",
+      "breakpoints": true
     }
   ]
 }

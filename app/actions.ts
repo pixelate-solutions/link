@@ -303,6 +303,7 @@ export async function accountOverviewAction() {
     const { getPreferences, listFacts } = await import("@/server/services/plan");
     const { plaidConfigured } = await import("@/server/plaid/client");
     const { demoEnabled } = await import("@/server/demo/seed");
+    await (await import("@/server/plaid/institutions")).ensureInstitutionLogos(u);
     const [[user], connections, accounts, memories, rules, prefs, facts] = await Promise.all([
       db.select().from(schema.users).where(eq(schema.users.id, u)),
       listConnections(u),

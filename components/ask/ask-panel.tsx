@@ -329,7 +329,6 @@ export function AskPanel({ open, onOpenChange, prefill, autoSend, nonce }: { ope
                     </button>
                   ))}
                 </div>
-                <p className="mt-6 text-[13px] text-muted">You can also drop in a statement, receipt or screenshot, or ask Link for a chart or a spreadsheet.</p>
               </div>
             ) : (
               messages.map((m) => <Bubble key={m.id} m={m} onResolved={(id, status) => setMessages((all) => all.map((x) => ({ ...x, proposals: x.proposals?.map((p) => (p.id === id ? { ...p, status } : p)) })))} />)

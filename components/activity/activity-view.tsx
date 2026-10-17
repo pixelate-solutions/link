@@ -300,12 +300,6 @@ function ReviewList({ rows, busy, onOpen, onChanged }: { rows: TxnListRow[]; bus
 
   return (
     <div className="mt-5">
-      <div className="rounded-lg bg-surface p-5">
-        <p className="text-[15px] font-semibold tracking-[-0.01em]">Link wasn&apos;t sure about these</p>
-        <p className="mt-1 text-[14px] text-fg-2">
-          Confirm, pick the right category, or just explain what happened in your own words. Your answer covers the transactions in that card; for a store or company, Link also remembers it for next time.
-        </p>
-      </div>
       {notice && (
         <div className="mt-3 px-1 text-[14px]" role="status">
           <p className="flex items-center gap-1.5 text-accent-ink">
@@ -421,7 +415,6 @@ function ReviewCard({
           )}
 
           <p className="mt-3 text-[15px] font-medium">{p.ask}</p>
-          <p className="text-[13px] text-fg-2">{p.why}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Button size="sm" variant="primary" busy={pending && !explaining} disabled={busy || pending} onClick={() => settle(null)}>
               <Check size={14} /> Yes{many ? `, all ${items.length}` : ""}
@@ -478,7 +471,6 @@ function ReviewCard({
                 <Button type="button" size="sm" variant="quiet" onClick={() => setExplaining(false)}>
                   Cancel
                 </Button>
-                <span className="text-[12px] text-muted">Link picks the category and keeps your words as a note.</span>
               </div>
             </form>
           )}

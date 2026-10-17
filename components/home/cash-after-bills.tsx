@@ -27,8 +27,6 @@ export function CashAfterBills({ picture, compact }: { picture: Picture; compact
     );
   }
 
-  const buffer = s.breakdown.find((b) => b.label === "Safety buffer")?.amount ?? 0;
-  const large = s.amount > Math.max(5_000_00, picture.baseline.spending * 1.5);
 
   return (
     <Card className="flex h-full flex-col">
@@ -41,12 +39,7 @@ export function CashAfterBills({ picture, compact }: { picture: Picture; compact
         )}
       </div>
       <AnimatedMoney value={s.amount} className={cn("mt-2 block font-semibold leading-none tracking-[-0.04em]", compact ? "text-[32px]" : "text-[40px]", s.amount < 0 && "text-caution")} />
-      <p className="mt-3 text-[14px] text-fg-2">
-        {s.amount < 0
-          ? `Bills before ${shortDate(s.horizonEnd)} add up to more than you have in checking.`
-          : `In checking after every bill, scheduled savings and a ${formatMoney(Math.abs(buffer))} cushion, through ${shortDate(s.horizonEnd)}.`}
-      </p>
-      {large && s.amount > 0 && <p className="mt-2 text-[13px] text-muted">That&apos;s more than everyday spending needs. It isn&apos;t a spending target; your next moves suggest where it could do more.</p>}
+      <p className="mt-3 text-[14px] text-fg-2">{s.amount < 0 ? `Short before ${shortDate(s.horizonEnd)}` : `Through ${shortDate(s.horizonEnd)}`}</p>
 
       <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="mt-auto inline-flex items-center gap-1 pt-4 text-[13px] font-medium text-fg-2 hover:text-fg">
         How it&apos;s calculated

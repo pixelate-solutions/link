@@ -137,7 +137,8 @@ export function AccountSheet({ open, onOpenChange }: { open: boolean; onOpenChan
                 return (
                   <li key={c.id} className="rounded-md bg-surface-2 p-3.5">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <InstitutionMark name={c.institutionName ?? "Bank"} logo={c.institutionLogo} />
+                      <div className="min-w-0 flex-1">
                         <p className="text-[15px] font-medium">{c.institutionName ?? "Bank"}</p>
                         <p className={cn("text-[12px]", c.status === "active" ? "text-muted" : "text-caution")}>
                           {demo
@@ -203,7 +204,6 @@ export function AccountSheet({ open, onOpenChange }: { open: boolean; onOpenChan
                   <BusinessSettings key={b.id} business={b} onChanged={() => act(async () => ({ ok: true }))} />
                 ))}
               </div>
-              <p className="mt-2 text-[12px] text-muted">Business accounts stay out of your personal spending and Safe to Spend. Money you move to yourself counts as your income.</p>
             </Section>
           )}
 
@@ -230,7 +230,7 @@ export function AccountSheet({ open, onOpenChange }: { open: boolean; onOpenChan
 
           <Section title="What Link knows about you">
             {data.facts.length === 0 && data.memories.length === 0 ? (
-              <p className="text-[13px] text-muted">Nothing yet. Link asks only when an answer would change your plan.</p>
+              <p className="text-[13px] text-muted">Nothing yet.</p>
             ) : (
               <ul className="space-y-1.5">
                 {data.facts.map((f) => (
@@ -362,5 +362,20 @@ export function AccountSheet({ open, onOpenChange }: { open: boolean; onOpenChan
         </div>
       )}
     </Sheet>
+  );
+}
+
+/** The bank's logo, or its initial when Plaid has none. */
+function InstitutionMark({ name, logo }: { name: string; logo?: string | null }) {
+  const [broken, setBroken] = useState(false);
+  return (
+    <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-surface text-[13px] font-semibold text-fg-2" aria-hidden>
+      {logo && !broken ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={logo} alt="" className="h-full w-full bg-white object-contain p-1" referrerPolicy="no-referrer" onError={() => setBroken(true)} />
+      ) : (
+        name.trim().charAt(0).toUpperCase()
+      )}
+    </span>
   );
 }

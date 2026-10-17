@@ -72,7 +72,7 @@ export function CashFlow({ forecast }: { forecast: Picture["forecast"] }) {
       </div>
       <figcaption className="mt-2 text-[13px] text-fg-2">
         Lowest point about <span className="tabular">{formatMoney(forecast.lowest.expected)}</span> on {shortDate(forecast.lowest.date)}
-        {forecast.shortfall ? <span className="text-caution">; could dip below zero around {shortDate(forecast.shortfall.date)}</span> : ""}. Shaded range covers most likely outcomes. Hover the chart for any day.
+        {forecast.shortfall ? <span className="text-caution">; could dip below zero around {shortDate(forecast.shortfall.date)}</span> : ""}.
       </figcaption>
     </figure>
   );
