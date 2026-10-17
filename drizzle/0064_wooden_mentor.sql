@@ -1,1 +1,0 @@
-ALTER TABLE "categorization_rules" ADD COLUMN "date" timestamp NOT NULL;

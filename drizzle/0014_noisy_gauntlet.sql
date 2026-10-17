@@ -1,1 +1,0 @@
-ALTER TABLE "transactions" ADD COLUMN "user_id" text NOT NULL;

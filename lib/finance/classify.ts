@@ -86,6 +86,11 @@ export const REVIEW_THRESHOLD_MINOR = 50_00;
 
 const PFC_DETAILED: Record<string, CategoryId> = {
   INCOME_WAGES: "paycheck",
+  INCOME_SALARY: "paycheck",
+  INCOME_GIG_ECONOMY: "paycheck",
+  INCOME_CONTRACTOR: "paycheck",
+  INCOME_OTHER: "other_income",
+  INCOME_RENTAL: "other_income",
   INCOME_DIVIDENDS: "interest",
   INCOME_INTEREST_EARNED: "interest",
   INCOME_RETIREMENT_PENSION: "other_income",
@@ -240,7 +245,7 @@ export function detectStructure(input: ClassifyInput): Structural | null {
   if (RE.transfer.test(text) && !RE.payroll.test(text)) {
     return { kind: "transfer", category: "transfer", confidence: 0.75, reason: "Looks like a transfer" };
   }
-  if (inflow && (d === "INCOME_WAGES" || RE.payroll.test(text))) {
+  if (inflow && (d === "INCOME_WAGES" || d === "INCOME_SALARY" || RE.payroll.test(text))) {
     return { kind: "income", category: "paycheck", confidence: 0.93, reason: "Payroll deposit" };
   }
   if (inflow && (d === "INCOME_INTEREST_EARNED" || d === "INCOME_DIVIDENDS" || RE.interest.test(text))) {

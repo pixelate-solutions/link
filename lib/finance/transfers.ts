@@ -49,12 +49,12 @@ export function matchTransfers(txns: TransferCandidate[]): TransferMatch[] {
       if (used.has(inn.id) || inn.accountId === out.accountId || inn.amount !== -out.amount) continue;
       const gap = Math.abs(daysBetween(out.date, inn.date));
       if (gap > MAX_GAP_DAYS) continue;
+      const liabilityOrInvestment = inn.accountType === "credit" || inn.accountType === "loan" || inn.accountType === "investment";
       const plausible =
         MOVEMENT_KINDS.has(out.kind) ||
         MOVEMENT_KINDS.has(inn.kind) ||
-        inn.accountType === "credit" ||
-        inn.accountType === "loan" ||
-        inn.accountType === "investment";
+        // A card refund is not a payment, even when the amounts happen to match.
+        (liabilityOrInvestment && inn.kind !== "refund" && inn.kind !== "income");
       if (!plausible) continue;
       if (gap < bestGap) {
         best = inn;

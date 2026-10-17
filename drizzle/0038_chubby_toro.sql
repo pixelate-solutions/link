@@ -1,1 +1,0 @@
-ALTER TABLE "categories" ADD COLUMN "budget_amount" text;

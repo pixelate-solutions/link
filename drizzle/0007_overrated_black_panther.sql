@@ -1,1 +1,0 @@
-ALTER TABLE "user_tokens" DROP COLUMN IF EXISTS "updated_at";

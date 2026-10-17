@@ -1,1 +1,0 @@
-ALTER TABLE "accounts" ADD COLUMN "plaid_item_id" text NOT NULL;

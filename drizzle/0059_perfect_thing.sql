@@ -1,1 +1,0 @@
-ALTER TABLE "user_tokens" ADD COLUMN "cursor" text;

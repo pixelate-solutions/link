@@ -1,1 +1,0 @@
-ALTER TABLE "chat_info_updates" ALTER COLUMN "last_updated" SET NOT NULL;

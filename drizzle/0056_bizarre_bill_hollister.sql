@@ -1,1 +1,0 @@
-ALTER TABLE "accounts" ALTER COLUMN "plaid_item_id" DROP NOT NULL;
