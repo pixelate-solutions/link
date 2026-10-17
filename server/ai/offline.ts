@@ -199,7 +199,17 @@ export async function answerOffline(ctx: ToolCtx, message: string, call: Call): 
     return [`${recs.length === 1 ? "The most valuable thing" : `The ${recs.length} most valuable things`} you can do now:`, ...recs.map((r, i) => `${i + 1}. ${r.title}. ${r.detail}`)].join("\n");
   }
 
-  // 10. Default: a short status read.
+  // 10. "What was my last/most recent X charge?"
+  const last = text.match(/\b(?:last|latest|most recent|recent)\s+([A-Za-z0-9'& ]{2,30}?)\s+(?:payment|charge|transaction|purchase|bill)s?\b/i);
+  if (last) {
+    const q = last[1]!.trim();
+    const rows = (await call("search_transactions", { query: q, limit: 1 })) as { date: string; merchant: string; amount: number; category: string; pending: boolean }[];
+    const r = rows[0];
+    if (!r) return `I couldn't find a ${q} transaction.`;
+    return `${r.merchant}: ${$(Math.abs(r.amount), true)} ${r.amount > 0 ? "received" : "paid"} on ${new Date(`${r.date}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}${r.pending ? " (pending)" : ""}, in ${categoryLabel(r.category)}.`;
+  }
+
+  // 11. Default: a short status read.
   const [o, g] = (await Promise.all([call("get_financial_overview", {}), call("get_goals", {})])) as [
     { safe_to_spend: { amount: number; status: string }; typical_month: { surplus: number; savings_rate: number | null } },
     { goals: Goal[] },

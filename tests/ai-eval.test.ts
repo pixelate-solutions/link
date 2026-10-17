@@ -1,5 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { EVAL_CASES, runEval } from "@/server/ai/eval";
+import { EVAL_CASES, INJECTED_TXN, runEval } from "@/server/ai/eval";
+import { applySyncBatch } from "@/server/plaid/sync";
+import { ACCOUNTS } from "./fixtures/household";
 import { createGoalsFromStatement } from "@/server/services/plan";
 import { testDb } from "./helpers/db";
 import { NOW, seedHousehold } from "./helpers/household";
@@ -10,7 +12,8 @@ describe("AI evaluation suite (deterministic planner)", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(NOW);
     const { db } = await testDb();
-    await seedHousehold(db, "eval_user");
+    const { connId } = await seedHousehold(db, "eval_user");
+    await applySyncBatch(db, { id: connId, userId: "eval_user" }, { accounts: ACCOUNTS, added: [INJECTED_TXN], modified: [], removed: [], nextCursor: "inj" }, NOW);
     await createGoalsFromStatement("eval_user", "I want to retire as soon as possible without completely sacrificing my lifestyle.");
   }, 120_000);
 
