@@ -14,10 +14,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test",
+    "ui:screens": "node scripts/ui/screens.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx server/db/migrate.ts",
-    "db:seed-demo": "tsx scripts/seed-demo.ts",
     "db:import-legacy": "tsx scripts/import-legacy.ts",
     "jobs:work": "tsx scripts/work-jobs.ts",
     "ai:eval": "tsx scripts/ai-eval.ts"

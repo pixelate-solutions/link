@@ -177,12 +177,16 @@ export async function answerOffline(ctx: ToolCtx, message: string, call: Call): 
 
   // 8. Why a category?
   if (/\bwhy\b.*\b(categor|groceries|dining|labeled|marked)/.test(lower)) {
-    const q = text.match(/\b(?:at|from|for)\s+([A-Za-z0-9'& ]{2,30}?)(?:\s+as\b|\?|$)/)?.[1]?.trim();
+    const q = (
+      text.match(/categori[sz](?:e|ed|ing)\s+(?:my\s+|the\s+|a\s+)?([A-Za-z0-9'& ]{2,30}?)(?:\s+(?:purchase|charge|transaction)s?)?\s+as\b/i) ??
+      text.match(/\b(?:at|from|for)\s+([A-Za-z0-9'& ]{2,30}?)(?:\s+as\b|\?|$)/)
+    )?.[1]?.trim();
     if (q) {
-      const rows = (await call("search_transactions", { query: q, limit: 1 })) as { id: string }[];
-      if (rows[0]) {
-        const e = (await call("explain_transaction", { id: rows[0].id })) as { merchant: string; category: string; reason: string; confidence: number; source: string };
-        return `${e.merchant} is in ${categoryLabel(e.category)} because: ${e.reason.toLowerCase()} (confidence ${Math.round(e.confidence * 100)}%). If it's wrong, change it in Activity and Link will remember.`;
+      const rows = (await call("search_transactions", { query: q, limit: 10 })) as { id: string; merchant: string }[];
+      const pick = rows.find((r) => r.merchant.toLowerCase() === q.toLowerCase()) ?? rows[0];
+      if (pick) {
+        const e = (await call("explain_transaction", { id: pick.id })) as { merchant: string; category: string; reason: string; confidence: number; source: string };
+        return `${e.merchant} is in ${categoryLabel(e.category)}. ${e.reason}${e.source === "user" ? "" : ` (${Math.round(e.confidence * 100)}% sure)`}. If it's wrong, change it in Activity and Link will remember.`;
       }
     }
     return "Tap the transaction in Activity to see why Link categorized it, and change it in one tap if it's wrong.";

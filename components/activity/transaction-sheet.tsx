@@ -23,6 +23,7 @@ const SOURCE: Record<string, string> = {
   merchant: "Known merchant",
   history: "Your history with this merchant",
   ai: "Link's model",
+  legacy: "Carried over from your previous setup",
   default: "Best guess",
 };
 
