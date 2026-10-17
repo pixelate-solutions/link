@@ -17,7 +17,9 @@ Branch `link-2.0`. This is the resumable checklist; keep it current.
 - [x] `/transactions/sync` applier: atomic, idempotent, modified, removed, pending→posted keeping user edits, unchanged redeliveries are no-ops
 - [x] Pagination restart on mutation during pagination
 - [x] Webhook ES256 verification, dedupe, item health (login required, revoked, repaired)
-- [~] Live Plaid calls (link token, exchange, sync, liabilities, item/remove, update mode). Written against plaid-node 48 and typechecked. **Not run: no Plaid credentials.**
+- [x] Live Plaid sandbox (`scripts/plaid-sandbox-check.ts`): link token, exchange, encrypted token, sync until data is ready, liabilities (APRs), processing, item/remove
+- [x] Plaid Link in the browser (sandbox): login, account selection, `onSuccess`, server exchange, first sync driven from the Syncing screen (`scripts/ui/clerk-flow.mjs`)
+- [x] Plaid production: link token created and Link opens on https://link-omega.vercel.app. A real bank connection is yours to make.
 
 ## 3. Categorization
 - [x] Layered classifier, merchant normalization, transfer and card-payment pairing, recurring detection
@@ -58,7 +60,13 @@ Branch `link-2.0`. This is the resumable checklist; keep it current.
 - [x] Docs: README, ARCHITECTURE, AI_HARNESS, MCP_TOOLS, FINANCIAL_CALCULATIONS, DATABASE_MIGRATION, SECURITY, DEPLOYMENT
 - [x] `npm run typecheck`, `npm run lint`, `npm test` (all green), `npm run build` (production build succeeds). Unauthenticated access checked against `next start`.
 
-## Blockers needing credentials or decisions
-- **Plaid** sandbox or production keys (`PLAID_CLIENT_ID`, `PLAID_SECRET`), to verify live sync and webhooks.
-- **Clerk keys**, for real auth. Local development uses `LINK_DEV_AUTH=1`.
+## Deployment (2026-10-17)
+- Production: https://link-omega.vercel.app (Vercel project `link`, deployed from `main`), Neon database with the `link` schema migrated.
+- Secrets: Infisical, Pixelate Solutions → project **Link** (`dev`: local + Plaid sandbox, `prod`: Vercel + Plaid production). Vercel has Production-target variables only.
+- Verified live: Clerk sign-in (development instance), Plaid production link token, Ask on GPT-6 Luna, all protected routes return 401 without auth, cron runs with its secret.
+
+## Open items
+- **Old tables in production** (`public` schema): no financial data, but about 38 rows of old billing, chat and notification records. Not dropped yet; needs confirmation.
+- **Plaid OAuth banks** (Chase and others) may require `https://link-omega.vercel.app` under Allowed redirect URIs in the Plaid dashboard.
+- **Clerk** is a development instance (`pk_test`): fine for personal use; a production instance needs a custom domain.
 - **Shared households.** Needs a consent and permissions design before implementation.
