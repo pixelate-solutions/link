@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   if (!body.success) return Response.json({ error: "Invalid request" }, { status: 400 });
   try {
     const connectionId = await exchangePublicToken(userId, body.data.publicToken, body.data.institution ?? {});
-    after(() => runJobs({ limit: 3, timeBudgetMs: 55_000 }));
+    after(() => runJobs({ userId, limit: 3, timeBudgetMs: 55_000 }));
     return Response.json({ connectionId });
   } catch (err) {
     log.error("exchange failed", err, { code: plaidErrorCode(err) });

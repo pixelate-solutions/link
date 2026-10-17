@@ -33,7 +33,26 @@ async function handlers(): Promise<Record<JobType, Handler>> {
   ]);
   return {
     plaid_sync: async (j) => {
-      await syncConnection(String((j.payload as { connectionId: string }).connectionId), j.userId!);
+      const { connectionId, waits = 0 } = j.payload as { connectionId: string; waits?: number };
+      const r = await syncConnection(String(connectionId), j.userId!);
+      // Plaid prepares new items asynchronously; until the first transactions arrive, check
+      // back shortly (webhooks also trigger syncs, but may be unavailable, e.g. locally).
+      if (r.added === 0 && r.modified === 0 && waits < 20) {
+        const { and, count, eq } = await import("drizzle-orm");
+        const d = await getDb();
+        const [c] = await d
+          .select({ initialSyncDone: schema.connections.initialSyncDone })
+          .from(schema.connections)
+          .where(and(eq(schema.connections.id, String(connectionId)), eq(schema.connections.userId, j.userId!)));
+        const [row] = await d
+          .select({ n: count() })
+          .from(schema.transactions)
+          .innerJoin(schema.accounts, eq(schema.accounts.id, schema.transactions.accountId))
+          .where(and(eq(schema.accounts.connectionId, String(connectionId)), eq(schema.transactions.userId, j.userId!)));
+        if (c && !c.initialSyncDone && !row?.n) {
+          await enqueue({ type: "plaid_sync", userId: j.userId, payload: { connectionId, waits: waits + 1 }, dedupeKey: `sync:${connectionId}`, runAfter: new Date(Date.now() + 15_000) });
+        }
+      }
     },
     process_user: async (j) => {
       await processUser(j.userId!);
@@ -47,7 +66,8 @@ async function handlers(): Promise<Record<JobType, Handler>> {
   };
 }
 
-export async function runJobs(opts: { limit?: number; timeBudgetMs?: number } = {}) {
+/** Drain due jobs. With `userId`, only that user's jobs run (for responsive, per-request work). */
+export async function runJobs(opts: { limit?: number; timeBudgetMs?: number; userId?: string } = {}) {
   const db = await getDb();
   const limit = opts.limit ?? 10;
   const deadline = Date.now() + (opts.timeBudgetMs ?? 50_000);
@@ -67,6 +87,7 @@ export async function runJobs(opts: { limit?: number; timeBudgetMs?: number } = 
       update link.jobs set status = 'running', locked_at = now(), attempts = attempts + 1
       where id = (
         select id from link.jobs j where status = 'queued' and run_after <= now()
+          and (${opts.userId ?? null}::text is null or j.user_id = ${opts.userId ?? null})
           -- Jobs sharing a key (e.g. one connection's sync) never run concurrently.
           and (j.dedupe_key is null or not exists (select 1 from link.jobs r where r.dedupe_key = j.dedupe_key and r.status = 'running'))
         order by run_after, id for update skip locked limit 1

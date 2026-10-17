@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   }
   try {
     const r = await handlePlaidWebhook(raw);
-    if (r.status === "ok") after(() => runJobs({ limit: 3, timeBudgetMs: 55_000 }));
+    if (r.status === "ok") after(() => runJobs({ userId: r.userId, limit: 3, timeBudgetMs: 55_000 }));
     return Response.json({ received: true });
   } catch (err) {
     log.error("webhook handling failed", err);

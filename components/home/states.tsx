@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useTransition } from "react";
-import { loadDemoAction, proposalAction } from "@/app/actions";
+import { loadDemoAction, proposalAction, pumpJobsAction } from "@/app/actions";
 import { ConnectBank } from "@/components/connect/connect-bank";
 import { Button } from "@/components/ui/button";
 import { Card, Eyebrow } from "./card";
@@ -29,8 +29,19 @@ export function EmptyHome({ plaid, demo }: { plaid: boolean; demo: boolean }) {
 export function Syncing() {
   const router = useRouter();
   useEffect(() => {
-    const t = setInterval(() => router.refresh(), 4000);
-    return () => clearInterval(t);
+    let alive = true;
+    // Keep this user's sync moving while they watch, then refresh to pick up results.
+    const tick = async () => {
+      await pumpJobsAction();
+      if (!alive) return;
+      router.refresh();
+      setTimeout(tick, 5000);
+    };
+    const t = setTimeout(tick, 1500);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
   }, [router]);
   return (
     <Card className="py-10 text-center" aria-live="polite">

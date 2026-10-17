@@ -154,12 +154,12 @@ const PFC_CONFIDENCE: Record<string, number> = { VERY_HIGH: 0.95, HIGH: 0.9, MED
 
 const RE = {
   cardPayment:
-    /\b(payment\s*(-\s*)?(thank\s*you|received|recv)|autopay|auto\s*pay|card\s*(services\s*)?payment|e-?payment|crd\s*epay|cardmember\s*serv|credit\s*card\s*pmt|applecard\s*gsbank)/i,
+    /\b(payment\s*(-\s*)?(thank(\s*you)?|received|recv)|automatic\s*payment|autopay|auto\s*pay|card\s*(services\s*)?payment|e-?payment|crd\s*epay|cardmember\s*serv|credit\s*card\s*pmt|applecard\s*gsbank)/i,
   issuerDebit: /\b(chase\s*credit\s*crd|amex\s*epayment|american\s*express|citi\s*(card|autopay)|capital\s*one\s*(crcardpmt|mobile\s*pmt)|discover\s*(e-?payment|card))\b/i,
   transfer: /\b(transfer|xfer|trnsfr|online\s*banking\s*transfer|to\s*(savings|checking)|from\s*(savings|checking)|internal\s*transfer)\b/i,
   investment: /\b(vanguard|fidelity|schwab|betterment|wealthfront|robinhood|e\*?trade|brokerage|401k|ira\s*contrib)\b/i,
   payroll: /\b(payroll|direct\s*dep(osit)?|dir\s*dep|salary|adp|gusto|paychex|workday|intuit\s*payroll|pay\s*roll)\b/i,
-  interest: /\b(interest\s*(paid|payment|earned)|int\s*earned|dividend)\b/i,
+  interest: /\b(interest\s*(paid|payment|earned)|int(e?re?st)?\s*(earned|pymnt|pmt)|intrst\s*pymnt|dividend)\b/i,
   mortgage: /\b(mortgage|mtg\s*pmt|home\s*loan|rocket\s*mortgage|mr\.?\s*cooper|loan\s*servic)/i,
   loan: /\b(auto\s*loan|student\s*loan|navient|nelnet|sallie\s*mae|great\s*lakes|car\s*payment)\b/i,
   refund: /\b(refund|return|reversal|credit\s*adj|merchandise\s*credit)\b/i,
@@ -211,7 +211,8 @@ export function detectStructure(input: ClassifyInput): Structural | null {
   const d = input.providerDetailed ?? "";
   const inflow = input.amount > 0;
 
-  if (d === "LOAN_PAYMENTS_CREDIT_CARD_PAYMENT" || (input.accountType === "credit" && inflow && RE.cardPayment.test(text))) {
+  // On a card account a payment description means a card payment, whatever sign the bank reports.
+  if (d === "LOAN_PAYMENTS_CREDIT_CARD_PAYMENT" || (input.accountType === "credit" && RE.cardPayment.test(text))) {
     return { kind: "card_payment", category: "card_payment", confidence: 0.95, reason: "Credit card payment" };
   }
   if (input.accountType === "depository" && !inflow && (RE.cardPayment.test(text) || RE.issuerDebit.test(text))) {
@@ -240,6 +241,9 @@ export function detectStructure(input: ClassifyInput): Structural | null {
   }
   if (p === "LOAN_PAYMENTS" || (!inflow && RE.loan.test(text))) {
     return { kind: "loan_payment", category: "debt_interest", confidence: 0.88, reason: "Loan payment" };
+  }
+  if (inflow && input.accountType === "depository" && RE.interest.test(text)) {
+    return { kind: "income", category: "interest", confidence: 0.9, reason: "Interest or dividends" };
   }
   if (p === "TRANSFER_IN" || p === "TRANSFER_OUT") {
     const invest = d.includes("INVESTMENT") || d.includes("RETIREMENT") || RE.investment.test(text);

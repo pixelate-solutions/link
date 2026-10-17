@@ -33,7 +33,7 @@ export function ThisMonth({ picture }: { picture: Picture }) {
   const spent = picture.budget.spentThisMonth;
   const expected = picture.budget.typicalByNow;
   if (!typical) return null;
-  const pct = Math.min(1, spent / typical);
+  const pct = Math.max(0, Math.min(1, spent / typical));
   const pace = Math.min(1, expected / typical);
   const ahead = spent > expected * 1.1 + 50_00;
   const behind = spent < expected * 0.9 - 50_00;
@@ -42,8 +42,9 @@ export function ThisMonth({ picture }: { picture: Picture }) {
       <Card className="h-full transition-colors hover:bg-surface/80">
         <Eyebrow>This month</Eyebrow>
         <p className="mt-2 text-[22px] font-semibold tracking-[-0.02em] tabular">
-          {formatMoney(spent)} <span className="text-[15px] font-normal text-muted">of about {formatMoney(typical)}</span>
+          {formatMoney(Math.max(0, spent))} <span className="text-[15px] font-normal text-muted">of about {formatMoney(typical)}</span>
         </p>
+        {spent < 0 && <p className="mt-1 text-[13px] text-muted">Refunds exceeded purchases by {formatMoney(-spent)} so far.</p>}
         <div className="relative mt-4 h-2 rounded-full bg-surface-2" aria-hidden>
           <div className="absolute inset-y-0 left-0 rounded-full bg-fg/80" style={{ width: `${pct * 100}%` }} />
           <div className="absolute -top-1 h-4 w-0.5 rounded-full bg-muted" style={{ left: `${pace * 100}%` }} title="Where a typical month is by today" />

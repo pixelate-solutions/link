@@ -306,3 +306,11 @@ export async function accountOverviewAction() {
     };
   }, false);
 }
+
+/** Runs this user's due background jobs (first sync, processing) while they wait on screen. */
+export async function pumpJobsAction() {
+  return run(async (u) => {
+    const r = await runJobs({ userId: u, limit: 3, timeBudgetMs: 25_000 });
+    return { processed: r.processed };
+  });
+}

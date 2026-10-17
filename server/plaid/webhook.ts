@@ -60,7 +60,7 @@ interface PlaidWebhook {
 }
 
 /** Apply a verified webhook. Duplicate deliveries are ignored. */
-export async function handlePlaidWebhook(rawBody: string, at = Date.now()): Promise<{ status: "ok" | "duplicate" | "ignored" }> {
+export async function handlePlaidWebhook(rawBody: string, at = Date.now()): Promise<{ status: "ok" | "duplicate" | "ignored"; userId?: string }> {
   const body = JSON.parse(rawBody) as PlaidWebhook;
   const db = await getDb();
   // Plaid bodies carry no event id and repeat byte-for-byte (every SYNC_UPDATES_AVAILABLE for an
@@ -96,7 +96,7 @@ export async function handlePlaidWebhook(rawBody: string, at = Date.now()): Prom
       ...(body.historical_update_complete ? { historicalSyncDone: true } : {}),
     });
     if (conn.status !== "disconnected") await sync();
-    return { status: "ok" };
+    return { status: "ok", userId: conn.userId };
   }
   if (type === "ITEM") {
     switch (code) {
