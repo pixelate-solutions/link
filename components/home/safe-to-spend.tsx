@@ -45,7 +45,7 @@ export function SafeToSpend({ picture, shortfall }: { picture: Picture; shortfal
               </span>
             )}
           </div>
-          <AnimatedMoney value={s.amount} className={cn("mt-2 block text-display font-semibold", s.amount < 0 && "text-caution")} />
+          <AnimatedMoney value={s.amount} className={cn("mt-2 block text-[48px] font-semibold leading-none tracking-[-0.045em] sm:text-display", s.amount < 0 && "text-caution")} />
           <p className="mt-2 text-[14px] text-muted">
             until {shortDate(s.horizonEnd)}
             {s.perDay > 0 && <> · about {formatMoney(s.perDay)} a day</>}

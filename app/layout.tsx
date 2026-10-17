@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   description: "Tell Link what you want out of life. Link figures out how your money gets you there.",
   applicationName: "Link",
   appleWebApp: { capable: true, title: "Link", statusBarStyle: "default" },
-  icons: { icon: "/icon.svg", apple: "/apple-icon.png" },
+  icons: { icon: "/icon.svg" },
 };
 
 export const viewport: Viewport = {

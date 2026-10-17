@@ -44,7 +44,7 @@ a tested, idempotent, non-destructive migration (see `DATABASE_MIGRATION.md`).
 
 ## 1. Framework and packages
 
-**Current.** Next 14.2, React 18, TypeScript 5, Tailwind 3, Clerk 5 (plus unused `@clerk/backend`, `@clerk/clerk-sdk-node`, `@clerk/express`), drizzle-orm 0.30 / drizzle-kit 0.21, Plaid 27, Stripe 16, framer-motion 11, 81 runtime dependencies.
+**Current.** Next 14.2, React 18, TypeScript 5, Tailwind 3, Clerk 5 (plus unused `@clerk/backend`, `@clerk/clerk-sdk-node`, `@clerk/express`), drizzle-orm 0.30 / drizzle-kit 0.21, Plaid 27, Stripe 16, framer-motion 11, 77 runtime dependencies.
 
 **Problems.**
 - Dependencies that are never imported: `typewriter-effect`, `embla-carousel-autoplay`, `react-code-blocks`, `marked`, `simple-statistics`, `@clerk/clerk-sdk-node`, `@clerk/backend`. Others are only used by dead components: `embla-carousel-react`, `react-syntax-highlighter`, `react-copy-to-clipboard`.

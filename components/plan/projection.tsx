@@ -63,7 +63,7 @@ export function Projection({ goal, inputs }: { goal: GoalView; inputs: PlanInput
   return (
     <div>
       <p className="text-[13px] font-medium text-muted">{goal.title}</p>
-      <motion.p key={rangeText(w, age0)} initial={{ opacity: 0.4 }} animate={{ opacity: 1 }} className="mt-1 text-display font-semibold">
+      <motion.p key={rangeText(w, age0)} initial={{ opacity: 0.4 }} animate={{ opacity: 1 }} className="mt-1 text-[40px] font-semibold leading-none tracking-[-0.04em] sm:text-display">
         {rangeText(w, age0)}
       </motion.p>
       <p className="mt-2 text-[14px] text-fg-2">
@@ -87,12 +87,12 @@ export function Projection({ goal, inputs }: { goal: GoalView; inputs: PlanInput
           <motion.path initial={false} animate={{ d: path(pts[0]!) }} fill="none" strokeWidth={1.25} className="stroke-muted/60" />
           <motion.path initial={false} animate={{ d: path(pts[2]!) }} fill="none" strokeWidth={1.25} className="stroke-muted/60" />
           <motion.path initial={false} animate={{ d: path(pts[1]!) }} fill="none" strokeWidth={2.5} strokeLinecap="round" className="stroke-fg" />
-          {[0, Math.round(years / 2), years].map((yr) => (
-            <text key={yr} x={x(yr)} y={H - 6} textAnchor={yr === 0 ? "start" : yr === years ? "end" : "middle"} className="fill-muted text-[11px] tabular">
-              {label(yr)}
-            </text>
-          ))}
         </svg>
+        <div className="-mt-4 flex justify-between text-[11px] text-muted tabular" aria-hidden>
+          <span>{label(0)}</span>
+          <span>{label(Math.round(years / 2))}</span>
+          <span>{label(years)}</span>
+        </div>
         <figcaption className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-muted">
           <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 rounded-full bg-fg" /> Expected</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-2 w-4 rounded-sm bg-fg/10" /> Conservative to optimistic</span>
