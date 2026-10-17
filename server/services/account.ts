@@ -63,6 +63,11 @@ export async function exportUserData(userId: string) {
     db.select().from(schema.memories).where(eq(schema.memories.userId, userId)),
   ]);
   const businesses = await db.select().from(schema.businesses).where(eq(schema.businesses.userId, userId));
+  // File contents stay out of the JSON; each one downloads from Ask.
+  const files = await db
+    .select({ id: schema.attachments.id, conversationId: schema.attachments.conversationId, messageId: schema.attachments.messageId, source: schema.attachments.source, name: schema.attachments.name, mime: schema.attachments.mime, size: schema.attachments.size, createdAt: schema.attachments.createdAt })
+    .from(schema.attachments)
+    .where(eq(schema.attachments.userId, userId));
   const connections = (await listConnections(userId)).map((c) => ({ ...c, note: "Access tokens are never exported." }));
   return {
     exportedAt: new Date().toISOString(),
@@ -84,6 +89,7 @@ export async function exportUserData(userId: string) {
     recommendations,
     conversations,
     messages,
+    files,
     memories,
   };
 }

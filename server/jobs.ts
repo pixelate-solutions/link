@@ -59,6 +59,9 @@ async function handlers(): Promise<Record<JobType, Handler>> {
     },
     refresh_all: async () => {
       await refreshAll();
+      // Files uploaded to Ask but never sent.
+      const { pruneUnsentUploads } = await import("./services/attachments");
+      await pruneUnsentUploads();
     },
     ai_classify: async (j) => {
       await aiClassifyUser(j.userId!);

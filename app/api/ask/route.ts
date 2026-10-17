@@ -2,9 +2,16 @@ import { z } from "zod";
 import { runAgent, type AgentEvent } from "@/server/ai/agent";
 import { requireUser, UnauthorizedError } from "@/server/auth";
 
-export const maxDuration = 60;
+// Image generation and code interpreter can run for a minute or more.
+export const maxDuration = 300;
 
-const Body = z.object({ message: z.string().trim().min(1).max(2000), conversationId: z.string().uuid().nullable().optional() });
+const Body = z
+  .object({
+    message: z.string().trim().max(4000),
+    conversationId: z.string().uuid().nullable().optional(),
+    attachmentIds: z.array(z.string().uuid()).max(8).optional(),
+  })
+  .refine((b) => b.message.length > 0 || (b.attachmentIds?.length ?? 0) > 0);
 
 /** Streams agent events as newline-delimited JSON. */
 export async function POST(req: Request) {
@@ -21,7 +28,14 @@ export async function POST(req: Request) {
     async start(controller) {
       const emit = (e: AgentEvent) => controller.enqueue(encoder.encode(`${JSON.stringify(e)}\n`));
       try {
-        await runAgent({ userId, message: parsed.data.message, conversationId: parsed.data.conversationId ?? null, emit, signal: req.signal });
+        await runAgent({
+          userId,
+          message: parsed.data.message,
+          conversationId: parsed.data.conversationId ?? null,
+          attachmentIds: parsed.data.attachmentIds ?? [],
+          emit,
+          signal: req.signal,
+        });
       } catch {
         emit({ type: "error", message: "Link couldn't finish that answer. Try again in a moment." });
       } finally {

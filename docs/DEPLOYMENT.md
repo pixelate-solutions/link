@@ -32,7 +32,7 @@ See `.env.example`. The source of truth is Infisical: Pixelate Solutions org →
 
 ## Function durations
 
-- `/api/ask`: 60s
+- `/api/ask`: 300s (image generation and code interpreter can take a minute or more)
 - `/api/cron`: 300s
 - Webhook and token-exchange handlers return quickly and use `after()` to run up to 3 jobs.
 

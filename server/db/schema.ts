@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  customType,
   boolean,
   date,
   index,
@@ -434,6 +435,30 @@ export const messages = link.table(
   (t) => [index("messages_conversation").on(t.conversationId, t.createdAt)],
 );
 
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
+
+/**
+ * Files in Ask: what the user attaches and what Link creates (images, charts,
+ * spreadsheets). Kept in Postgres: they're small and personal, and deleting a
+ * chat deletes its files.
+ */
+export const attachments = link.table(
+  "attachments",
+  {
+    id: id(),
+    userId: userId(),
+    conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "cascade" }),
+    messageId: uuid("message_id").references(() => messages.id, { onDelete: "cascade" }),
+    source: text("source").notNull(), // upload | generated
+    name: text("name").notNull(),
+    mime: text("mime").notNull(),
+    size: integer("size").notNull(),
+    data: bytea("data").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("attachments_user").on(t.userId, t.createdAt), index("attachments_message").on(t.messageId)],
+);
+
 export const agentRuns = link.table(
   "agent_runs",
   {
@@ -490,7 +515,8 @@ export const proposals = link.table(
   {
     id: id(),
     userId: userId(),
-    conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "cascade" }),
+    // A pending change outlives the chat it came from: deleting the chat must not drop it.
+    conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "set null" }),
     kind: text("kind").notNull(),
     payload: jsonb("payload").notNull(),
     summary: text("summary").notNull(),

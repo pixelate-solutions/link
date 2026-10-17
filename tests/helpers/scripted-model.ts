@@ -1,4 +1,4 @@
-import type { InputItem, ModelAdapter, ModelTurn, ToolSpec } from "@/server/ai/provider";
+import type { BuiltinTool, InputItem, ModelAdapter, ModelFile, ModelTurn, ToolSpec } from "@/server/ai/provider";
 
 /**
  * A deterministic stand-in for the model, for testing the harness itself
@@ -6,7 +6,7 @@ import type { InputItem, ModelAdapter, ModelTurn, ToolSpec } from "@/server/ai/p
  * about real model quality.
  */
 export type Script = (ctx: { input: InputItem[]; tools?: ToolSpec[]; lastToolOutputs: unknown[]; round: number }) =>
-  | { text: string }
+  | { text: string; files?: ModelFile[]; builtins?: BuiltinTool[] }
   | { calls: { name: string; arguments: Record<string, unknown> }[] };
 
 export class ScriptedModel implements ModelAdapter {
@@ -24,7 +24,7 @@ export class ScriptedModel implements ModelAdapter {
     const usage = { input: 1200, cachedInput: 200, output: 150 };
     if ("text" in out) {
       req.onText?.(out.text);
-      return { text: out.text, calls: [], carry: [], usage };
+      return { text: out.text, calls: [], carry: [], usage, files: out.files, builtins: out.builtins };
     }
     const calls = out.calls.map((c, i) => ({ callId: `call_${this.calls}_${i}`, name: c.name, arguments: JSON.stringify(c.arguments) }));
     return { text: "", calls, carry: calls.map((c) => ({ type: "function_call" as const, call_id: c.callId, name: c.name, arguments: c.arguments })), usage };

@@ -11,8 +11,24 @@ export interface ToolSpec {
   parameters: Record<string, unknown>; // JSON Schema
 }
 
+export type ContentPart =
+  | { type: "input_text"; text: string }
+  | { type: "input_image"; image_url: string; detail: "low" | "high" | "auto" }
+  | { type: "input_file"; filename: string; file_data: string };
+
+/** OpenAI-hosted tools: images, and Python for charts, spreadsheets and analysis. */
+export type BuiltinTool = "image_generation" | "code_interpreter";
+
+/** A file the model produced (a generated image, or a file code interpreter saved). */
+export interface ModelFile {
+  name: string;
+  mime: string;
+  data: Buffer;
+}
+
 export type InputItem =
   | { role: "user" | "assistant" | "developer"; content: string }
+  | { role: "user"; content: ContentPart[] }
   | { type: "function_call"; call_id: string; name: string; arguments: string }
   | { type: "function_call_output"; call_id: string; output: string }
   | { type: "opaque"; item: unknown }; // reasoning items passed back verbatim
@@ -23,6 +39,10 @@ export interface ModelTurn {
   /** Items to append to the next request's input (function calls, reasoning). */
   carry: InputItem[];
   usage: { input: number; cachedInput: number; output: number };
+  /** Files produced by built-in tools during this turn. */
+  files?: ModelFile[];
+  /** Built-in tools that ran during this turn. */
+  builtins?: BuiltinTool[];
 }
 
 export interface ModelAdapter {
@@ -33,7 +53,10 @@ export interface ModelAdapter {
     input: InputItem[];
     tools?: ToolSpec[];
     schema?: { name: string; schema: Record<string, unknown> };
+    builtins?: BuiltinTool[];
     onText?: (delta: string) => void;
+    /** Progress from built-in tools, e.g. "image_generation". */
+    onBuiltin?: (tool: BuiltinTool) => void;
     signal?: AbortSignal;
   }): Promise<ModelTurn>;
 }
@@ -86,7 +109,8 @@ export class OpenAIResponsesAdapter implements ModelAdapter {
   private async api(): Promise<OpenAI> {
     if (!this.client) {
       const { default: OpenAIClient } = await import("openai");
-      this.client = new OpenAIClient({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 2, timeout: 60_000 });
+      // Image generation and code interpreter can take well over a minute.
+      this.client = new OpenAIClient({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 2, timeout: 180_000 });
     }
     return this.client;
   }
@@ -101,7 +125,12 @@ export class OpenAIResponsesAdapter implements ModelAdapter {
       // Financial data is not retained by the provider beyond the request.
       store: false,
       include: ["reasoning.encrypted_content"],
-      tools: req.tools?.map((t) => ({ type: "function" as const, name: t.name, description: t.description, parameters: t.parameters, strict: false })),
+      tools: [
+        ...(req.tools ?? []).map((t) => ({ type: "function" as const, name: t.name, description: t.description, parameters: t.parameters, strict: false })),
+        ...(req.builtins ?? []).map((b): OpenAI.Responses.Tool =>
+          b === "image_generation" ? { type: "image_generation", quality: "medium", output_format: "png" } : { type: "code_interpreter", container: { type: "auto" } },
+        ),
+      ],
       text: req.schema ? { format: { type: "json_schema", name: req.schema.name, schema: req.schema.schema, strict: true } } : undefined,
       stream: true,
     };
@@ -112,6 +141,10 @@ export class OpenAIResponsesAdapter implements ModelAdapter {
       if (ev.type === "response.output_text.delta") {
         text += ev.delta;
         req.onText?.(ev.delta);
+      } else if (ev.type === "response.image_generation_call.in_progress") {
+        req.onBuiltin?.("image_generation");
+      } else if (ev.type === "response.code_interpreter_call.in_progress") {
+        req.onBuiltin?.("code_interpreter");
       } else if (ev.type === "response.completed") {
         final = ev.response;
       } else if (ev.type === "response.failed" || ev.type === "error") {
@@ -121,12 +154,34 @@ export class OpenAIResponsesAdapter implements ModelAdapter {
     if (!final) throw new Error("Model stream ended without a response");
     const calls: ModelTurn["calls"] = [];
     const carry: InputItem[] = [];
+    const files: ModelFile[] = [];
+    const builtins = new Set<BuiltinTool>();
+    const seen = new Set<string>();
     for (const item of final.output) {
       if (item.type === "function_call") {
         calls.push({ callId: item.call_id, name: item.name, arguments: item.arguments });
         carry.push({ type: "function_call", call_id: item.call_id, name: item.name, arguments: item.arguments });
       } else if (item.type === "reasoning") {
         carry.push({ type: "opaque", item });
+      } else if (item.type === "image_generation_call") {
+        builtins.add("image_generation");
+        if (item.result) {
+          const ext = item.output_format ?? "png";
+          files.push({ name: `link-image-${files.length + 1}.${ext}`, mime: `image/${ext === "jpeg" ? "jpeg" : ext}`, data: Buffer.from(item.result, "base64") });
+        }
+      } else if (item.type === "code_interpreter_call") {
+        builtins.add("code_interpreter");
+      } else if (item.type === "message") {
+        // Files code interpreter saved are cited in the text; fetch them before the container expires.
+        for (const part of item.content) {
+          if (part.type !== "output_text") continue;
+          for (const a of part.annotations) {
+            if (a.type !== "container_file_citation" || seen.has(a.file_id)) continue;
+            seen.add(a.file_id);
+            const res = await api.containers.files.content.retrieve(a.file_id, { container_id: a.container_id });
+            files.push({ name: a.filename, mime: mimeFromName(a.filename), data: Buffer.from(await res.arrayBuffer()) });
+          }
+        }
       }
     }
     const u = final.usage;
@@ -134,9 +189,32 @@ export class OpenAIResponsesAdapter implements ModelAdapter {
       text: text || final.output_text || "",
       calls,
       carry,
+      files,
+      builtins: [...builtins],
       usage: { input: u?.input_tokens ?? 0, cachedInput: u?.input_tokens_details?.cached_tokens ?? 0, output: u?.output_tokens ?? 0 },
     };
   }
+}
+
+const EXT_MIME: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  gif: "image/gif",
+  pdf: "application/pdf",
+  csv: "text/csv",
+  txt: "text/plain",
+  md: "text/markdown",
+  json: "application/json",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  zip: "application/zip",
+};
+
+export function mimeFromName(name: string): string {
+  return EXT_MIME[name.toLowerCase().split(".").pop() ?? ""] ?? "application/octet-stream";
 }
 
 let override: ModelAdapter | null = null;

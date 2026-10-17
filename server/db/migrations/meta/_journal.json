@@ -22,6 +22,13 @@
       "when": 1792258706255,
       "tag": "0002_merchant_logos",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792260788574,
+      "tag": "0003_ask_attachments",
+      "breakpoints": true
     }
   ]
 }

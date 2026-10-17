@@ -99,3 +99,11 @@ Each case checks the expected tool calls, required and forbidden content (no gen
 
 - `npm test` runs the suite against the deterministic planner: 12/12 pass.
 - `npm run ai:eval` runs it against the configured model: 12/12 on `gpt-6-luna` (two consecutive runs). Add `--verbose` to print every answer.
+
+## Chats, files and created files
+
+- **Chats.** Each conversation is its own thread (`link.conversations`). Ask lists them (`GET /api/conversations`), opens one (`GET /api/conversations/:id`, messages with their files and proposal states) and deletes one (`DELETE`, which removes its messages and files). Proposals survive deletion (`conversation_id` is set null) so a pending change still shows on Home. The model sees the last 12 messages of the open chat; files on those messages are named in the history.
+- **Attachments.** `POST /api/attachments` (multipart `file`, up to 4 MB; images, PDF, CSV, TXT, Markdown, JSON; no SVG or HTML) stores the file in `link.attachments` (bytea). It is claimed by the next message that lists its id in `attachmentIds`; unsent uploads are pruned daily. The browser shrinks large photos first. Images and PDFs go to the model as `input_image` / `input_file`; text files go inline as `input_text`, labelled as the user's data, never instructions. The current message's files plus up to 4 earlier uploads in the chat are shown each turn.
+- **Created files.** Every chat turn offers OpenAI's built-in `image_generation` (pictures) and `code_interpreter` (charts, Excel, analysis), plus the agent-only `create_file` tool (CSV/Markdown/TXT/JSON). Generated images and files code interpreter cites are downloaded right away (containers expire), stored as `source = generated`, attached to the reply and streamed as `file` events. Sandbox links are removed from the text.
+- **Verification.** Figures from attached text files count as grounded. When an image or PDF is attached, or code interpreter ran, figures can't be traced to a tool result: the reply is marked unverified instead of being rewritten (a rewrite would strip real figures from the user's own document).
+- `GET /api/attachments/:id` serves a file to its owner only; images inline, everything else as a download, with `nosniff`.
