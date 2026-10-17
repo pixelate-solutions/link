@@ -9,6 +9,7 @@ import { projectFi, SCENARIOS, trajectory } from "@/lib/finance/fi";
 import { formatMoney } from "@/lib/finance/money";
 import { fiInputs, type GoalView, type PlanInputs } from "@/lib/finance/plan";
 import { cn } from "@/lib/utils";
+import { LineKey, Tooltip, useCrosshair } from "./chart-hover";
 
 const W = 640;
 const H = 240;
@@ -59,6 +60,10 @@ export function Projection({ goal, inputs }: { goal: GoalView; inputs: PlanInput
   const age0 = inputs.age;
   const label = (yr: number) => (age0 != null ? `${Math.round(age0 + yr)}` : yr === 0 ? "now" : `+${yr}y`);
   const changed = dExtra !== 0 || dSpend !== base.annualSpending;
+  const hover = useCrosshair(lines[1]!.length, (i) => x(lines[1]![i]!.year), W);
+  const hi = hover.index;
+  const at = hi == null ? null : { base: lines[1]![hi]!, low: lines[0]![hi]!, high: lines[2]![hi]! };
+  const calendarYear = (yr: number) => Number(inputs.asOf.slice(0, 4)) + yr;
 
   return (
     <div>
@@ -70,8 +75,14 @@ export function Projection({ goal, inputs }: { goal: GoalView; inputs: PlanInput
         {changed ? <>With these changes, compared with {goal.headline.toLowerCase()} today.</> : goal.detail}
       </p>
 
-      <figure className="mt-6">
-        <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full overflow-visible" role="img" aria-label={`Projected investments over ${years} years under conservative, base and optimistic returns, against the amount needed.`}>
+      <figure className="relative mt-6">
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className="h-auto w-full cursor-crosshair touch-none overflow-visible outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus)]"
+          role="img"
+          aria-label={`Projected investments over ${years} years under conservative, base and optimistic returns, against the amount needed. Use the arrow keys to read values.`}
+          {...hover.svgProps}
+        >
           {w && (
             <motion.rect
               initial={false}
@@ -87,7 +98,34 @@ export function Projection({ goal, inputs }: { goal: GoalView; inputs: PlanInput
           <motion.path initial={false} animate={{ d: path(pts[0]!) }} fill="none" strokeWidth={1.25} className="stroke-muted/60" />
           <motion.path initial={false} animate={{ d: path(pts[2]!) }} fill="none" strokeWidth={1.25} className="stroke-muted/60" />
           <motion.path initial={false} animate={{ d: path(pts[1]!) }} fill="none" strokeWidth={2.5} strokeLinecap="round" className="stroke-fg" />
+          {at && (
+            <g aria-hidden>
+              <line x1={x(at.base.year)} x2={x(at.base.year)} y1={PAD.t} y2={H - PAD.b} className="stroke-muted/60" strokeWidth={1} />
+              <circle cx={x(at.base.year)} cy={y(at.base.required)} r={3.5} strokeWidth={2} className="fill-muted stroke-surface" />
+              <circle cx={x(at.base.year)} cy={y(at.base.value)} r={4.5} strokeWidth={2} className="fill-fg stroke-surface" />
+            </g>
+          )}
+          <rect x={0} y={0} width={W} height={H} fill="transparent" />
         </svg>
+        {at && (
+          <Tooltip
+            leftPct={hover.leftPct}
+            title={`${at.base.year === 0 ? "Today" : age0 != null ? `Age ${Math.round(age0 + at.base.year)}` : `In ${at.base.year} year${at.base.year === 1 ? "" : "s"}`} · ${calendarYear(at.base.year)}`}
+            rows={[
+              { label: "expected", value: formatMoney(at.base.value, { compact: at.base.value >= 1_000_000_00 }), key: <LineKey className="h-0.5 rounded-full bg-fg" /> },
+              {
+                label: "conservative – optimistic",
+                value: `${formatMoney(at.low.value, { compact: true })} – ${formatMoney(at.high.value, { compact: true })}`,
+                key: <LineKey className="h-2 rounded-[2px] bg-fg/15" />,
+              },
+              { label: "enough to stop working", value: formatMoney(at.base.required, { compact: at.base.required >= 1_000_000_00 }), key: <LineKey className="border-t border-dashed border-muted" /> },
+            ]}
+          >
+            <p className="mt-1 text-[11px] text-muted">
+              {at.base.value >= at.base.required ? "On the expected path, you'd have enough by here." : `${formatMoney(at.base.required - at.base.value, { compact: true })} short on the expected path.`} In today&apos;s dollars.
+            </p>
+          </Tooltip>
+        )}
         <div className="-mt-4 flex justify-between text-[11px] text-muted tabular" aria-hidden>
           <span>{label(0)}</span>
           <span>{label(Math.round(years / 2))}</span>

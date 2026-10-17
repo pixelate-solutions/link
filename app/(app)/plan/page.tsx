@@ -152,13 +152,13 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
       ))}
 
       <Card>
-        <Disclosure title="Cash over the next 90 days">
+        <Disclosure title="Cash over the next 90 days" defaultOpen>
           <CashFlow forecast={p.forecast} />
         </Disclosure>
       </Card>
 
       <Card>
-        <Disclosure title="Where you stand" meta={<span className="tabular">{formatMoney(p.position.netWorth, { compact: Math.abs(p.position.netWorth) >= 1_000_000_00 })}</span>}>
+        <Disclosure title="Where you stand" defaultOpen meta={<span className="tabular">{formatMoney(p.position.netWorth, { compact: Math.abs(p.position.netWorth) >= 1_000_000_00 })}</span>}>
           <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-[14px] md:grid-cols-4">
             {[
               ["Checking", p.position.cash],

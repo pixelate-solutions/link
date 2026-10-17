@@ -17,6 +17,8 @@ export function relativeTime(iso: string | Date | null | undefined, now = new Da
   return `${days}d ago`;
 }
 
-export function shortDate(iso: string, opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }) {
-  return new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-US", { ...opts, timeZone: "UTC" });
+/** "Oct 4", or "Oct 4, 2025" when the date isn't in the current year. Pass `year` in opts to decide yourself. */
+export function shortDate(iso: string, opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }, now = new Date()) {
+  const otherYear = opts.year === undefined && iso.slice(0, 4) !== String(now.getFullYear());
+  return new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-US", { ...opts, ...(otherYear ? { year: "numeric" } : {}), timeZone: "UTC" });
 }

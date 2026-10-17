@@ -201,6 +201,13 @@ export async function settleReviewAction(ids: string[], cat: string | null) {
   return run((u) => settleReview(u, z.array(uuid).min(1).max(100).parse(ids), cat == null ? null : category.parse(cat)));
 }
 
+export async function explainReviewAction(ids: string[], text: string) {
+  return run(async (u) => {
+    const { explainTransactions } = await import("@/server/ai/explain");
+    return explainTransactions(u, z.array(uuid).min(1).max(100).parse(ids), z.string().trim().min(3).max(500).parse(text));
+  });
+}
+
 export async function noteAction(id: string, note: string) {
   return run(async (u) => {
     const db = await getDb();

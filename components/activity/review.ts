@@ -1,7 +1,17 @@
 import { CATEGORIES, type CategoryId, categoryLabel } from "@/lib/finance/categories";
 
-/** Categories a person can pick; transfer sub-kinds are set by pairing, not by hand. */
-export const PICKABLE = CATEGORIES.filter((c) => c.group !== "transfer" || c.id === "transfer").map((c) => c.id as CategoryId);
+/** How a category reads in a picker: the business-money ones say which way the money went. */
+export function pickLabel(c: CategoryId): string {
+  if (c === "owner_draw") return "Business → personal (owner draw)";
+  if (c === "owner_contribution") return "Personal → business (owner contribution)";
+  if (c === "transfer") return "Transfer between my own accounts";
+  return categoryLabel(c);
+}
+
+/** Categories a person can pick, alphabetically. Card payments are set by pairing, not by hand. */
+export const PICKABLE = CATEGORIES.filter((c) => c.id !== "card_payment")
+  .map((c) => c.id as CategoryId)
+  .sort((a, b) => pickLabel(a).localeCompare(pickLabel(b)));
 
 /** Why a transaction is in "Needs a look", phrased as the question Link is asking. */
 export function reviewPrompt(reason: string | null, category: string, kind: string, amount: number): { why: string; ask: string } {

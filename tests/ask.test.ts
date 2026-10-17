@@ -86,3 +86,27 @@ describe("Ask: chats, attachments and created files", () => {
     expect(kept?.conversationId).toBeNull();
   });
 });
+
+describe("explaining a transaction in your own words", () => {
+  it("turns 'moved money to my business' into an owner contribution and keeps the words as a note", async () => {
+    const { explainTransactions } = await import("@/server/ai/explain");
+    const { setModelAdapter } = await import("@/server/ai/provider");
+    const [row] = await db.select().from(schema.transactions).where(and(eq(schema.transactions.userId, USER), eq(schema.transactions.kind, "expense"))).limit(1);
+    // Without a model, the rules still read it.
+    setModelAdapter({ provider: "none", model: "none", respond: async () => { throw new Error("offline"); } });
+    const r = await explainTransactions(USER, [row!.id], "I moved money from my personal account to my business account");
+    setModelAdapter(null);
+    expect(r.category).toBe("owner_contribution");
+    const [after] = await db.select().from(schema.transactions).where(eq(schema.transactions.id, row!.id));
+    expect(after!.note).toBe("I moved money from my personal account to my business account");
+    expect(after!.kind).toBe("investment_transfer");
+    expect(after!.needsReview).toBe(false);
+  });
+
+  it("lists categories alphabetically by the label people see", async () => {
+    const { PICKABLE, pickLabel } = await import("@/components/activity/review");
+    const labels = PICKABLE.map(pickLabel);
+    expect(labels).toEqual([...labels].sort((a, b) => a.localeCompare(b)));
+    expect(PICKABLE).toContain("owner_draw");
+  });
+});

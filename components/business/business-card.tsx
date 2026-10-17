@@ -12,7 +12,8 @@ function runwayText(b: BusinessView) {
 }
 
 function monthLabel(m: string) {
-  return new Date(`${m}-01T00:00:00Z`).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+  const label = new Date(`${m}-01T00:00:00Z`).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+  return m.slice(0, 4) === String(new Date().getFullYear()) ? label : `${label} '${m.slice(2, 4)}`;
 }
 
 /** Compact: how the business is doing, at a glance. */

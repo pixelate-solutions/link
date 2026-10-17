@@ -1,20 +1,20 @@
 "use client";
 
-import { motion } from "motion/react";
-import { Check, Search } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { Check, ChevronDown, MessageSquareText, Search } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { recurringAction, searchAction, settleReviewAction } from "@/app/actions";
+import { explainReviewAction, recurringAction, searchAction, settleReviewAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { categoryLabel } from "@/lib/finance/categories";
+import { type CategoryId, categoryLabel } from "@/lib/finance/categories";
 import { isPaymentRail, railPayee } from "@/lib/finance/merchants";
 import { formatMoney } from "@/lib/finance/money";
 import type { Picture } from "@/lib/finance/plan";
 import type { TxnListRow } from "@/server/services/activity";
 import { cn, shortDate } from "@/lib/utils";
 import { MerchantMark } from "./category-dot";
-import { PICKABLE, reviewPrompt } from "./review";
+import { PICKABLE, pickLabel, reviewPrompt } from "./review";
 import { TransactionSheet } from "./transaction-sheet";
 
 type Filter = "all" | "review" | "recurring" | "income" | "transfers";
@@ -288,10 +288,8 @@ function RecurringList({ recurring, logos, onChanged }: { recurring: Picture["re
  * transaction in the group and teaches Link the merchant for the future.
  */
 function ReviewList({ rows, busy, onOpen, onChanged }: { rows: TxnListRow[]; busy: boolean; onOpen: (id: string) => void; onChanged: () => void }) {
-  const [working, setWorking] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ text: string; hint?: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [, start] = useTransition();
   const groups = new Map<string, TxnListRow[]>();
   for (const r of rows) {
     if (!r.needsReview) continue;
@@ -300,86 +298,192 @@ function ReviewList({ rows, busy, onOpen, onChanged }: { rows: TxnListRow[]; bus
     groups.set(key, [...(groups.get(key) ?? []), r]);
   }
 
-  const settle = (key: string, items: TxnListRow[], cat: string | null) =>
-    start(async () => {
-      const first = items[0]!;
-      setError(null);
-      setWorking(key);
-      const r = await settleReviewAction(
-        items.map((x) => x.id),
-        cat,
-      );
-      setWorking(null);
-      if (!r.ok) return setError(r.error);
-      setNotice(
-        isPaymentRail(first.merchantKey)
-          ? `${items.length === 1 ? "Saved" : `All ${items.length} saved`} as ${categoryLabel(cat ?? first.category)}.`
-          : `${first.merchant} is ${categoryLabel(cat ?? first.category)}. Link will remember that.`,
-      );
-      onChanged();
-    });
-
   return (
     <div className="mt-5">
       <div className="rounded-lg bg-surface p-5">
         <p className="text-[15px] font-semibold tracking-[-0.01em]">Link wasn&apos;t sure about these</p>
         <p className="mt-1 text-[14px] text-fg-2">
-          Confirm or fix one and Link applies it to every transaction from that merchant, and remembers it next time. You can change any category later, even ones Link was sure about.
+          Confirm, pick the right category, or just explain what happened in your own words. Your answer covers the transactions in that card; for a store or company, Link also remembers it for next time.
         </p>
       </div>
       {notice && (
-        <p className="mt-3 flex items-center gap-1.5 px-1 text-[14px] text-accent-ink" role="status">
-          <Check size={15} /> {notice}
-        </p>
+        <div className="mt-3 px-1 text-[14px]" role="status">
+          <p className="flex items-center gap-1.5 text-accent-ink">
+            <Check size={15} /> {notice.text}
+          </p>
+          {notice.hint && <p className="mt-0.5 text-[13px] text-muted">{notice.hint}</p>}
+        </div>
       )}
       {error && <p role="alert" className="mt-3 text-[13px] text-caution">{error}</p>}
       <ul className="mt-3 space-y-2">
-        {[...groups.entries()].map(([key, items]) => {
-          const first = items[0]!;
-          const p = reviewPrompt(first.reason, first.category, first.kind, first.amount);
-          const total = items.reduce((s, r) => s + r.amount, 0);
-          return (
-            <motion.li key={key} layout className="rounded-lg bg-surface p-4">
-              <div className="flex items-start gap-3">
-                <button onClick={() => onOpen(first.id)} className="shrink-0" aria-label={`Open ${first.merchant}`}>
-                  <MerchantMark name={first.merchant} cat={first.category} logo={first.logoUrl} />
-                </button>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <button onClick={() => onOpen(first.id)} className="truncate text-left text-[15px] font-medium hover:underline">
-                      {first.merchant}
-                    </button>
-                    <span className={cn("shrink-0 text-[15px] tabular", total > 0 && "text-accent-ink")}>{formatMoney(total, { cents: items.length === 1, signed: total > 0 })}</span>
-                  </div>
-                  <p className="truncate text-[13px] text-muted">
-                    {isPaymentRail(first.merchantKey) && `${railPayee(first.merchantKey, first.name)} · `}
-                    {items.length > 1 ? `${items.length} transactions · latest ${shortDate(first.date)}` : shortDate(first.date)}
-                  </p>
-                  <p className="mt-3 text-[15px] font-medium">{p.ask}</p>
-                  <p className="text-[13px] text-fg-2">{p.why}</p>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <Button size="sm" variant="primary" busy={working === key} disabled={busy && working !== key} onClick={() => settle(key, items, null)}>
-                      <Check size={14} /> Yes{items.length > 1 ? `, all ${items.length}` : ""}
-                    </Button>
-                    <Select value="" onValueChange={(v) => settle(key, items, v)} disabled={working === key}>
-                      <SelectTrigger aria-label={`Choose the right category for ${first.merchant}`} className="h-8 text-[13px]">
-                        <SelectValue placeholder="No, it's…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PICKABLE.map((c) => (
-                          <SelectItem key={c} value={c}>
-                            {categoryLabel(c)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-            </motion.li>
-          );
-        })}
+        {[...groups.entries()].map(([key, items]) => (
+          <ReviewCard
+            key={key}
+            items={items}
+            busy={busy}
+            onOpen={onOpen}
+            onDone={(text, hint) => {
+              setError(null);
+              setNotice({ text, hint });
+              onChanged();
+            }}
+            onError={setError}
+          />
+        ))}
       </ul>
     </div>
+  );
+}
+
+/** One merchant (or one payee) to answer for. Every transaction the answer covers is listed. */
+function ReviewCard({
+  items,
+  busy,
+  onOpen,
+  onDone,
+  onError,
+}: {
+  items: TxnListRow[];
+  busy: boolean;
+  onOpen: (id: string) => void;
+  onDone: (text: string, hint?: string | null) => void;
+  onError: (e: string) => void;
+}) {
+  const first = items[0]!;
+  const many = items.length > 1;
+  const rail = isPaymentRail(first.merchantKey);
+  const [open, setOpen] = useState(items.length <= 5);
+  const [explaining, setExplaining] = useState(false);
+  const [text, setText] = useState("");
+  const [pending, start] = useTransition();
+  const p = reviewPrompt(first.reason, first.category, first.kind, first.amount);
+  const total = items.reduce((s, r) => s + r.amount, 0);
+  const ids = items.map((x) => x.id);
+
+  const settle = (cat: string | null) =>
+    start(async () => {
+      const r = await settleReviewAction(ids, cat);
+      if (!r.ok) return onError(r.error);
+      const label = pickLabel((cat ?? first.category) as CategoryId);
+      onDone(rail || !many ? `${many ? `All ${items.length} saved` : "Saved"} as ${label}.` : `${first.merchant} is ${label}. Link will remember that.`);
+    });
+  const explain = () =>
+    start(async () => {
+      const r = await explainReviewAction(ids, text);
+      if (!r.ok) return onError(r.error);
+      onDone(`${many ? `All ${items.length} saved` : "Saved"} as ${pickLabel(r.data.category as CategoryId)}${r.data.why ? `: ${r.data.why}` : "."}`, r.data.hint);
+    });
+
+  return (
+    <motion.li layout className={cn("rounded-lg bg-surface p-4", pending && "opacity-70")}>
+      <div className="flex items-start gap-3">
+        <button onClick={() => onOpen(first.id)} className="shrink-0" aria-label={`Open ${first.merchant}`}>
+          <MerchantMark name={first.merchant} cat={first.category} logo={first.logoUrl} />
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-3">
+            <button onClick={() => onOpen(first.id)} className="truncate text-left text-[15px] font-medium hover:underline">
+              {first.merchant}
+            </button>
+            <span className={cn("shrink-0 text-[15px] tabular", total > 0 && "text-accent-ink")}>{formatMoney(total, { cents: !many, signed: total > 0 })}</span>
+          </div>
+          <p className="truncate text-[13px] text-muted">
+            {rail && `${railPayee(first.merchantKey, first.name)} · `}
+            {many ? `${items.length} transactions, ${first.amount < 0 ? "money out" : "money in"}` : `${shortDate(first.date)} · ${first.accountName}${first.accountMask ? ` ··${first.accountMask}` : ""}`}
+          </p>
+
+          {many && (
+            <div className="mt-2">
+              <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="inline-flex items-center gap-1 text-[13px] font-medium text-fg-2 hover:text-fg">
+                {open ? "Hide" : "Show"} the {items.length} transactions
+                <ChevronDown size={14} className={cn("transition-transform", open && "rotate-180")} />
+              </button>
+              <AnimatePresence initial={false}>
+                {open && (
+                  <motion.ul initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                    <li className="mt-2 divide-y divide-line overflow-hidden rounded-sm border border-line">
+                      {items.map((r) => (
+                        <button key={r.id} onClick={() => onOpen(r.id)} className="flex w-full items-center gap-3 px-3 py-2 text-left text-[13px] hover:bg-surface-2">
+                          <span className="w-24 shrink-0 tabular text-muted">{shortDate(r.date)}</span>
+                          <span className="min-w-0 flex-1 truncate text-fg-2">
+                            {r.name}
+                            {r.accountMask && <span className="text-muted"> · ··{r.accountMask}</span>}
+                            {r.note && <span className="text-muted"> · “{r.note}”</span>}
+                          </span>
+                          <span className={cn("shrink-0 tabular", r.amount > 0 && "text-accent-ink")}>{formatMoney(r.amount, { cents: true, signed: r.amount > 0 })}</span>
+                        </button>
+                      ))}
+                    </li>
+                  </motion.ul>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+
+          <p className="mt-3 text-[15px] font-medium">{p.ask}</p>
+          <p className="text-[13px] text-fg-2">{p.why}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="primary" busy={pending && !explaining} disabled={busy || pending} onClick={() => settle(null)}>
+              <Check size={14} /> Yes{many ? `, all ${items.length}` : ""}
+            </Button>
+            <Select value="" onValueChange={(v) => settle(v)} disabled={pending}>
+              <SelectTrigger aria-label={`Choose the right category for ${first.merchant}`} className="h-8 text-[13px]">
+                <SelectValue placeholder="No, it's…" />
+              </SelectTrigger>
+              <SelectContent>
+                {PICKABLE.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {pickLabel(c)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!explaining && (
+              <button onClick={() => setExplaining(true)} className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-accent-ink hover:bg-accent-soft">
+                <MessageSquareText size={14} /> Explain what happened
+              </button>
+            )}
+          </div>
+          {explaining && (
+            <form
+              className="mt-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (text.trim().length >= 3) explain();
+              }}
+            >
+              <label htmlFor={`explain-${first.id}`} className="sr-only">
+                What happened
+              </label>
+              <textarea
+                id={`explain-${first.id}`}
+                autoFocus
+                rows={2}
+                maxLength={500}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (text.trim().length >= 3) explain();
+                  }
+                }}
+                placeholder={first.amount < 0 ? "e.g. I moved money from my personal account to my business account" : "e.g. My business account paid me"}
+                className="w-full resize-none rounded-sm bg-surface-2 px-3.5 py-2.5 text-[14px] outline-none placeholder:text-muted focus:ring-2 focus:ring-[var(--focus)]"
+              />
+              <div className="mt-2 flex items-center gap-2">
+                <Button type="submit" size="sm" variant="primary" busy={pending} disabled={text.trim().length < 3}>
+                  Save{many ? ` for all ${items.length}` : ""}
+                </Button>
+                <Button type="button" size="sm" variant="quiet" onClick={() => setExplaining(false)}>
+                  Cancel
+                </Button>
+                <span className="text-[12px] text-muted">Link picks the category and keeps your words as a note.</span>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    </motion.li>
   );
 }

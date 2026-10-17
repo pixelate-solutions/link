@@ -32,3 +32,13 @@ describe("money", () => {
     expect(formatMoney(2500, { signed: true })).toBe("+$25");
   });
 });
+
+describe("dates", () => {
+  it("adds the year only when the date isn't in the current year", async () => {
+    const { shortDate } = await import("@/lib/utils");
+    const now = new Date("2026-10-17T12:00:00Z");
+    expect(shortDate("2026-10-04", undefined, now)).toBe("Oct 4");
+    expect(shortDate("2025-12-30", undefined, now)).toBe("Dec 30, 2025");
+    expect(shortDate("2025-12-30", { weekday: "short", month: "short", day: "numeric" }, now)).toBe("Tue, Dec 30, 2025");
+  });
+});

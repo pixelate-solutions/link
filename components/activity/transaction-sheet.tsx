@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Check, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { correctAction, settleReviewAction, noteAction, revertAction, splitAction, transactionAction } from "@/app/actions";
+import { correctAction, explainReviewAction, settleReviewAction, noteAction, revertAction, splitAction, transactionAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,7 +14,7 @@ import { isPaymentRail } from "@/lib/finance/merchants";
 import { formatMoney } from "@/lib/finance/money";
 import { cn, shortDate } from "@/lib/utils";
 import { MerchantMark } from "./category-dot";
-import { PICKABLE, reviewPrompt } from "./review";
+import { PICKABLE, pickLabel, reviewPrompt } from "./review";
 
 type Detail = Extract<Awaited<ReturnType<typeof transactionAction>>, { ok: true }>["data"];
 
@@ -66,7 +66,10 @@ function TransactionDetail({ id, onChanged }: { id: string; onChanged: () => voi
 
   const refresh = async () => {
     const r = await transactionAction(id);
-    if (r.ok) setT(r.data);
+    if (r.ok) {
+      setT(r.data);
+      setNote(r.data.note ?? "");
+    }
     onChanged();
     router.refresh();
   };
@@ -126,7 +129,16 @@ function TransactionDetail({ id, onChanged }: { id: string; onChanged: () => voi
           </p>
 
           {t.needsReview && !t.hasSplits && (
-            <ReviewCallout t={t} busy={pending} onConfirm={confirm} onChange={() => setPicking(true)} />
+            <ReviewCallout
+              t={t}
+              busy={pending}
+              onConfirm={confirm}
+              onChange={() => setPicking(true)}
+              onExplained={(msg) => {
+                setSaved(msg);
+                void refresh();
+              }}
+            />
           )}
 
           <div className="mt-6 rounded-md bg-surface-2 p-4">
@@ -178,7 +190,7 @@ function TransactionDetail({ id, onChanged }: { id: string; onChanged: () => voi
                       onClick={() => choose(c)}
                       className={cn("flex items-center justify-between rounded-sm px-3 py-2.5 text-left text-[13px] transition-colors", c === t.category ? "bg-fg text-bg" : "bg-surface-2 hover:bg-surface-3")}
                     >
-                      {categoryLabel(c)}
+                      {pickLabel(c)}
                       {c === t.category && <Check size={14} />}
                     </button>
                   ))}
@@ -253,8 +265,18 @@ function TransactionDetail({ id, onChanged }: { id: string; onChanged: () => voi
   );
 }
 
-function ReviewCallout({ t, busy, onConfirm, onChange }: { t: Detail; busy: boolean; onConfirm: () => void; onChange: () => void }) {
+function ReviewCallout({ t, busy, onConfirm, onChange, onExplained }: { t: Detail; busy: boolean; onConfirm: () => void; onChange: () => void; onExplained: (msg: string) => void }) {
   const p = reviewPrompt(t.reason, t.category, t.kind, t.amountMinor);
+  const [explaining, setExplaining] = useState(false);
+  const [text, setText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const explain = () =>
+    start(async () => {
+      const r = await explainReviewAction([t.id], text);
+      if (!r.ok) return setError(r.error);
+      onExplained(`Saved as ${pickLabel(r.data.category as CategoryId)}${r.data.why ? `: ${r.data.why}` : "."}${r.data.hint ? ` ${r.data.hint}` : ""}`);
+    });
   return (
     <div className="mt-6 rounded-md border border-caution/25 bg-caution-soft p-4">
       <p className="text-[12px] font-medium text-caution">Needs a look</p>
@@ -269,7 +291,44 @@ function ReviewCallout({ t, busy, onConfirm, onChange }: { t: Detail; busy: bool
         <Button size="sm" onClick={onChange} disabled={busy} className="bg-surface hover:bg-surface-2">
           No, change it
         </Button>
+        {!explaining && (
+          <Button size="sm" variant="ghost" onClick={() => setExplaining(true)} disabled={busy}>
+            Explain what happened
+          </Button>
+        )}
       </div>
+      {explaining && (
+        <form
+          className="mt-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (text.trim().length >= 3) explain();
+          }}
+        >
+          <label htmlFor="explain" className="sr-only">
+            What happened
+          </label>
+          <textarea
+            id="explain"
+            autoFocus
+            rows={2}
+            maxLength={500}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={t.amountMinor < 0 ? "e.g. I moved money from my personal account to my business account" : "e.g. My business account paid me"}
+            className="w-full resize-none rounded-sm bg-surface px-3.5 py-2.5 text-[14px] outline-none placeholder:text-muted focus:ring-2 focus:ring-[var(--focus)]"
+          />
+          <div className="mt-2 flex items-center gap-2">
+            <Button type="submit" size="sm" variant="primary" busy={pending} disabled={text.trim().length < 3}>
+              Save
+            </Button>
+            <Button type="button" size="sm" variant="quiet" onClick={() => setExplaining(false)}>
+              Cancel
+            </Button>
+          </div>
+          {error && <p className="mt-2 text-[13px] text-caution">{error}</p>}
+        </form>
+      )}
     </div>
   );
 }
@@ -304,7 +363,7 @@ function SplitEditor({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PICKABLE.map((c) => (
+                {PICKABLE.filter((c) => c !== "owner_draw" && c !== "owner_contribution").map((c) => (
                   <SelectItem key={c} value={c}>
                     {categoryLabel(c)}
                   </SelectItem>
