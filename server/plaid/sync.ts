@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull } from "drizzle-orm";
 import { CountryCode, PersonalFinanceCategoryVersion, Products } from "plaid";
 import { type AccountType, classify } from "@/lib/finance/classify";
 import { todayISO } from "@/lib/finance/dates";
@@ -33,23 +33,39 @@ type TxnRow = typeof schema.transactions.$inferSelect;
  * transaction upserts, pending→posted reconciliation, removals and the new
  * cursor commit together or not at all.
  */
-export async function applySyncBatch(db: Db, conn: { id: string; userId: string }, batch: SyncBatch, now = new Date()): Promise<SyncResult> {
+/** Sources Link should not overwrite with a weaker automatic guess. */
+const STICKY = new Set(["ai", "legacy"]);
+const STRONG = new Set(["rule", "learned", "structural", "user"]);
+
+export async function applySyncBatch(
+  db: Db,
+  conn: { id: string; userId: string },
+  batch: SyncBatch,
+  now = new Date(),
+  opts: { fullResync?: boolean } = {},
+): Promise<SyncResult> {
   return db.transaction(async (tx) => {
     const accountIds = await upsertAccounts(tx, conn, batch.accounts, batch.liabilities, now);
     const ctx = await loadClassifyContext(tx, conn.userId);
 
+    // Plaid never reuses a removed id: removal wins over an add/modify in the same batch.
+    const removedSet = new Set(batch.removed.map((r) => r.transaction_id));
     // Later entries win (a transaction can be added then modified within one sync).
     const incoming = new Map<string, PlaidTxnLike>();
-    for (const t of [...batch.added, ...batch.modified]) incoming.set(t.transaction_id, t);
+    for (const t of [...batch.added, ...batch.modified]) if (!removedSet.has(t.transaction_id)) incoming.set(t.transaction_id, t);
 
     const lookupIds = [...incoming.values()].flatMap((t) => [t.transaction_id, ...(t.pending_transaction_id ? [t.pending_transaction_id] : [])]);
     const ownAccountIds = [...accountIds.values()].map((a) => a.id);
-    const existing = lookupIds.length && ownAccountIds.length
-      ? await tx
+    const existing: TxnRow[] = [];
+    // Chunked to stay far below the driver's bind-parameter limit on huge first syncs.
+    for (let i = 0; ownAccountIds.length && i < lookupIds.length; i += 5000) {
+      existing.push(
+        ...(await tx
           .select()
           .from(schema.transactions)
-          .where(and(eq(schema.transactions.userId, conn.userId), inArray(schema.transactions.accountId, ownAccountIds), inArray(schema.transactions.providerId, lookupIds)))
-      : [];
+          .where(and(eq(schema.transactions.userId, conn.userId), inArray(schema.transactions.accountId, ownAccountIds), inArray(schema.transactions.providerId, lookupIds.slice(i, i + 5000))))),
+      );
+    }
     const byKey = new Map<string, TxnRow>(existing.map((r) => [`${r.accountId}|${r.providerId}`, r]));
 
     let added = 0;
@@ -98,13 +114,22 @@ export async function applySyncBatch(db: Db, conn: { id: string; userId: string 
       }
       if (prior) {
         // Posted replaces pending in place, so user edits, notes and splits carry over.
-        const keepEnrichment = prior.userLocked;
+        let next = prior.userLocked ? null : enrichment();
+        if (next && STICKY.has(prior.classSource) && !STRONG.has(next.classSource)) next = null;
+        const keepEnrichment = next == null;
+        if (!keepEnrichment && prior.transferPairId) {
+          // Unpair both legs so the pipeline can re-pair them; never leave one side paired.
+          await tx
+            .update(schema.transactions)
+            .set({ transferPairId: null })
+            .where(and(eq(schema.transactions.userId, conn.userId), eq(schema.transactions.transferPairId, prior.transferPairId)));
+        }
         await tx
           .update(schema.transactions)
           .set({
             ...facts,
             pendingProviderId: facts.pendingProviderId ?? prior.pendingProviderId,
-            ...(keepEnrichment ? {} : enrichment()),
+            ...(next ?? {}),
             transferPairId: keepEnrichment ? prior.transferPairId : null,
             removedAt: null,
             updatedAt: now,
@@ -123,7 +148,7 @@ export async function applySyncBatch(db: Db, conn: { id: string; userId: string 
     }
 
     let removed = 0;
-    const removedIds = batch.removed.map((r) => r.transaction_id).filter((id) => !incoming.has(id));
+    const removedIds = [...removedSet];
     if (removedIds.length && ownAccountIds.length) {
       const res = await tx
         .update(schema.transactions)
@@ -140,6 +165,25 @@ export async function applySyncBatch(db: Db, conn: { id: string; userId: string 
       removed = res.length;
     }
 
+    // A full resync (empty cursor) is authoritative for its date range: imported legacy rows
+    // Plaid no longer reports (e.g. stale pending copies the old app kept) are retired.
+    if (opts.fullResync && incoming.size && ownAccountIds.length) {
+      const seen = new Set(incoming.keys());
+      const earliest = [...incoming.values()].reduce((m, t) => (t.date < m ? t.date : m), "9999-12-31");
+      const legacy = await tx
+        .select({ id: schema.transactions.id, providerId: schema.transactions.providerId })
+        .from(schema.transactions)
+        .where(and(eq(schema.transactions.userId, conn.userId), inArray(schema.transactions.accountId, ownAccountIds), eq(schema.transactions.source, "legacy"), isNull(schema.transactions.removedAt), gte(schema.transactions.date, earliest)));
+      const stale = legacy.filter((r) => !seen.has(r.providerId)).map((r) => r.id);
+      for (let i = 0; i < stale.length; i += 5000) {
+        await tx
+          .update(schema.transactions)
+          .set({ removedAt: now, updatedAt: now })
+          .where(and(eq(schema.transactions.userId, conn.userId), inArray(schema.transactions.id, stale.slice(i, i + 5000))));
+      }
+      removed += stale.length;
+    }
+
     await tx
       .update(schema.connections)
       .set({ cursor: batch.nextCursor, lastSyncedAt: now, status: "active", errorCode: null, updatedAt: now })
@@ -152,6 +196,11 @@ export async function applySyncBatch(db: Db, conn: { id: string; userId: string 
 function sameFacts(row: TxnRow, f: ReturnType<typeof mapTransactionFacts>) {
   return (
     row.providerId === f.providerId &&
+    row.authorizedDate === f.authorizedDate &&
+    row.paymentChannel === f.paymentChannel &&
+    row.providerPrimary === f.providerPrimary &&
+    row.providerConfidence === f.providerConfidence &&
+    (row.pendingProviderId ?? null) === (f.pendingProviderId ?? row.pendingProviderId ?? null) &&
     row.amountMinor === f.amountMinor &&
     row.date === f.date &&
     row.pending === f.pending &&
@@ -264,7 +313,15 @@ export async function syncConnection(connectionId: string, userId: string): Prom
       const { data } = await api.accountsGet({ access_token: accessToken });
       pages.accounts = data.accounts as unknown as PlaidAccountLike[];
     }
-    const result = await applySyncBatch(db, { id: conn.id, userId }, { ...pages, liabilities });
+    const result = await applySyncBatch(db, { id: conn.id, userId }, { ...pages, liabilities }, new Date(), { fullResync: !conn.cursor });
+    // Imported or re-linked items may still point their webhooks somewhere else.
+    if (!conn.cursor && webhookUrl()) {
+      try {
+        await api.itemWebhookUpdate({ access_token: accessToken, webhook: webhookUrl()! });
+      } catch (err) {
+        log.warn("sync: webhook update failed", { code: plaidErrorCode(err) });
+      }
+    }
     await enqueue({ type: "process_user", userId, dedupeKey: `process:${userId}` });
     log.info("sync: applied", { connectionId, ...result });
     return result;

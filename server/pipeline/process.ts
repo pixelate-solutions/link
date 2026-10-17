@@ -186,7 +186,7 @@ export async function refreshAll() {
   const conns = await db
     .select({ id: schema.connections.id, userId: schema.connections.userId })
     .from(schema.connections)
-    .where(and(eq(schema.connections.provider, "plaid"), eq(schema.connections.status, "active"), or(isNull(schema.connections.lastSyncedAt), lt(schema.connections.lastSyncedAt, cutoff))));
+    .where(and(eq(schema.connections.provider, "plaid"), inArray(schema.connections.status, ["active", "error"]), or(isNull(schema.connections.lastSyncedAt), lt(schema.connections.lastSyncedAt, cutoff))));
   for (const c of conns) await enqueue({ type: "plaid_sync", userId: c.userId, payload: { connectionId: c.id }, dedupeKey: `sync:${c.id}` });
   const users = await db.select({ id: schema.users.id }).from(schema.users);
   for (const u of users) await enqueue({ type: "process_user", userId: u.id, dedupeKey: `process:${u.id}` });

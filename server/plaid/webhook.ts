@@ -60,10 +60,13 @@ interface PlaidWebhook {
 }
 
 /** Apply a verified webhook. Duplicate deliveries are ignored. */
-export async function handlePlaidWebhook(rawBody: string): Promise<{ status: "ok" | "duplicate" | "ignored" }> {
+export async function handlePlaidWebhook(rawBody: string, at = Date.now()): Promise<{ status: "ok" | "duplicate" | "ignored" }> {
   const body = JSON.parse(rawBody) as PlaidWebhook;
   const db = await getDb();
-  const eventKey = createHash("sha256").update(rawBody).digest("hex");
+  // Plaid bodies carry no event id and repeat byte-for-byte (every SYNC_UPDATES_AVAILABLE for an
+  // item looks the same), so dedupe only absorbs retries within a 5-minute window.
+  const bucket = Math.floor(at / 300_000);
+  const eventKey = `${createHash("sha256").update(rawBody).digest("hex")}:${bucket}`;
   const inserted = await db
     .insert(schema.webhookEvents)
     .values({ provider: "plaid", eventKey, type: `${body.webhook_type}:${body.webhook_code}`, itemId: body.item_id ?? null })

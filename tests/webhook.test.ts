@@ -42,13 +42,17 @@ describe("Plaid webhooks", () => {
     const hs = "eyJhbGciOiJIUzI1NiIsImtpZCI6ImsxIn0.e30.sig";
     expect(await verifyPlaidWebhook(body, hs, fetchKey)).toBe(false);
   });
-  it("enqueues one sync per delivery and ignores duplicates", async () => {
-    expect((await handlePlaidWebhook(body)).status).toBe("ok");
-    expect((await handlePlaidWebhook(body)).status).toBe("duplicate");
+  it("ignores retries of the same delivery but accepts the same notification later", async () => {
+    const t = Date.parse("2026-10-17T12:00:00Z");
+    expect((await handlePlaidWebhook(body, t)).status).toBe("ok");
+    expect((await handlePlaidWebhook(body, t + 60_000)).status).toBe("duplicate");
     const jobs = await db.select().from(schema.jobs).where(eq(schema.jobs.type, "plaid_sync"));
     expect(jobs).toHaveLength(1);
     const [c] = await db.select().from(schema.connections).where(eq(schema.connections.itemId, "item_w"));
     expect(c!.initialSyncDone).toBe(true);
+    // An hour later the identical body is a new notification; the sync job is still deduped while queued.
+    expect((await handlePlaidWebhook(body, t + 3_600_000)).status).toBe("ok");
+    expect(await db.select().from(schema.jobs).where(eq(schema.jobs.type, "plaid_sync"))).toHaveLength(1);
   });
   it("tracks connection health from ITEM webhooks", async () => {
     await handlePlaidWebhook(JSON.stringify({ webhook_type: "ITEM", webhook_code: "ERROR", item_id: "item_w", error: { error_code: "ITEM_LOGIN_REQUIRED" } }));

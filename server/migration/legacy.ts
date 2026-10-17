@@ -70,7 +70,25 @@ async function tableExists(db: Db, name: string) {
   return Boolean(r[0]?.t);
 }
 
-const toDate = (v: unknown) => (v instanceof Date ? v.toISOString() : String(v)).slice(0, 10);
+/** Legacy `timestamp` (no zone) values arrive as local-time Dates; keep their wall-clock date. */
+const toDate = (v: unknown) => {
+  if (v instanceof Date) return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}-${String(v.getDate()).padStart(2, "0")}`;
+  return String(v).slice(0, 10);
+};
+
+/**
+ * The legacy app never set plaid_type reliably (a backfill marked every early account
+ * "depository"), so infer the type from names first, then from the balance sign.
+ */
+export function inferLegacyType(a: { name?: unknown; category?: unknown; plaid_type?: unknown; current_balance?: unknown }): AccountType {
+  const text = `${a.name ?? ""} ${a.category ?? ""}`.toLowerCase();
+  if (/\b(mortgage|student|loan|heloc|auto loan|line of credit)\b/.test(text)) return "loan";
+  if (/\b(credit|card|visa|mastercard|amex|american express|discover|sapphire)\b/.test(text)) return "credit";
+  if (/\b(401k|401\(k\)|ira|roth|brokerage|invest|403b|hsa|retirement)\b/.test(text)) return "investment";
+  const t = String(a.plaid_type ?? "").toLowerCase();
+  if (t === "credit" || t === "loan" || t === "investment") return t;
+  return Number(a.current_balance ?? 0) < 0 ? "credit" : "depository";
+}
 
 export async function importLegacy(db: Db, opts: { dryRun?: boolean; userId?: string } = {}): Promise<Report> {
   const report: Report = { users: 0, connections: 0, accounts: 0, transactions: 0, rules: 0, goals: 0, flaggedAmounts: 0, reconciliation: [] };
@@ -86,7 +104,7 @@ export async function importLegacy(db: Db, opts: { dryRun?: boolean; userId?: st
   const legacyRules = (await tableExists(db, "categorization_rules")) ? await rows(db, sql`select * from public.categorization_rules r where true ${only("r")}`) : [];
   const legacyGoals = (await tableExists(db, "goals")) ? await rows(db, sql`select * from public.goals g where true ${only("g")}`) : [];
 
-  const userIds = [...new Set([...legacyAccounts, ...legacyTxns, ...legacyGoals].map((r) => String(r.user_id)).filter(Boolean))];
+  const userIds = [...new Set([...legacyAccounts, ...legacyTxns, ...legacyGoals, ...legacyTokens, ...legacyRules].map((r) => String(r.user_id)).filter(Boolean))];
   const catName = new Map(legacyCats.map((c) => [String(c.id), (c.name as string | null) ?? null]));
 
   const run = async (tx: Db) => {
@@ -118,13 +136,7 @@ export async function importLegacy(db: Db, opts: { dryRun?: boolean; userId?: st
 
     const acctMeta = new Map<string, { id: string; type: AccountType; subtype: string | null; userId: string }>();
     for (const a of legacyAccounts) {
-      const raw = Number(a.current_balance ?? 0);
-      const legacyType = ((a.plaid_type as string | null) ?? "").toLowerCase();
-      const type: AccountType = (["depository", "credit", "loan", "investment"] as const).includes(legacyType as never)
-        ? (legacyType as AccountType)
-        : raw < 0
-          ? "credit"
-          : "depository";
+      const type = inferLegacyType(a);
       const id = legacyUuid("accounts", String(a.id));
       const toAmt = (v: unknown) => (v == null || v === "" ? null : toMinor(String(v)));
       const current = toAmt(a.current_balance);
@@ -229,33 +241,39 @@ export async function importLegacy(db: Db, opts: { dryRun?: boolean; userId?: st
   };
 
   if (opts.dryRun) {
-    // Run inside a transaction and roll back, so the dry run exercises every insert.
+    // Run inside a transaction and roll back, so the dry run exercises every insert and the reconciliation.
     try {
       await db.transaction(async (tx) => {
         await run(tx as unknown as Db);
+        await reconcile(tx as unknown as Db, legacyAccounts, legacyTxns, report);
         throw new DryRun();
       });
     } catch (e) {
       if (!(e instanceof DryRun)) throw e;
     }
   } else {
-    await db.transaction(async (tx) => run(tx as unknown as Db));
-  }
-
-  // Reconciliation: per legacy account, counts and decimal totals must match.
-  for (const [legacyId, meta] of legacyAccountIds(legacyAccounts)) {
-    const l = legacyTxns.filter((t) => String(t.account_id) === legacyId);
-    const legacyTotalMinor = l.reduce((s, t) => s + toMinor(String(t.amount)), 0);
-    const imported = opts.dryRun
-      ? { n: l.length, total: legacyTotalMinor }
-      : await rows(db, sql`select count(*)::int as n, coalesce(sum(amount_minor), 0)::bigint as total from link.transactions where account_id = ${meta} and source = 'legacy'`).then((r) => ({ n: Number(r[0]!.n), total: Number(r[0]!.total) }));
-    report.reconciliation.push({ accountId: legacyId, legacyCount: l.length, importedCount: imported.n, legacyTotalMinor, importedTotalMinor: imported.total, ok: l.length === imported.n && legacyTotalMinor === imported.total });
+    await db.transaction(async (tx) => {
+      await run(tx as unknown as Db);
+      await reconcile(tx as unknown as Db, legacyAccounts, legacyTxns, report);
+      // Any mismatch aborts the whole import: nothing is written.
+      if (report.reconciliation.some((r) => !r.ok)) throw new Error("Legacy import reconciliation failed; rolled back");
+    });
   }
   return report;
 }
 
-class DryRun extends Error {}
-
-function legacyAccountIds(accounts: Row[]): [string, string][] {
-  return accounts.map((a) => [String(a.id), legacyUuid("accounts", String(a.id))]);
+/** Per legacy account: transaction count and exact cent total, legacy vs imported. */
+async function reconcile(db: Db, legacyAccounts: Row[], legacyTxns: Row[], report: Report) {
+  report.reconciliation = [];
+  for (const a of legacyAccounts) {
+    const legacyId = String(a.id);
+    const l = legacyTxns.filter((t) => String(t.account_id) === legacyId);
+    const legacyTotalMinor = l.reduce((s, t) => s + toMinor(String(t.amount)), 0);
+    const [r] = await rows(db, sql`select count(*)::int as n, coalesce(sum(amount_minor), 0)::bigint as total from link.transactions where account_id = ${legacyUuid("accounts", legacyId)} and source = 'legacy'`);
+    const importedCount = Number(r!.n);
+    const importedTotalMinor = Number(r!.total);
+    report.reconciliation.push({ accountId: legacyId, legacyCount: l.length, importedCount, legacyTotalMinor, importedTotalMinor, ok: l.length === importedCount && legacyTotalMinor === importedTotalMinor });
+  }
 }
+
+class DryRun extends Error {}
