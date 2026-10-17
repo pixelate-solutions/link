@@ -1,5 +1,5 @@
 {
-  "id": "08d46f63-3cb7-486f-a78c-237865cf5bd8",
+  "id": "0f31cc0b-7cbf-4f06-94b9-db85a2f42a80",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2927,12 +2927,6 @@
         },
         "note": {
           "name": "note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "legacy_category": {
-          "name": "legacy_category",
           "type": "text",
           "primaryKey": false,
           "notNull": false

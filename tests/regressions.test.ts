@@ -2,7 +2,6 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { schema, type Db } from "@/server/db/client";
 import { enqueue, runJobs } from "@/server/jobs";
-import { inferLegacyType } from "@/server/migration/legacy";
 import { applySyncBatch } from "@/server/plaid/sync";
 import type { PlaidAccountLike, PlaidTxnLike } from "@/server/plaid/map";
 import { pairTransfers } from "@/server/pipeline/process";
@@ -18,8 +17,8 @@ const ACCTS: PlaidAccountLike[] = [
 ];
 const tx = (id: string, p: Partial<PlaidTxnLike> = {}): PlaidTxnLike => ({ transaction_id: id, account_id: "chk", amount: 12.5, date: "2026-10-10", name: "STORE", pending: false, iso_currency_code: "USD", ...p });
 const live = async () => db.select().from(schema.transactions).where(and(eq(schema.transactions.userId, U), isNull(schema.transactions.removedAt)));
-const sync = (b: Partial<Parameters<typeof applySyncBatch>[2]>, opts?: { fullResync?: boolean }) =>
-  applySyncBatch(db, conn, { accounts: ACCTS, added: [], modified: [], removed: [], nextCursor: "c", ...b }, new Date("2026-10-15T12:00:00Z"), opts);
+const sync = (b: Partial<Parameters<typeof applySyncBatch>[2]>) =>
+  applySyncBatch(db, conn, { accounts: ACCTS, added: [], modified: [], removed: [], nextCursor: "c", ...b }, new Date("2026-10-15T12:00:00Z"));
 
 beforeEach(async () => {
   ({ db } = await testDb());
@@ -48,14 +47,6 @@ describe("sync", () => {
     const rows = await live();
     expect(rows.every((r) => r.transferPairId && r.kind === "card_payment")).toBe(true);
   });
-
-  it("a full resync retires imported legacy rows Plaid no longer reports", async () => {
-    await sync({ added: [tx("P")] });
-    const [acct] = await db.select().from(schema.accounts).where(eq(schema.accounts.providerAccountId, "chk"));
-    await db.insert(schema.transactions).values({ userId: U, accountId: acct!.id, providerId: "OLD_PENDING", amountMinor: -1250, date: "2026-10-11", name: "STORE", merchant: "Store", merchantKey: "store", kind: "expense", category: "general", classSource: "legacy", confidence: 0.8, source: "legacy" });
-    await sync({ added: [tx("P")] }, { fullResync: true });
-    expect((await live()).map((r) => r.providerId)).toEqual(["P"]);
-  });
 });
 
 describe("job queue", () => {
@@ -79,15 +70,5 @@ describe("job queue", () => {
     await db.execute(sql`update link.jobs set locked_at = now() - interval '1 hour', attempts = max_attempts where status = 'running'`);
     await runJobs({ limit: 5 });
     expect(await status()).toEqual(["done", "failed"]);
-  });
-});
-
-describe("legacy account types", () => {
-  it("doesn't trust the backfilled plaid_type", () => {
-    expect(inferLegacyType({ name: "Chase Sapphire Visa", plaid_type: "depository", current_balance: "-800" })).toBe("credit");
-    expect(inferLegacyType({ name: "Student Loan", plaid_type: "depository", current_balance: "30000" })).toBe("loan");
-    expect(inferLegacyType({ name: "Home Mortgage", current_balance: "-250000" })).toBe("loan");
-    expect(inferLegacyType({ name: "Vanguard Roth IRA", current_balance: "5000" })).toBe("investment");
-    expect(inferLegacyType({ name: "Checking", plaid_type: "depository", current_balance: "100" })).toBe("depository");
   });
 });

@@ -12,7 +12,8 @@ Link connects to your bank accounts, sorts every transaction automatically, and 
 ## Quick start (local)
 
 ```bash
-cp .env.example .env.local      # set DATABASE_URL and LINK_ENCRYPTION_KEY; add LINK_DEV_AUTH=1
+# Secrets live in Infisical (Pixelate Solutions → project "Link", envs dev/prod):
+infisical export --projectId=e68bf85b-33eb-4d06-9578-0f7ca42ca9ce --env=dev --format=dotenv > .env.local
 npm install
 npm run db:migrate
 npm run dev                     # http://localhost:3000
@@ -31,16 +32,15 @@ npm run dev                     # http://localhost:3000
 | `npm run ai:eval` | Evaluation suite against the configured model (or the deterministic planner) |
 | `npm run ui:screens` | Playwright visual pass: every screen, phone/tablet/desktop, light/dark (needs a running dev server) |
 | `npm run db:generate` / `npm run db:migrate` | Drizzle migrations for the `link` schema |
-| `npm run db:import-legacy [-- --apply]` | Import data from the pre-2.0 tables (dry run by default) |
 | `npm run jobs:work` | Drain the background job queue locally |
 
 ## Documentation
 
-- [Rebuild audit](docs/REBUILD_AUDIT.md): what was wrong with the old app, and the keep/replace decisions
+- [Rebuild audit](docs/REBUILD_AUDIT.md): what was wrong with the old app, and why it was replaced
 - [Architecture](docs/ARCHITECTURE.md)
 - [Financial calculations](docs/FINANCIAL_CALCULATIONS.md)
 - [AI harness](docs/AI_HARNESS.md) and [MCP tools](docs/MCP_TOOLS.md)
-- [Database & migration](docs/DATABASE_MIGRATION.md)
+- [Database](docs/DATABASE_MIGRATION.md)
 - [Security](docs/SECURITY.md)
 - [Deployment](docs/DEPLOYMENT.md)
 - [Implementation status](docs/IMPLEMENTATION_STATUS.md): what is done, verified, and blocked

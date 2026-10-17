@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { CountryCode, PersonalFinanceCategoryVersion, Products } from "plaid";
 import { type AccountType, classify } from "@/lib/finance/classify";
 import { todayISO } from "@/lib/finance/dates";
@@ -34,7 +34,7 @@ type TxnRow = typeof schema.transactions.$inferSelect;
  * cursor commit together or not at all.
  */
 /** Sources Link should not overwrite with a weaker automatic guess. */
-const STICKY = new Set(["ai", "legacy"]);
+const STICKY = new Set(["ai"]);
 const STRONG = new Set(["rule", "learned", "structural", "user"]);
 
 export async function applySyncBatch(
@@ -42,7 +42,6 @@ export async function applySyncBatch(
   conn: { id: string; userId: string },
   batch: SyncBatch,
   now = new Date(),
-  opts: { fullResync?: boolean } = {},
 ): Promise<SyncResult> {
   return db.transaction(async (tx) => {
     const accountIds = await upsertAccounts(tx, conn, batch.accounts, batch.liabilities, now);
@@ -163,25 +162,6 @@ export async function applySyncBatch(
         )
         .returning({ id: schema.transactions.id });
       removed = res.length;
-    }
-
-    // A full resync (empty cursor) is authoritative for its date range: imported legacy rows
-    // Plaid no longer reports (e.g. stale pending copies the old app kept) are retired.
-    if (opts.fullResync && incoming.size && ownAccountIds.length) {
-      const seen = new Set(incoming.keys());
-      const earliest = [...incoming.values()].reduce((m, t) => (t.date < m ? t.date : m), "9999-12-31");
-      const legacy = await tx
-        .select({ id: schema.transactions.id, providerId: schema.transactions.providerId })
-        .from(schema.transactions)
-        .where(and(eq(schema.transactions.userId, conn.userId), inArray(schema.transactions.accountId, ownAccountIds), eq(schema.transactions.source, "legacy"), isNull(schema.transactions.removedAt), gte(schema.transactions.date, earliest)));
-      const stale = legacy.filter((r) => !seen.has(r.providerId)).map((r) => r.id);
-      for (let i = 0; i < stale.length; i += 5000) {
-        await tx
-          .update(schema.transactions)
-          .set({ removedAt: now, updatedAt: now })
-          .where(and(eq(schema.transactions.userId, conn.userId), inArray(schema.transactions.id, stale.slice(i, i + 5000))));
-      }
-      removed += stale.length;
     }
 
     await tx
@@ -313,8 +293,8 @@ export async function syncConnection(connectionId: string, userId: string): Prom
       const { data } = await api.accountsGet({ access_token: accessToken });
       pages.accounts = data.accounts as unknown as PlaidAccountLike[];
     }
-    const result = await applySyncBatch(db, { id: conn.id, userId }, { ...pages, liabilities }, new Date(), { fullResync: !conn.cursor });
-    // Imported or re-linked items may still point their webhooks somewhere else.
+    const result = await applySyncBatch(db, { id: conn.id, userId }, { ...pages, liabilities });
+    // On the first sync, make sure the item's webhooks point at this deployment.
     if (!conn.cursor && webhookUrl()) {
       try {
         await api.itemWebhookUpdate({ access_token: accessToken, webhook: webhookUrl()! });

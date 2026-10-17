@@ -1,4 +1,4 @@
-# Database & migration
+# Database
 
 ## The `link` schema
 
@@ -33,32 +33,6 @@ Tables from the brief that were deliberately *not* created:
 - **Separate `merchants`, `forecasts` and `income_models` tables.** They are derived on demand, and the picture snapshot caches them.
 - **Notifications.** No outbound channel is implemented yet.
 
-## Importing legacy data
+## Old app's tables
 
-The pre-2.0 tables in `public` are **never modified or dropped** by Link 2.0. `server/migration/legacy.ts` copies them into `link`:
-
-| Legacy | → Link 2.0 |
-|---|---|
-| distinct `user_id`s | `users` |
-| `user_tokens` | `connections`. The token is re-encrypted (AES-256-GCM, item id as AAD). The cursor is reset so the first sync rebuilds idempotently. A missing `item_id` becomes `status=error` |
-| `accounts` | `accounts`. Negative legacy debt balances become positive amounts owed. `plaid_access_token` links the account to its connection |
-| `transactions` | `transactions`. Amounts are parsed from decimal strings without floats. The legacy category name maps to the taxonomy (`legacy_category` keeps the original). Structural detection (card payments, transfers) wins over legacy categories. Probable **milliunit** rows (manual, integer, ≥ 100,000) are **flagged for review, never divided** |
-| `categorization_rules` | `rules`. Only user-created rules (priority ≥ 2, name or merchant matchers) |
-| `goals` | `goals`, with kind interpreted from the name, plus target amount and date |
-| `recurring_transactions` | not copied; recomputed by the detector |
-| `stripe_customers`, `lifetime_purchases`, `referrals`, `chat_*`, `notifications`, `walkthrough_status` | left in place, unused |
-
-**Mechanics:**
-- **Idempotent:** row ids derive from legacy ids (`legacyUuid`), with `ON CONFLICT DO NOTHING`.
-- **Dry run by default:** the import runs inside a transaction and rolls back.
-- **Reconciliation:** per legacy account, it compares transaction count and the exact cent total between legacy and imported. A mismatch exits non-zero.
-
-**Tested:** `tests/legacy-migration.test.ts` builds the legacy schema and loads edge-case data. It then runs a dry run and two real runs and checks that totals and conventions reconcile.
-
-**Production procedure (needs authorization; has not been run):**
-1. Back up the database: a Neon branch, or `pg_dump`.
-2. `DATABASE_URL=… npm run db:migrate`: creates the `link` schema only.
-3. `DATABASE_URL=… npm run db:import-legacy`: dry run. Review the reconciliation.
-4. `DATABASE_URL=… npm run db:import-legacy -- --apply`.
-5. Each user's first visit or cron run enqueues processing: classification, pairing and recurring detection. Plaid items need `LINK_PUBLIC_URL` set so webhooks can be re-pointed. Connections re-sync from an empty cursor.
-6. Drop the legacy tables only after a verification period, with explicit sign-off.
+The pre-2.0 app's tables in the `public` schema held no data. They were dropped when Link 2.0 was deployed, and no import from them exists.

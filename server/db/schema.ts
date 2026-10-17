@@ -15,8 +15,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 /**
- * Link 2.0 lives in its own Postgres schema so the legacy `public` tables stay
- * untouched until a verified import has run (see docs/DATABASE_MIGRATION.md).
+ * Link lives in its own Postgres schema (`link`).
  *
  * Conventions
  *  - Money: bigint minor units (`*_minor`), sign + = inflow to the user.
@@ -121,7 +120,7 @@ export const accounts = link.table(
     minPaymentMinor: money("min_payment_minor"),
     statementBalanceMinor: money("statement_balance_minor"),
     nextPaymentDue: date("next_payment_due", { mode: "string" }),
-    source: text("source").notNull().default("plaid"), // plaid | manual | legacy
+    source: text("source").notNull().default("plaid"), // plaid | manual | demo
     hidden: boolean("hidden").notNull().default(false),
     closed: boolean("closed").notNull().default(false),
     createdAt: createdAt(),
@@ -185,7 +184,6 @@ export const transactions = link.table(
     recurringId: uuid("recurring_id"),
     hasSplits: boolean("has_splits").notNull().default(false),
     note: text("note"),
-    legacyCategory: text("legacy_category"),
     source: text("source").notNull().default("plaid"),
     removedAt: timestamp("removed_at", { withTimezone: true }),
     createdAt: createdAt(),
@@ -225,7 +223,7 @@ export const rules = link.table(
     unless: jsonb("unless"),
     then: jsonb("then").notNull(),
     priority: integer("priority").notNull().default(100),
-    source: text("source").notNull().default("user"), // user | legacy | ai
+    source: text("source").notNull().default("user"), // user | ai
     active: boolean("active").notNull().default(true),
     createdAt: createdAt(),
   },

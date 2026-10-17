@@ -4,7 +4,7 @@ Link is one Next.js 16 app plus Postgres. Vercel with Neon is the reference setu
 
 ## Environment
 
-See `.env.example`.
+See `.env.example`. The source of truth is Infisical: Pixelate Solutions org → project **Link** (`e68bf85b-33eb-4d06-9578-0f7ca42ca9ce`), with environments `dev` (local, Plaid sandbox) and `prod` (Vercel, Plaid production).
 
 **Required in production:**
 - `DATABASE_URL`
@@ -29,7 +29,6 @@ See `.env.example`.
    - `/api/cron` every 15 minutes, which drains the job queue;
    - `/api/cron?review=1` daily, the scheduled review: re-sync stale connections and recompute every user.
 4. Set the Plaid webhook to `${LINK_PUBLIC_URL}/api/webhooks/plaid`. New items get it from the link token automatically.
-5. Optional: import legacy data. See [DATABASE_MIGRATION.md](DATABASE_MIGRATION.md); it requires a backup and sign-off.
 
 ## Function durations
 

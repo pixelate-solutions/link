@@ -14,7 +14,7 @@
 
 **Why GPT-6 Luna.** The product brief asked for "GPT Luna". OpenAI's model catalog and the installed SDK's `ChatModel` type both list `gpt-6-luna` (announced 2026-09-22). It supports the Responses API, function calling, structured outputs and reasoning effort `none`–`max`, at $0.10 / $0.50 per 1M input/output tokens. Note that Chat Completions only supports function calling with reasoning disabled, which is why Link uses the Responses API.
 
-**Verification status:** the model id and capabilities were checked against the SDK and OpenAI's documentation. **A live call was not made: no `OPENAI_API_KEY` was available in the build environment.** Until a key is configured, the deterministic planner answers (below), and the UI labels nothing as model-generated.
+**Verification status:** verified live on 2026-10-17. `npm run ai:eval` passed 10/10 against `gpt-6-luna` through the full tool loop. Without a key, the deterministic planner (below) answers instead.
 
 To switch models, set `LINK_AI_MODEL`. Any Responses-API model with function calling works.
 
@@ -77,11 +77,11 @@ It is the fallback when no key is configured, and it makes the acceptance flows 
 - Tool output sanitizes bank text (`untrusted()`: control characters, markup and braces are stripped, length is capped). The prompt marks tool output as untrusted.
 - Assistant text is rendered by a minimal formatter (`rich-text.tsx`) that never interprets HTML.
 - The old XSS vector (`rehype-raw`) is gone.
-- Injection resistance is tested in two places: `tests/agent.test.ts`, where even a model that obeys the injection can only create a proposal, and the eval case `injection`.
+- Injection resistance is tested in two places: `tests/agent.test.ts`, where even a model that obeys the injection can only create a proposal, and the eval case `injection-in-data`, where GPT-6 Luna reported the poisoned transaction without acting on it.
 
 ## Evaluation
 
-`server/ai/eval.ts` holds 9 cases:
+`server/ai/eval.ts` holds 10 cases:
 - afford a vacation;
 - retire sooner;
 - top three things;
@@ -90,9 +90,10 @@ It is the fallback when no key is configured, and it makes the acceptance flows 
 - why a category;
 - spend $300 less;
 - a child in two years;
-- prompt injection.
+- a prompt injection planted in a transaction description;
+- a request for another user's data.
 
 Each case checks the expected tool calls, required and forbidden content (no generic advice), length, and numeric verification.
 
-- `npm test` runs the suite against the deterministic planner: 9/9 pass.
-- `npm run ai:eval` runs it against the configured model. **Not yet run against GPT-6 Luna (no key).**
+- `npm test` runs the suite against the deterministic planner: 10/10 pass.
+- `npm run ai:eval` runs it against the configured model: 10/10 on `gpt-6-luna`. Add `--verbose` to print every answer.

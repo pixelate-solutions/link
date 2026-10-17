@@ -73,7 +73,6 @@ Applying a recommendation, accepting a scenario, and approving a proposal each c
 
 ## Known gaps
 
-- **No CSP.** Plaid Link and Clerk need a tuned policy; this is to do.
 - **No per-user rate limiting** on `/api/ask`. Model cost is tracked per run but not capped.
 - **MCP token scopes are not enforced per tool.** Every authenticated client gets every tool. Writes still go through in-app approval; scope enforcement comes with the OAuth setup.
 - **Single-user ownership only.** Shared households are not implemented, so nothing can be shared by accident.

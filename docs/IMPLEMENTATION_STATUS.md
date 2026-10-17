@@ -12,8 +12,6 @@ Branch `link-2.0`. This is the resumable checklist; keep it current.
 - [x] `link` Postgres schema: integer cents, ownership on every row, idempotency constraints, migration `0000_init`. Applied to local Postgres 17 and to PGlite in tests.
 - [x] AES-256-GCM token encryption with the item id as AAD
 - [x] Postgres job queue: dedupe, SKIP LOCKED, backoff, terminal failures, stuck-job recovery
-- [x] Legacy import: dry run, idempotent, exact per-account reconciliation (`tests/legacy-migration.test.ts`)
-- [ ] Production legacy import. **Needs a backup and explicit authorization.**
 
 ## 2. Sync
 - [x] `/transactions/sync` applier: atomic, idempotent, modified, removed, pending→posted keeping user edits, unchanged redeliveries are no-ops
@@ -37,8 +35,8 @@ Branch `link-2.0`. This is the resumable checklist; keep it current.
 - [x] Agent loop with numeric verification and a repair round. Tested with a scripted model, including prompt injection.
 - [x] Deterministic planner when no model is configured
 - [x] MCP server (per-request, user-bound). Tested with the in-memory client.
-- [x] Evaluation suite: 9/9 pass on the deterministic planner
-- [~] **GPT-6 Luna end to end: not verified, no `OPENAI_API_KEY` in this environment.** Run `npm run ai:eval` once a key is set.
+- [x] Evaluation suite: 10/10 on the deterministic planner (`npm test`)
+- [x] **GPT-6 Luna end to end: 10/10** with `npm run ai:eval` (live API, 2026-10-17), including a prompt injection planted in a transaction description
 
 ## 6. Proactive intelligence
 - [x] Pipeline recomputes the snapshot, recommendations and goal progress after every sync, correction or plan change
@@ -54,7 +52,6 @@ Branch `link-2.0`. This is the resumable checklist; keep it current.
 - [x] Ask panel: streaming, tool status, inline approvals. Account sheet: connections, preferences, facts, memories, rules, theme, export, delete.
 - [x] Playwright visual pass (`npm run ui:screens`) at phone, tablet and desktop in light and dark, with no console errors
 - [~] Progressive Web App: installable manifest is done. No offline shell or service worker; stale balances are labeled "As of …"
-- [ ] Content Security Policy
 
 ## 8. Cleanup and validation
 - [x] Legacy tree removed (recoverable from git at `f9af8fd`). Runtime dependencies cut from 77 to 19.
@@ -63,8 +60,5 @@ Branch `link-2.0`. This is the resumable checklist; keep it current.
 
 ## Blockers needing credentials or decisions
 - **Plaid** sandbox or production keys (`PLAID_CLIENT_ID`, `PLAID_SECRET`), to verify live sync and webhooks.
-- **`OPENAI_API_KEY`**, to verify GPT-6 Luna end to end.
 - **Clerk keys**, for real auth. Local development uses `LINK_DEV_AUTH=1`.
-- **Billing.** The old Stripe flow was removed as insecure. Pricing for Link 2.0 is a business decision.
-- **Production legacy import.** Requires a backup and sign-off.
 - **Shared households.** Needs a consent and permissions design before implementation.

@@ -38,8 +38,8 @@ export async function reclassify(db: Db, userId: string, scope: { merchantKey?: 
     // Transfer pairs stay paired unless a rule or correction says otherwise.
     if (r.transferPairId && c.source !== "rule" && c.source !== "learned") continue;
     if (c.category === r.category && c.kind === r.kind && c.source === r.classSource) continue;
-    // Model and carried-over categories are only replaced by something stronger.
-    if ((r.classSource === "ai" || r.classSource === "legacy") && !["rule", "learned", "structural"].includes(c.source)) continue;
+    // Model categories are only replaced by something stronger.
+    if (r.classSource === "ai" && !["rule", "learned", "structural"].includes(c.source)) continue;
     if (r.transferPairId) {
       // Unpair both legs together; the pipeline re-pairs what still matches.
       await db.update(t).set({ transferPairId: null }).where(and(eq(t.userId, userId), eq(t.transferPairId, r.transferPairId)));

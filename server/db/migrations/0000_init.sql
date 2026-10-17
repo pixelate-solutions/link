@@ -325,7 +325,6 @@ CREATE TABLE "link"."transactions" (
 	"recurring_id" uuid,
 	"has_splits" boolean DEFAULT false NOT NULL,
 	"note" text,
-	"legacy_category" text,
 	"source" text DEFAULT 'plaid' NOT NULL,
 	"removed_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,

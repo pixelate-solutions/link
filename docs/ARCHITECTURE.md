@@ -67,7 +67,7 @@ Locally, `LINK_DEV_AUTH=1` enables a signed-cookie dev session. It is refused in
 
 | Decision | Why |
 |---|---|
-| New `link` Postgres schema beside the legacy `public` tables | Lets the import be non-destructive and verifiable before anything old is dropped |
+| Everything in a `link` Postgres schema | Clean namespace; one migration history |
 | Fixed category taxonomy | Users correct transactions and write rules; they never maintain category lists |
 | Transaction *kind* separate from *category* | Transfers and card payments can never be double counted as spending |
 | Deterministic engines; AI only for language | Numbers are reproducible and testable. The model interprets, explains and plans tool use |
