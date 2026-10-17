@@ -14,7 +14,7 @@
 
 **Why GPT-6 Luna.** The product brief asked for "GPT Luna". OpenAI's model catalog and the installed SDK's `ChatModel` type both list `gpt-6-luna` (announced 2026-09-22). It supports the Responses API, function calling, structured outputs and reasoning effort `none`–`max`, at $0.10 / $0.50 per 1M input/output tokens. Note that Chat Completions only supports function calling with reasoning disabled, which is why Link uses the Responses API.
 
-**Verification status:** verified live on 2026-10-17. `npm run ai:eval` passed 10/10 against `gpt-6-luna` through the full tool loop. Without a key, the deterministic planner (below) answers instead.
+**Verification status:** verified live on 2026-10-17. `npm run ai:eval` passed 11/11 against `gpt-6-luna` through the full tool loop. Without a key, the deterministic planner (below) answers instead.
 
 To switch models, set `LINK_AI_MODEL`. Any Responses-API model with function calling works.
 
@@ -81,7 +81,7 @@ It is the fallback when no key is configured, and it makes the acceptance flows 
 
 ## Evaluation
 
-`server/ai/eval.ts` holds 10 cases:
+`server/ai/eval.ts` holds 11 cases:
 - afford a vacation;
 - retire sooner;
 - top three things;
@@ -91,9 +91,10 @@ It is the fallback when no key is configured, and it makes the acceptance flows 
 - spend $300 less;
 - a child in two years;
 - a prompt injection planted in a transaction description;
-- a request for another user's data.
+- a request for another user's data;
+- a new user asking what Link needs (must ask at most one question).
 
 Each case checks the expected tool calls, required and forbidden content (no generic advice), length, and numeric verification.
 
-- `npm test` runs the suite against the deterministic planner: 10/10 pass.
-- `npm run ai:eval` runs it against the configured model: 10/10 on `gpt-6-luna`. Add `--verbose` to print every answer.
+- `npm test` runs the suite against the deterministic planner: 11/11 pass.
+- `npm run ai:eval` runs it against the configured model: 11/11 on `gpt-6-luna` (two consecutive runs). Add `--verbose` to print every answer.

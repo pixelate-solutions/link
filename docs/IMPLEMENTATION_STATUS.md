@@ -35,8 +35,8 @@ Branch `link-2.0`. This is the resumable checklist; keep it current.
 - [x] Agent loop with numeric verification and a repair round. Tested with a scripted model, including prompt injection.
 - [x] Deterministic planner when no model is configured
 - [x] MCP server (per-request, user-bound). Tested with the in-memory client.
-- [x] Evaluation suite: 10/10 on the deterministic planner (`npm test`)
-- [x] **GPT-6 Luna end to end: 10/10** with `npm run ai:eval` (live API, 2026-10-17), including a prompt injection planted in a transaction description
+- [x] Evaluation suite: 11/11 on the deterministic planner (`npm test`)
+- [x] **GPT-6 Luna end to end: 11/11** with `npm run ai:eval` (live API, 2026-10-17), including a prompt injection planted in a transaction description
 
 ## 6. Proactive intelligence
 - [x] Pipeline recomputes the snapshot, recommendations and goal progress after every sync, correction or plan change
