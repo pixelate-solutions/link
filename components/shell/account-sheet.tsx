@@ -168,7 +168,7 @@ export function AccountSheet({ open, onOpenChange }: { open: boolean; onOpenChan
                             <span className="tabular text-fg-2">
                               {a.currentMinor == null || (c.needsInvestmentsConsent && a.type === "investment" && !a.currentMinor)
                                 ? "—"
-                                : formatMoney(a.type === "credit" || a.type === "loan" ? -Math.abs(a.currentMinor) : a.currentMinor)}
+                                : formatMoney(a.currentMinor !== 0 && (a.type === "credit" || a.type === "loan") ? -Math.abs(a.currentMinor) : a.currentMinor)}
                             </span>
                             <span className="flex basis-full justify-end">
                               <AccountOwner accountId={a.id} businessId={a.businessId} businesses={data.businesses} onChanged={() => act(async () => ({ ok: true }))} />
