@@ -301,7 +301,12 @@ export async function syncConnection(connectionId: string, userId: string): Prom
       const { data } = await api.accountsGet({ access_token: accessToken });
       pages.accounts = data.accounts as unknown as PlaidAccountLike[];
     }
+    const investments = await investmentBalances(api, accessToken, pages.accounts);
+    pages.accounts = investments.accounts;
     const result = await applySyncBatch(db, { id: conn.id, userId }, { ...pages, liabilities });
+    if (investments.needsConsent !== conn.needsInvestmentsConsent) {
+      await db.update(schema.connections).set({ needsInvestmentsConsent: investments.needsConsent }).where(and(eq(schema.connections.id, conn.id), eq(schema.connections.userId, userId)));
+    }
     // On the first sync, make sure the item's webhooks point at this deployment.
     if (!conn.cursor && webhookUrl()) {
       try {
@@ -325,7 +330,33 @@ export async function syncConnection(connectionId: string, userId: string): Prom
   }
 }
 
-export async function createLinkToken(userId: string, connectionId?: string): Promise<string> {
+/**
+ * Retirement and brokerage balances come from holdings: without the
+ * Investments product many institutions (Empower, for one) report $0.
+ */
+export async function investmentBalances(api: ReturnType<typeof plaid>, accessToken: string, accounts: PlaidAccountLike[]): Promise<{ accounts: PlaidAccountLike[]; needsConsent: boolean }> {
+  if (!accounts.some((a) => a.type === "investment" || a.type === "brokerage")) return { accounts, needsConsent: false };
+  try {
+    const { data } = await api.investmentsHoldingsGet({ access_token: accessToken });
+    const totals = new Map<string, number>();
+    for (const h of data.holdings) totals.set(h.account_id, (totals.get(h.account_id) ?? 0) + (h.institution_value ?? 0));
+    const fresh = new Map(data.accounts.map((a) => [a.account_id, a]));
+    return {
+      needsConsent: false,
+      accounts: accounts.map((a) => {
+        const f = fresh.get(a.account_id);
+        const current = f?.balances.current || totals.get(a.account_id) || a.balances.current;
+        return f || totals.has(a.account_id) ? { ...a, balances: { ...a.balances, current } } : a;
+      }),
+    };
+  } catch (err) {
+    const code = plaidErrorCode(err);
+    log.info("sync: investments unavailable", { code });
+    return { accounts, needsConsent: code === "ADDITIONAL_CONSENT_REQUIRED" };
+  }
+}
+
+export async function createLinkToken(userId: string, connectionId?: string, opts: { investments?: boolean } = {}): Promise<string> {
   const api = plaid();
   let accessToken: string | undefined;
   if (connectionId) {
@@ -344,8 +375,10 @@ export async function createLinkToken(userId: string, connectionId?: string): Pr
     country_codes: [CountryCode.Us],
     webhook: webhookUrl(),
     ...(accessToken
-      ? { access_token: accessToken }
-      : { products: [Products.Transactions], optional_products: [Products.Liabilities], transactions: { days_requested: 730 } }),
+      ? // Update mode: repair a login, or ask for the Investments permission an older connection lacks.
+        { access_token: accessToken, ...(opts.investments ? { additional_consented_products: [Products.Investments] } : {}) }
+      : // Investments gives real balances for 401(k)s and brokerage accounts; Transactions alone often reports $0.
+        { products: [Products.Transactions], optional_products: [Products.Liabilities, Products.Investments], transactions: { days_requested: 730 } }),
   });
   return data.link_token;
 }

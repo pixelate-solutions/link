@@ -14,8 +14,9 @@ export function ConnectBank({
   label = "Connect an account",
   onConnected,
   onOpening,
+  investments,
   ...props
-}: { connectionId?: string; label?: string; onConnected?: () => void; onOpening?: () => void } & Omit<ButtonProps, "onClick">) {
+}: { connectionId?: string; label?: string; onConnected?: () => void; onOpening?: () => void; investments?: boolean } & Omit<ButtonProps, "onClick">) {
   const { connect } = usePlaidConnect();
   const [busy, setBusy] = useState(false);
 
@@ -23,7 +24,7 @@ export function ConnectBank({
     // Close any surrounding sheet before Link opens: a modal sheet would swallow clicks in Plaid's iframe.
     onOpening?.();
     setBusy(true);
-    await connect({ connectionId, onConnected });
+    await connect({ connectionId, investments, onConnected });
     setBusy(false);
   };
 

@@ -112,6 +112,8 @@ export const connections = link.table(
     institutionName: text("institution_name"),
     /** Logo as an https or data: URL; "" once looked up and none was found. */
     institutionLogo: text("institution_logo"),
+    /** Has investment accounts whose balances need the Investments permission (granted in Plaid update mode). */
+    needsInvestmentsConsent: boolean("needs_investments_consent").notNull().default(false),
     accessTokenEnc: text("access_token_enc").notNull(),
     cursor: text("cursor"),
     status: text("status").notNull().default("active"), // active | login_required | error | disconnected

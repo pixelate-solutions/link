@@ -165,7 +165,11 @@ export function AccountSheet({ open, onOpenChange }: { open: boolean; onOpenChan
                             <span className="min-w-0 flex-1 truncate text-fg-2">
                               {a.name} {a.mask && <span className="text-muted">··{a.mask}</span>}
                             </span>
-                            <span className="tabular text-fg-2">{a.currentMinor == null ? "—" : formatMoney(a.type === "credit" || a.type === "loan" ? -Math.abs(a.currentMinor) : a.currentMinor)}</span>
+                            <span className="tabular text-fg-2">
+                              {a.currentMinor == null || (c.needsInvestmentsConsent && a.type === "investment" && !a.currentMinor)
+                                ? "—"
+                                : formatMoney(a.type === "credit" || a.type === "loan" ? -Math.abs(a.currentMinor) : a.currentMinor)}
+                            </span>
                             <span className="flex basis-full justify-end">
                               <AccountOwner accountId={a.id} businessId={a.businessId} businesses={data.businesses} onChanged={() => act(async () => ({ ok: true }))} />
                             </span>
@@ -174,6 +178,12 @@ export function AccountSheet({ open, onOpenChange }: { open: boolean; onOpenChan
                       </ul>
                     )}
                     {c.status === "login_required" && <ConnectBank connectionId={c.id} label="Reconnect" size="sm" className="mt-3" onOpening={() => onOpenChange(false)} />}
+                    {c.status === "active" && c.needsInvestmentsConsent && (
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <span className="text-[12px] text-caution">Balance not shared yet</span>
+                        <ConnectBank connectionId={c.id} investments label="Fix balance" size="sm" variant="primary" onOpening={() => onOpenChange(false)} />
+                      </div>
+                    )}
                     {c.status === "disconnected" && (
                       <button onClick={() => act(() => disconnectAction(c.id, true))} className="mt-2 text-[12px] text-caution">
                         Delete this history

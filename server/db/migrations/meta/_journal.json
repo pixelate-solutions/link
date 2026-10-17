@@ -36,6 +36,13 @@
       "when": 1792268944579,
       "tag": "0004_institution_logo",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792269142881,
+      "tag": "0005_investments_consent",
+      "breakpoints": true
     }
   ]
 }

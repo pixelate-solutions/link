@@ -1,0 +1,1 @@
+ALTER TABLE "link"."connections" ADD COLUMN "needs_investments_consent" boolean DEFAULT false NOT NULL;

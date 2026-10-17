@@ -29,3 +29,20 @@ describe("payment rails", () => {
     expect(railPayee("check", "CHECK # 141 05/26")).not.toBe(railPayee("check", "CHECK # 142 06/02"));
   });
 });
+
+describe("investment balances", () => {
+  const acct = { account_id: "k1", name: "401(k)", type: "investment", subtype: "401k", balances: { current: 0, available: null } };
+  it("uses holdings when the Investments permission is granted", async () => {
+    const { investmentBalances } = await import("@/server/plaid/sync");
+    const api = { investmentsHoldingsGet: async () => ({ data: { accounts: [{ account_id: "k1", balances: { current: null } }], holdings: [{ account_id: "k1", institution_value: 41200.5 }, { account_id: "k1", institution_value: 800 }] } }) };
+    const r = await investmentBalances(api as never, "tok", [acct]);
+    expect(r.needsConsent).toBe(false);
+    expect(r.accounts[0]!.balances.current).toBe(42000.5);
+  });
+  it("flags the connection when the permission is missing, instead of trusting $0", async () => {
+    const { investmentBalances } = await import("@/server/plaid/sync");
+    const api = { investmentsHoldingsGet: async () => { throw Object.assign(new Error("x"), { response: { data: { error_code: "ADDITIONAL_CONSENT_REQUIRED" } } }); } };
+    const r = await investmentBalances(api as never, "tok", [acct]);
+    expect(r.needsConsent).toBe(true);
+  });
+});

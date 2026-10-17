@@ -12,6 +12,7 @@ export async function listConnections(userId: string) {
       id: schema.connections.id,
       institutionName: schema.connections.institutionName,
       institutionLogo: schema.connections.institutionLogo,
+      needsInvestmentsConsent: schema.connections.needsInvestmentsConsent,
       provider: schema.connections.provider,
       status: schema.connections.status,
       errorCode: schema.connections.errorCode,

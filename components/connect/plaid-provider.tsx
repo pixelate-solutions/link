@@ -5,8 +5,9 @@ import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { usePlaidLink } from "react-plaid-link";
+import { syncNowAction } from "@/app/actions";
 
-type Request = { connectionId?: string; onConnected?: () => void };
+type Request = { connectionId?: string; investments?: boolean; onConnected?: () => void };
 type Status = { tone: "busy" | "ok" | "error"; text: string } | null;
 
 const Ctx = createContext<{ connect: (r: Request) => Promise<boolean>; starting: boolean } | null>(null);
@@ -27,7 +28,7 @@ export function PlaidProvider({ children }: { children: ReactNode }) {
     request.current = r;
     setStatus(null);
     setStarting(true);
-    const res = await fetch("/api/plaid/link-token", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(r.connectionId ? { connectionId: r.connectionId } : {}) });
+    const res = await fetch("/api/plaid/link-token", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(r.connectionId ? { connectionId: r.connectionId, investments: r.investments } : {}) });
     const d = await res.json().catch(() => ({}));
     setStarting(false);
     if (!res.ok) {
@@ -43,8 +44,10 @@ export function PlaidProvider({ children }: { children: ReactNode }) {
       setToken(null);
       const { connectionId, onConnected } = request.current;
       if (connectionId) {
-        // Update mode: the item is repaired, nothing to exchange.
-        setStatus({ tone: "ok", text: "Reconnected." });
+        // Update mode: the item is repaired or has a new permission; nothing to exchange, just sync.
+        setStatus({ tone: "busy", text: "Updating your balances…" });
+        await syncNowAction();
+        setStatus({ tone: "ok", text: "Updated." });
         router.refresh();
         onConnected?.();
         return;

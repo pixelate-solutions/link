@@ -8,9 +8,9 @@ export async function POST(req: Request) {
   const userId = await requireUser().catch(() => null);
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (!plaidConfigured()) return Response.json({ error: "Bank connections aren't configured on this server yet." }, { status: 503 });
-  const body = z.object({ connectionId: z.string().uuid().optional() }).safeParse(await req.json().catch(() => ({})));
+  const body = z.object({ connectionId: z.string().uuid().optional(), investments: z.boolean().optional() }).safeParse(await req.json().catch(() => ({})));
   try {
-    const linkToken = await createLinkToken(userId, body.success ? body.data.connectionId : undefined);
+    const linkToken = await createLinkToken(userId, body.success ? body.data.connectionId : undefined, { investments: body.success && body.data.investments });
     return Response.json({ linkToken });
   } catch (err) {
     log.error("link-token failed", err, { code: plaidErrorCode(err) });
