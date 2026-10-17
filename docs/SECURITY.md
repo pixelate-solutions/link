@@ -30,7 +30,7 @@
   - ES256 JWT, with the key fetched by `kid` and cached;
   - a 5-minute `iat` limit;
   - constant-time SHA-256 comparison of the raw body.
-- **Deliveries are deduplicated** by body hash.
+- **Deliveries are deduplicated** by body hash within a 5-minute window. Plaid bodies carry no event id and legitimately repeat, so later identical notifications still trigger a sync.
 - **The cron endpoint** requires `Authorization: Bearer $CRON_SECRET`, compared in constant time.
 
 ## Errors
