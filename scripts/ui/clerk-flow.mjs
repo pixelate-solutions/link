@@ -91,8 +91,14 @@ if (step === "app") {
   await page.click("text=Ask Link");
   await page.fill("#ask-input", "What are the three most important things I can do to retire sooner?");
   await page.keyboard.press("Enter");
-  await page.waitForFunction(() => document.querySelectorAll('[aria-live="polite"] p').length > 1 && !document.body.innerText.includes("…\n"), null, { timeout: 120000 });
-  await page.waitForTimeout(3000);
+  // The send button re-enables (busy=false) once the stream finishes.
+  await page.waitForTimeout(1500);
+  await page.waitForFunction(() => {
+    const b = document.querySelector('button[aria-label="Send"]');
+    const live = document.querySelector('[aria-live="polite"]');
+    return live && live.textContent && live.textContent.length > 200 && b && !document.querySelector(".animate-ping");
+  }, null, { timeout: 120000 });
+  await page.waitForTimeout(1000);
   await page.screenshot({ path: `${out}/clerk-ask.png` });
 }
 console.log(JSON.stringify({ step, url: page.url(), thirdPartyHosts: [...requests].sort(), errors }, null, 1));
