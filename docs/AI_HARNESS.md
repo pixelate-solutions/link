@@ -23,12 +23,12 @@ To switch models, set `LINK_AI_MODEL`. Any Responses-API model with function cal
 1. Persist the user message. Build a short **context block** from Link's own snapshot:
    - goals and their headlines;
    - the lifestyle weight and protected categories;
-   - memories;
+   - memories, quoted and labeled as the user's stated preferences, not instructions;
    - data coverage.
 
    Raw transactions are never pasted into the prompt.
 2. Call the model with the instructions and tool specs. Execute any function calls server-side (`runTool`), each wrapped as `<tool_result untrusted="true">`. Repeat for up to 6 tool rounds.
-3. **Numeric verification.** Every dollar figure in the answer must trace to tool output, the context block, or the user's own words. Rounding within 3% and ×12 / ÷12 conversions are allowed. Otherwise, one repair round asks the model to restate the answer using only tool figures. If any amount still can't be traced, the message is stored with `verified: false`.
+3. **Numeric verification.** Every dollar figure in the answer must trace to tool output, the context block, or the user's own words. Earlier assistant messages never count as evidence, and dates, years and ids are ignored. Rounding within 2% and ×12 / ÷12 conversions are allowed. Otherwise, one repair round asks the model to restate the answer using only tool figures. If any amount still can't be traced, the message is stored with `verified: false`.
 4. Stream the text to the client (NDJSON over `/api/ask`) along with tool-status, proposal and scenario events. Persist the assistant message with its parts. Record the run.
 
 **Instructions** (`INSTRUCTIONS` in `agent.ts`):
@@ -46,8 +46,8 @@ To switch models, set `LINK_AI_MODEL`. Any Responses-API model with function cal
 
 Tools are typed with zod, which validates the arguments. Each tool has one of three effects:
 - **read**: no state change.
-- **record**: low-stakes, reversible facts the user explicitly stated, such as birth year or a memory. These are audited and deletable from the account sheet.
-- **propose**: writes a row to `link.proposals`. Nothing changes until the user taps **Approve**, in the Ask panel or on Home.
+- **record**: low-stakes, reversible facts the user explicitly stated, such as birth year or a memory. These are audited and deletable from the account sheet. They are written directly only when the user's message *this turn* contains the quoted words and the value (a stated age can imply a birth year). Otherwise `save_fact` becomes a proposal, and `remember` is refused. Over MCP there is no user message, so facts always go through approval.
+- **propose**: writes a row to `link.proposals`. Nothing changes until the user taps **Approve**, in the Ask panel or on Home. The approval card text is generated from the payload by code (`describeProposal`), never from the model's wording. Approval claims the proposal atomically, so it can't be applied twice. Goals created from a proposal never change the user's preferences.
 
 The full list is in [MCP_TOOLS.md](MCP_TOOLS.md).
 

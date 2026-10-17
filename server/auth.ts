@@ -7,10 +7,8 @@ export type AuthMode = "clerk" | "dev" | "none";
 
 export function authMode(): AuthMode {
   if (process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY) return "clerk";
-  if (process.env.LINK_DEV_AUTH === "1") {
-    if (process.env.NODE_ENV === "production" && process.env.LINK_ALLOW_DEV_AUTH_IN_PROD !== "1") return "none";
-    return "dev";
-  }
+  // Dev auth has no production override: it is refused whenever NODE_ENV is production.
+  if (process.env.LINK_DEV_AUTH === "1" && process.env.NODE_ENV !== "production") return "dev";
   return "none";
 }
 

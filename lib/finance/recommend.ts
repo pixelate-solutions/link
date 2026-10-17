@@ -2,7 +2,8 @@ import { type CategoryId, categoryLabel } from "./categories";
 import { addDays, daysBetween } from "./dates";
 import { amortize, interestBearing } from "./debt";
 import { formatMoney, type Minor } from "./money";
-import { formatMonthYear, type GoalRecord, type Picture, type PlanInputs, type Preferences } from "./plan";
+import { formatMonthYear, freeSurplus, type GoalRecord, type Picture, type PlanInputs, type Preferences } from "./plan";
+import { MONTHLY_FACTOR } from "./recurring";
 import { runScenario, type ScenarioChange } from "./scenario";
 
 export type RecommendationKind =
@@ -122,7 +123,7 @@ function buildReserve(ctx: Ctx): RecommendationDraft[] {
   const months = inputs.reserves / essential;
   const target = inputs.facts.emergencyMonths ?? 3;
   if (months >= Math.min(target, 3)) return [];
-  const surplus = inputs.monthlyIncome - inputs.monthlySpending - inputs.investingMonthly - inputs.savingsMonthly;
+  const surplus = freeSurplus(inputs);
   if (surplus <= 50_00) return [];
   const gap = target * essential - inputs.reserves;
   const planned = ctx.picture.allocations.find((a) => a.target === "reserve")?.monthly ?? 0;
@@ -157,7 +158,7 @@ function buildReserve(ctx: Ctx): RecommendationDraft[] {
 
 function payHighInterest(ctx: Ctx): RecommendationDraft[] {
   const out: RecommendationDraft[] = [];
-  const surplus = ctx.inputs.monthlyIncome - ctx.inputs.monthlySpending - ctx.inputs.investingMonthly - ctx.inputs.savingsMonthly;
+  const surplus = freeSurplus(ctx.inputs);
   for (const d of ctx.inputs.debts.filter(interestBearing)) {
     if (d.balance < 200_00 || d.kind === "mortgage") continue;
     const min = d.minPayment ?? Math.max(25_00, Math.round(d.balance * 0.02));
@@ -295,7 +296,7 @@ function newSubscriptions(ctx: Ctx): RecommendationDraft[] {
   for (const s of ctx.picture.recurring) {
     if (s.amount >= 0 || (s.kind !== "subscription" && s.kind !== "bill")) continue;
     const firstSeenDays = daysBetween(s.firstDate, ctx.picture.asOf);
-    const monthly = s.cadence === "annual" ? Math.round(-s.amount / 12) : s.cadence === "weekly" ? Math.round((-s.amount * 52) / 12) : -s.amount;
+    const monthly = Math.round(-s.amount * MONTHLY_FACTOR[s.cadence]);
     // Only new, material commitments are worth interrupting for.
     if (firstSeenDays > 100 || monthly < 30_00) continue;
     out.push({

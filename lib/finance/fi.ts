@@ -78,20 +78,21 @@ function retirementSpendingAt(inputs: FiInputs, month: number): Minor {
   return Math.max(0, s);
 }
 
-/** Portfolio needed to sustain spending at a given withdrawal rate, net of tax and Social Security. */
+/**
+ * Portfolio needed to sustain spending at a given withdrawal rate, net of tax.
+ * With Social Security: the benefit-adjusted gap is funded perpetually, and the
+ * years before benefits start are funded in full (present value of an annuity).
+ */
 export function requiredPortfolio(inputs: FiInputs, a: Assumptions, month: number): Minor {
   const tax = inputs.taxRate ?? DEFAULT_TAX_RATE;
   const gross = retirementSpendingAt(inputs, month) / (1 - tax);
-  let need = gross / a.withdrawalRate;
   const ss = inputs.socialSecurityAnnual ?? 0;
-  if (ss > 0 && inputs.currentAge != null) {
-    const ageAt = inputs.currentAge + month / 12;
-    const ssAge = inputs.socialSecurityAge ?? 67;
-    const wait = Math.max(0, ssAge - ageAt);
-    // Benefits reduce the portfolio needed, discounted for the years until they start.
-    need -= ss / a.withdrawalRate / (1 + a.realReturn) ** wait;
-  }
-  return Math.max(0, Math.round(need));
+  if (ss <= 0 || inputs.currentAge == null) return Math.max(0, Math.round(gross / a.withdrawalRate));
+  const ageAt = inputs.currentAge + month / 12;
+  const wait = Math.max(0, (inputs.socialSecurityAge ?? 67) - ageAt);
+  const covered = Math.min(ss, gross);
+  const bridge = a.realReturn > 0 ? (covered * (1 - (1 + a.realReturn) ** -wait)) / a.realReturn : covered * wait;
+  return Math.max(0, Math.round((gross - covered) / a.withdrawalRate + bridge));
 }
 
 export interface FiPath {
@@ -186,7 +187,7 @@ export function monteCarloFi(inputs: FiInputs, paths = 1000, seed = 42, vol = MC
 }
 
 /** Probability the portfolio lasts `years` while withdrawing spending (sequence-of-returns risk). */
-export function sustainability(portfolio: Minor, inputs: FiInputs, years: number, paths = 1000, seed = 7, vol = MC_VOLATILITY): number {
+export function sustainability(portfolio: Minor, inputs: FiInputs, years: number, paths = 1000, seed = 7, vol = MC_VOLATILITY, startAge: number | null = inputs.currentAge): number {
   const base = SCENARIOS[1]!;
   const rand = rng(seed);
   const mu = Math.log(1 + base.realReturn);
@@ -197,7 +198,7 @@ export function sustainability(portfolio: Minor, inputs: FiInputs, years: number
     let p = portfolio;
     let ok = true;
     for (let y = 0; y < years; y++) {
-      const age = inputs.currentAge != null ? inputs.currentAge + y : null;
+      const age = startAge != null ? startAge + y : null;
       const benefit = age != null && age >= (inputs.socialSecurityAge ?? 67) ? ss : 0;
       p -= Math.max(0, inputs.annualSpending / (1 - tax) - benefit);
       if (p <= 0) {
@@ -245,7 +246,8 @@ export function projectFi(inputs: FiInputs, opts: { paths?: number; sensitivity?
   if (base.years != null) {
     const path = simulateFi(inputs, SCENARIOS[1]!);
     const horizon = inputs.currentAge != null ? Math.max(20, Math.round(95 - (inputs.currentAge + base.years))) : 45;
-    successAtBase = Math.round(sustainability(path.portfolioAtFi!, inputs, horizon, Math.min(opts.paths ?? 1000, 1000)) * 100) / 100;
+    const retireAge = inputs.currentAge != null ? inputs.currentAge + base.years : null;
+    successAtBase = Math.round(sustainability(path.portfolioAtFi!, inputs, horizon, Math.min(opts.paths ?? 1000, 1000), 7, MC_VOLATILITY, retireAge) * 100) / 100;
     if (inputs.currentAge != null && inputs.currentAge + base.years < ACCESS_AGE && inputs.retirementShare > 0.5) {
       const bridgeYears = Math.ceil(ACCESS_AGE - (inputs.currentAge + base.years));
       accessNote = `Most of your investments are in retirement accounts. Retiring before ${ACCESS_AGE} means bridging about ${bridgeYears} years with taxable savings or early-access strategies.`;

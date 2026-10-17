@@ -24,7 +24,8 @@ export interface CashModel {
   cash: Minor;
   cashAsOf: string | null; // oldest balance timestamp among spendable accounts
   spendableAccountIds: string[];
-  pendingOutflows: Minor; // already deducted when providers report available balance
+  pendingOutflows: Minor; // deducted for accounts without an available balance
+  pendingKeys: Set<string>; // merchantKey|accountId of pending outflows
   usedAvailable: boolean;
   variableDaily: Minor; // non-recurring spending from spendable accounts per day
   variableDailySd: Minor;
@@ -43,12 +44,16 @@ export function buildCashModel(input: {
   const { accounts, txns, series, asOf } = input;
   const spendable = accounts.filter((a) => isSpendable(a) && !a.hidden && (a.available != null || a.current != null));
   const ids = new Set(spendable.map((a) => a.id));
+  // Available balance already nets pending debits; current balance does not, so pending
+  // charges are deducted only for accounts that report no available balance.
+  const currentOnly = new Set(spendable.filter((a) => a.available == null).map((a) => a.id));
   const pendingOutflows = txns
-    .filter((t) => t.pending && ids.has(t.accountId) && t.amount < 0)
+    .filter((t) => t.pending && currentOnly.has(t.accountId) && t.amount < 0)
     .reduce((s, t) => s - t.amount, 0);
-  const usedAvailable = spendable.every((a) => a.available != null);
-  // Available balance already nets pending debits; current balance does not.
-  const cash = spendable.reduce((s, a) => s + (a.available ?? a.current ?? 0), 0) - (usedAvailable ? 0 : pendingOutflows);
+  const usedAvailable = currentOnly.size === 0;
+  const cash = spendable.reduce((s, a) => s + (a.available ?? a.current ?? 0), 0) - pendingOutflows;
+  // A pending charge from a recurring merchant means that bill already left (or is leaving).
+  const pendingKeys = new Set(txns.filter((t) => t.pending && t.amount < 0).map((t) => `${t.merchantKey}|${t.accountId}`));
   const stamps = spendable.map((a) => a.balanceAsOf).filter((x): x is string => Boolean(x));
   const cashAsOf = stamps.length ? stamps.sort()[0]! : null;
 
@@ -65,7 +70,7 @@ export function buildCashModel(input: {
     for (const l of lines(t)) {
       if (!countsAsSpending(l.kind)) continue;
       variable -= l.amount;
-      const w = Math.floor(daysBetween(from, t.date) / 7);
+      const w = Math.floor(daysBetween(addDays(asOf, -windowDays), t.date) / 7);
       weekly.set(w, (weekly.get(w) ?? 0) - l.amount);
     }
   }
@@ -91,6 +96,7 @@ export function buildCashModel(input: {
     cashAsOf,
     spendableAccountIds: [...ids],
     pendingOutflows,
+    pendingKeys,
     usedAvailable,
     variableDaily: Math.max(0, Math.round(variable / windowDays)),
     variableDailySd: Math.round(wSd / Math.sqrt(7)),
@@ -121,8 +127,11 @@ function cardDueDates(model: CashModel, card: LedgerAccount, to: ISODate, paymen
 export function cashEvents(model: CashModel, to: ISODate, cardPaymentDays: Map<string, number[]> = new Map()): CashEvent[] {
   const spendable = new Set(model.spendableAccountIds);
   const events: CashEvent[] = [];
-  const relevant = model.series.filter((s) => spendable.has(s.accountId) && s.kind !== "card_payment");
+  // Card payments are modeled from card balances; moves between spendable accounts net to zero.
+  const relevant = model.series.filter((s) => spendable.has(s.accountId) && s.kind !== "card_payment" && !s.internal);
   for (const e of projectEvents(relevant, model.asOf, to)) {
+    // A "late" bill that's already pending is in the balance; don't count it again.
+    if (e.overdue && model.pendingKeys.has(`${e.series.merchantKey}|${e.series.accountId}`)) continue;
     const k = e.series.kind;
     events.push({
       date: e.date,

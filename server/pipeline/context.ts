@@ -35,10 +35,11 @@ export async function loadClassifyContext(db: Db | Tx, userId: string): Promise<
 
   const learned = new Map<string, LearnedMapping>();
   for (const c of correctionRows) {
-    if (learned.has(c.merchantKey)) continue; // newest wins
-    const after = c.after as { category?: string; kind?: TransactionKind; applyToMerchant?: boolean };
+    const after = c.after as { category?: string; kind?: TransactionKind; applyToMerchant?: boolean; direction?: "in" | "out" };
+    const key = after.direction ? `${c.merchantKey}|${after.direction}` : c.merchantKey;
+    if (learned.has(key)) continue; // newest wins
     const category = toCategoryId(after.category);
-    if (category && after.kind && after.applyToMerchant !== false) learned.set(c.merchantKey, { category, kind: after.kind });
+    if (category && after.kind && after.applyToMerchant !== false) learned.set(key, { category, kind: after.kind });
   }
 
   const history = new Map<string, LearnedMapping & { count: number }>();

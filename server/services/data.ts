@@ -4,7 +4,7 @@ import { type CategoryId, type TransactionKind } from "@/lib/finance/categories"
 import { toCategoryId, type AccountType } from "@/lib/finance/classify";
 import { addDays, todayISO } from "@/lib/finance/dates";
 import type { FactKey, GoalInterpretation, GoalKind } from "@/lib/finance/goals";
-import type { LedgerAccount, LedgerTxn } from "@/lib/finance/ledger";
+import { accountRole, type LedgerAccount, type LedgerTxn } from "@/lib/finance/ledger";
 import type { Facts, GoalRecord, Preferences } from "@/lib/finance/plan";
 import { type Db, schema } from "../db/client";
 
@@ -155,6 +155,15 @@ export async function loadUserData(db: Db, userId: string, now = new Date()): Pr
   const splitsBy = new Map<string, typeof splitRows>();
   for (const s of splitRows) splitsBy.set(s.transactionId, [...(splitsBy.get(s.transactionId) ?? []), s]);
 
+  // Where each paired transfer leg goes, so moves between checking accounts aren't "savings".
+  const acctById = new Map(accounts.map((a) => [a.id, a]));
+  const pairs = new Map<string, TxnRow[]>();
+  for (const t of txnRows) if (t.transferPairId) pairs.set(t.transferPairId, [...(pairs.get(t.transferPairId) ?? []), t]);
+  const transferTo = (t: TxnRow) => {
+    const other = t.transferPairId ? pairs.get(t.transferPairId)?.find((x) => x.id !== t.id) : undefined;
+    const acct = other && acctById.get(other.accountId);
+    return acct ? accountRole(toLedgerAccount(acct)) : null;
+  };
   const inCurrency = txnRows.filter((t) => t.currency === user.currency);
   const p = prefRows[0];
   return {
@@ -162,7 +171,7 @@ export async function loadUserData(db: Db, userId: string, now = new Date()): Pr
     asOf,
     accounts,
     ledgerAccounts: accounts.filter((a) => a.currency === user.currency).map(toLedgerAccount),
-    txns: inCurrency.map((t) => toLedgerTxn(t, splitsBy.get(t.id))),
+    txns: inCurrency.map((t) => ({ ...toLedgerTxn(t, splitsBy.get(t.id)), transferTo: transferTo(t) })),
     otherCurrencyTxns: txnRows.length - inCurrency.length,
     reviewCount: inCurrency.filter((t) => t.needsReview).length,
     goals: goalRows.map(toGoalRecord),

@@ -21,7 +21,7 @@ export async function listGoals(userId: string) {
 }
 
 /** Turn a sentence into one or more goals. AI refines the rules-based reading when available. */
-export async function createGoalsFromStatement(userId: string, statement: string, actor: "user" | "agent" = "user") {
+export async function createGoalsFromStatement(userId: string, statement: string, actor: "user" | "agent" = "user", opts: { applyPreferences?: boolean } = {}) {
   const db = await getDb();
   const today = new Date().toISOString().slice(0, 10);
   const interpretations = await interpretGoalsWithAI(userId, statement, today).catch(() => interpretGoals(statement, today));
@@ -48,10 +48,13 @@ export async function createGoalsFromStatement(userId: string, statement: string
     created.push(row!.id);
   }
   // Qualitative preferences in the statement shape the plan, not just the goal.
-  const q = interpretations[0]?.qualifiers;
-  if (q?.preserveLifestyle) await setPreferences(userId, { lifestyleWeight: 70 }, actor);
-  const protect = interpretations.flatMap((i) => i.protectedCategories);
-  if (protect.length) await addProtectedCategories(userId, protect);
+  // Only the user's own words may change preferences; agent-proposed goals never do.
+  if (opts.applyPreferences !== false && actor === "user") {
+    const q = interpretations[0]?.qualifiers;
+    if (q?.preserveLifestyle) await setPreferences(userId, { lifestyleWeight: 70 }, actor);
+    const protect = interpretations.flatMap((i) => i.protectedCategories);
+    if (protect.length) await addProtectedCategories(userId, protect);
+  }
   await audit(userId, actor, "goals.create", created.join(","), { statement });
   await refreshPicture(userId);
   return { ids: created, interpretations };
@@ -234,8 +237,13 @@ function slimGoal(g: ScenarioResult["before"][number]) {
  */
 export async function acceptScenario(userId: string, id: string) {
   const db = await getDb();
-  const [row] = await db.select().from(schema.scenarios).where(and(eq(schema.scenarios.id, id), eq(schema.scenarios.userId, userId)));
-  if (!row) throw new Error("Scenario not found");
+  // Claim the draft atomically so accepting twice can't apply the changes twice.
+  const [row] = await db
+    .update(schema.scenarios)
+    .set({ status: "accepted", updatedAt: new Date() })
+    .where(and(eq(schema.scenarios.id, id), eq(schema.scenarios.userId, userId), eq(schema.scenarios.status, "draft")))
+    .returning();
+  if (!row) throw new Error("Scenario not found or already accepted");
   const applied: string[] = [];
   for (const c of row.changes as ScenarioChange[]) {
     if (c.type === "child") {
@@ -263,7 +271,6 @@ export async function acceptScenario(userId: string, id: string) {
       applied.push("intent");
     }
   }
-  await db.update(schema.scenarios).set({ status: "accepted", updatedAt: new Date() }).where(and(eq(schema.scenarios.id, id), eq(schema.scenarios.userId, userId)));
   await audit(userId, "user", "scenario.accept", id, { applied });
   await refreshPicture(userId);
   return applied;
@@ -290,6 +297,7 @@ export async function actOnRecommendation(userId: string, id: string, action: "a
   const db = await getDb();
   const [rec] = await db.select().from(schema.recommendations).where(and(eq(schema.recommendations.id, id), eq(schema.recommendations.userId, userId)));
   if (!rec) throw new Error("Recommendation not found");
+  if (rec.status !== "active") throw new Error("This was already handled.");
   const now = new Date();
   if (action === "dismiss") {
     await db

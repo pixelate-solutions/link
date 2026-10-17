@@ -15,6 +15,8 @@ export interface LedgerTxn {
   merchantKey: string;
   pending: boolean;
   splits?: { amount: Minor; category: CategoryId; kind: TransactionKind }[];
+  /** For paired transfers: what kind of account the other leg is in. */
+  transferTo?: "spendable" | "savings" | "investment" | "liability" | null;
 }
 
 export interface LedgerAccount {
@@ -64,5 +66,12 @@ export function isCashReserve(a: Pick<LedgerAccount, "type" | "subtype">): boole
 /** Signed value of an account toward net worth (liabilities negative). */
 export function netWorthValue(a: LedgerAccount): Minor {
   const bal = a.current ?? 0;
-  return a.type === "credit" || a.type === "loan" ? -Math.abs(bal) : bal;
+  // Positive = owed. A negative card balance is a credit the user is owed.
+  return a.type === "credit" || a.type === "loan" ? -bal : bal;
+}
+
+export function accountRole(a: Pick<LedgerAccount, "type" | "subtype">): "spendable" | "savings" | "investment" | "liability" {
+  if (a.type === "credit" || a.type === "loan") return "liability";
+  if (a.type === "investment") return "investment";
+  return isSpendable(a) ? "spendable" : "savings";
 }

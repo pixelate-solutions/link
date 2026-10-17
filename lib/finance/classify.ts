@@ -66,7 +66,7 @@ export interface LearnedMapping {
 
 export interface ClassifyContext {
   rules?: Rule[];
-  /** merchantKey → mapping, built from the user's corrections. */
+  /** `${merchantKey}|in|out` (or bare merchantKey for older corrections) → mapping, from the user's corrections. */
   learned?: Map<string, LearnedMapping>;
   /** merchantKey → most common prior classification for this user. */
   history?: Map<string, LearnedMapping & { count: number }>;
@@ -283,7 +283,7 @@ export function classify(input: ClassifyInput, ctx: ClassifyContext = {}): Class
   }
 
   // 2. Learned from the user's corrections.
-  const learned = ctx.learned?.get(m.key);
+  const learned = ctx.learned?.get(`${m.key}|${input.amount > 0 ? "in" : "out"}`) ?? ctx.learned?.get(m.key);
   if (learned) {
     const kind = learned.kind === "expense" && input.amount > 0 ? "refund" : learned.kind;
     return done({ kind, category: learned.category, source: "learned", confidence: 0.96, reason: `You categorized ${m.name} before` });

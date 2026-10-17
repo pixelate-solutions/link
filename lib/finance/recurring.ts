@@ -21,6 +21,8 @@ export interface RecurringSeries {
   occurrences: number;
   confidence: number;
   accountId: string;
+  /** Moves money between the user's own spendable accounts (net zero for cash). */
+  internal: boolean;
   active: boolean;
   transactionIds: string[];
 }
@@ -105,11 +107,12 @@ function nextOccurrence(last: ISODate, cadence: Cadence, anchorDay: number): ISO
   }
 }
 
-function seriesKind(kind: TransactionKind, category: CategoryId, amount: Minor, variability: number): RecurringKind {
+function seriesKind(kind: TransactionKind, category: CategoryId, amount: Minor, variability: number, transferTo?: LedgerTxn["transferTo"]): RecurringKind {
   if (kind === "income") return "income";
   if (kind === "card_payment") return "card_payment";
   if (kind === "investment_transfer") return "savings";
-  if (kind === "transfer") return amount < 0 ? "savings" : "transfer";
+  // Only money moving to savings or investments is saving; checking-to-checking is just a move.
+  if (kind === "transfer") return amount < 0 && transferTo !== "spendable" ? "savings" : "transfer";
   if (category === "subscriptions" || (variability < 0.05 && Math.abs(amount) <= 100_00 && category !== "utilities")) {
     return "subscription";
   }
@@ -156,7 +159,7 @@ export function detectRecurring(txns: LedgerTxn[], asOf: ISODate): RecurringSeri
       const active = daysBetween(next, asOf) <= gracePeriod;
       const head = byDate.at(-1)!;
       if (variability > maxVariability(head.kind, head.category)) continue;
-      const kind = seriesKind(head.kind, head.category, amount, variability);
+      const kind = seriesKind(head.kind, head.category, amount, variability, head.transferTo);
       const countScore = Math.min(1, dates.length / 6);
       const stability = Math.max(0, 1 - variability);
       const confidence = Math.round((0.45 * cad.regularity + 0.3 * countScore + 0.25 * stability) * 100) / 100;
@@ -177,6 +180,7 @@ export function detectRecurring(txns: LedgerTxn[], asOf: ISODate): RecurringSeri
         occurrences: dates.length,
         confidence,
         accountId: head.accountId,
+        internal: head.transferTo === "spendable" && byDate.every((t) => t.transferTo === "spendable"),
         active,
         transactionIds: byDate.map((t) => t.id),
       });

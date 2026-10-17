@@ -8,7 +8,7 @@
   - list and aggregate isolation;
   - ids smuggled into tool arguments;
   - MCP binding.
-- **Dev auth** (`LINK_DEV_AUTH=1`) is refused under `NODE_ENV=production`. Verified against `next start`: `/api/dev/session` returns 404, and protected pages redirect to sign-in.
+- **Dev auth** (`LINK_DEV_AUTH=1`) is refused under `NODE_ENV=production`, with no override. Verified against `next start`: `/api/dev/session` returns 404, and protected pages redirect to sign-in.
 
 **Verified unauthenticated responses (production build):**
 - `/api/ask`, `/api/mcp`, `/api/export`, `/api/cron`, and unsigned `/api/webhooks/plaid` → 401
@@ -33,11 +33,20 @@
 - **Deliveries are deduplicated** by body hash.
 - **The cron endpoint** requires `Authorization: Bearer $CRON_SECRET`, compared in constant time.
 
+## Errors
+
+Errors returned to the browser, the model, or MCP clients pass through `publicError()`. Database and library errors are replaced with a generic message, so SQL, parameters and ids never leak.
+
+## Idempotency
+
+Applying a recommendation, accepting a scenario, and approving a proposal each claim the record's state atomically, so repeated or concurrent requests apply once.
+
 ## AI-specific
 
 - Bank text is sanitized and marked untrusted in tool results.
 - Tools act only as the session user.
-- Consequential changes are proposals that need explicit approval. No tool can move money or act outside Link.
+- Consequential changes are proposals that need explicit approval, described by code from the actual payload. No tool can move money or act outside Link.
+- Facts and memories are written only when grounded in the user's own message this turn. Otherwise they need approval or are refused.
 - Assistant output is never rendered as HTML.
 - Numeric claims are verified against tool output (see [AI_HARNESS.md](AI_HARNESS.md)).
 - The data minimization:
@@ -66,5 +75,6 @@
 
 - **No CSP.** Plaid Link and Clerk need a tuned policy; this is to do.
 - **No per-user rate limiting** on `/api/ask`. Model cost is tracked per run but not capped.
+- **MCP token scopes are not enforced per tool.** Every authenticated client gets every tool. Writes still go through in-app approval; scope enforcement comes with the OAuth setup.
 - **Single-user ownership only.** Shared households are not implemented, so nothing can be shared by accident.
 - **`npm audit` reports advisories in dev-only tooling**: drizzle-kit's bundled esbuild, and eslint-config-next's glob dependencies. They are not in the runtime bundle.

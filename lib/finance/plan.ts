@@ -135,6 +135,16 @@ export interface Picture {
 
 const RECURRING_TOP = 40;
 
+/**
+ * Monthly surplus not yet spoken for. Workplace contributions come out of pay
+ * before it reaches the bank (they're already excluded from net income), so only
+ * investing seen leaving the bank is subtracted.
+ */
+export function freeSurplus(inputs: PlanInputs): Minor {
+  const fromBank = inputs.investingMonthly - (inputs.facts.workplaceContributionMonthly ?? 0);
+  return inputs.monthlyIncome - inputs.monthlySpending - Math.max(0, fromBank) - inputs.savingsMonthly;
+}
+
 export function factsAge(facts: Facts, asOf: ISODate): number | null {
   return facts.birthYear ? Number(asOf.slice(0, 4)) - facts.birthYear : null;
 }
@@ -331,7 +341,10 @@ export function projectGoal(goal: GoalRecord, inputs: PlanInputs, allocation: Mi
     case "emergency_fund":
     case "stability": {
       const months = inputs.facts.emergencyMonths ?? (goal.kind === "stability" ? 3 : 6);
-      const essential = Math.max(inputs.essentialSpending, 1);
+      if (inputs.essentialSpending <= 0) {
+        return { ...base, status: "needs_info", headline: "Learning your spending", detail: "Link needs a few weeks of history to size this.", progress: null, assumptions };
+      }
+      const essential = inputs.essentialSpending;
       const targetAmount = months * essential;
       const saved = ctx.reservesForGoal;
       const covered = saved / essential;
@@ -356,7 +369,9 @@ export function projectGoal(goal: GoalRecord, inputs: PlanInputs, allocation: Mi
     case "debt_freedom": {
       const debts = inputs.debts.filter(interestBearing);
       const known = debts.filter((d) => d.aprBps != null);
-      const minimums = debts.reduce((s, d) => s + (d.minPayment ?? Math.max(25_00, Math.round(d.balance * 0.02))), 0);
+      const unknown = debts.filter((d) => d.aprBps == null);
+      // Only debts with a known rate are simulated, so only their minimums fund the plan.
+      const minimums = known.reduce((s, d) => s + (d.minPayment ?? Math.max(25_00, Math.round(d.balance * 0.02))), 0);
       const totalDebt = debts.reduce((s, d) => s + d.balance, 0);
       if (!debts.length) {
         return { ...base, status: "on_track", headline: "No debt", detail: "No balances on connected accounts.", progress: 1, assumptions };
@@ -371,17 +386,17 @@ export function projectGoal(goal: GoalRecord, inputs: PlanInputs, allocation: Mi
           assumptions: ["Interest rates are never guessed."],
         };
       }
-      const plan = payoffPlan(debts, minimums + allocation, "avalanche");
+      const plan = payoffPlan(known, minimums + allocation, "avalanche");
       const date = plan.months == null ? null : addMonths(inputs.asOf, plan.months);
       return {
         ...base,
-        status: date == null ? "behind" : target.date && date > target.date ? "behind" : "projected",
+        status: unknown.length ? "needs_info" : date == null ? "behind" : target.date && date > target.date ? "behind" : "projected",
         headline: date ? `Debt-free ${formatMonthYear(date)}` : "Not paying down",
         detail: date ? `Highest-rate debt first. Interest along the way: about ${formatMoney(plan.totalInterest)}.` : "Payments don't cover interest.",
         progress: null,
         targetAmount: totalDebt,
         projectedDate: date,
-        assumptions: plan.excluded.length ? [`${plan.excluded.length} debt(s) without a known rate are excluded.`] : [],
+        assumptions: unknown.length ? [`Not counting ${unknown.map((d) => d.name).join(", ")}: add the interest rate to include ${unknown.length === 1 ? "it" : "them"}.`] : [],
       };
     }
     case "home_purchase":
@@ -480,7 +495,7 @@ export function formatMonthYear(d: ISODate) {
  * Lifestyle weight keeps part of the surplus unassigned as spending room.
  */
 export function allocate(inputs: PlanInputs, goals: GoalRecord[], prefs: Preferences): { allocations: Allocation[]; unassigned: Minor } {
-  const surplus = inputs.monthlyIncome - inputs.monthlySpending - inputs.investingMonthly - inputs.savingsMonthly;
+  const surplus = freeSurplus(inputs);
   const allocations: Allocation[] = [];
   if (surplus <= 0) return { allocations, unassigned: surplus };
   // Keep a margin for variability and lifestyle: 10% to 40% of the surplus.

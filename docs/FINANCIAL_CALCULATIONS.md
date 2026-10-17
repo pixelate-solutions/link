@@ -5,7 +5,7 @@ All engines live in `lib/finance/`. They are pure, deterministic, unit-tested, a
 ## Conventions
 
 - **Sign:** `+` means money into the user's account, `−` means money out. Plaid's opposite convention is flipped once, in `server/plaid/map.ts`.
-- **Account balances** follow the provider: for credit and loan accounts, positive means owed. `netWorthValue()` negates liabilities.
+- **Account balances** follow the provider: for credit and loan accounts, positive means owed. `netWorthValue()` negates them, so a card with a credit balance (negative) adds to net worth.
 - **Kinds vs. categories.** A kind is one of `income`, `expense`, `refund`, `transfer`, `card_payment`, `investment_transfer`, `loan_payment` or `fee`.
   - **Spending** is `expense + refund + fee + loan_payment`. Refunds net against spending.
   - **Income** is `income` only.
@@ -69,6 +69,11 @@ Safe to Spend = spendable cash (checking-type, available balance or current − 
 
 **The window** runs to the day before the first paycheck at least 7 days away. With no detected income, it is 30 days.
 
+**Avoiding double counts:**
+- A recurring bill that looks a few days late, but already has a pending charge from the same merchant, is not counted again.
+- Pending charges are deducted only for accounts that report no available balance.
+- Recurring transfers between the user's own spendable accounts net to zero and are ignored. They aren't counted as savings either; only transfers into savings or investment accounts are.
+
 **Card obligations:**
 - First due date: the statement balance if Plaid provides it, otherwise the full current balance (conservative).
 - After that: typical monthly card charges.
@@ -93,7 +98,7 @@ Each day of the forecast: the previous balance, plus that day's scheduled events
 - Monthly amortization with interest rounded to the cent. A payment that doesn't cover interest returns "never".
 - `paymentFor()` is the standard annuity formula.
 - Avalanche and snowball strategies: pay minimums everywhere, put the remainder on the target debt, and roll freed-up payments forward.
-- **Unknown APRs are excluded and reported, never guessed.**
+- **Unknown APRs are excluded and reported, never guessed.** Only debts with a known rate are simulated, and only their minimums fund the plan. The debt goal shows "needs info" and names the excluded debts.
 - Pay-in-full cards don't count as interest-bearing debt. A card counts only when its balance exceeds 1.6× typical monthly charges.
 
 ## Financial independence (`fi.ts`)
@@ -102,9 +107,12 @@ All values are in today's dollars, using *real* (after-inflation) returns.
 
 **Required portfolio:**
 ```
-annual retirement spending / (1 − effective tax rate 10%) / withdrawal rate
-  − Social Security / withdrawal rate / (1 + r)^(years until 67)   [only if stated]
+G = annual retirement spending / (1 − effective tax rate 10%)
+without Social Security:  G / withdrawal rate
+with Social Security S (only if stated), starting in w years:
+  (G − min(S, G)) / withdrawal rate  +  min(S, G) × (1 − (1 + r)^−w) / r
 ```
+The second term funds the years before benefits begin, in full.
 
 **Scenarios** (real return / withdrawal rate):
 
@@ -126,7 +134,7 @@ The withdrawal rates sit below the classic 4% because early retirement means lon
 - The headline window is the p25–p75 of years-to-independence.
 - Shares of paths that never reach independence within 60 years are reported.
 
-**Sequence risk.** From the base-case retirement point, the share of 1,000 paths where money lasts to age 95 is computed (45 years if age is unknown) and shown on Plan.
+**Sequence risk.** From the base-case retirement point, the share of 1,000 paths where money lasts to age 95 is computed (45 years if age is unknown) and shown on Plan. Ages in this simulation start at the *retirement* age, so Social Security begins at the right time.
 
 **Sensitivity:**
 - +$250 a month invested;
@@ -144,11 +152,15 @@ The withdrawal rates sit below the classic 4% because early retirement means lon
 
 ## Goals (`goals.ts`, `plan.ts`)
 
+**Corrections are learned per direction.** Money in from a merchant (a Venmo payment received) is learned separately from money out to it.
+
 **Interpretation.** A sentence becomes one or more goals: `financial_independence`, `home_purchase`, `debt_freedom`, `emergency_fund`, `savings_target`, `purchase`, `family`, `travel`, `stability`, `wealth`, or `custom`. Amounts, dates and ages are parsed. Qualifiers ("as soon as possible", "without sacrificing my lifestyle") become preferences, not goals. Each kind declares the inputs it is missing and their impact. The highest-impact one is asked first.
 
 **Current vs. planned.** Goal views always show the *current* trajectory, using observed investing and savings. The plan's suggested extra amount is a separate "with plan" projection.
 
-**Allocation.** The unassigned surplus is split as follows:
+**Free surplus** = net income − spending − investing seen leaving the bank − savings transfers. Workplace retirement contributions come out of pay before it arrives, so they aren't subtracted again.
+
+**Allocation.** The free surplus is split as follows:
 1. A margin of 10–40% is kept unassigned, depending on the lifestyle weight.
 2. The emergency reserve up to 3 months of essentials, spread over about 6 months.
 3. High-interest revolving debt (8% or more).

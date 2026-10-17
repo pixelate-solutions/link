@@ -14,7 +14,13 @@ export function buildMcpServer(userId: string) {
       {
         description: tool.description,
         inputSchema: tool.input,
-        annotations: { readOnlyHint: tool.effect === "read", destructiveHint: false, idempotentHint: tool.effect === "read", openWorldHint: false },
+        annotations: {
+          // run_scenario saves a draft row, so it isn't advertised as read-only.
+          readOnlyHint: tool.effect === "read" && tool.name !== "run_scenario",
+          destructiveHint: false,
+          idempotentHint: tool.effect === "read",
+          openWorldHint: false,
+        },
       },
       async (args: unknown) => {
         const ctx: ToolCtx = { userId, channel: "mcp" };

@@ -7,6 +7,7 @@ import { CATEGORIES, type CategoryId } from "@/lib/finance/categories";
 import { FACT_KEYS, GOAL_KINDS, type FactKey } from "@/lib/finance/goals";
 import { toMinor } from "@/lib/finance/money";
 import { authMode, DEV_COOKIE, requireUser, UnauthorizedError } from "@/server/auth";
+import { publicError } from "@/server/errors";
 import { toScenarioChange } from "@/server/ai/tools";
 import { getDb, schema } from "@/server/db/client";
 import { seedDemo } from "@/server/demo/seed";
@@ -42,7 +43,7 @@ async function run<T>(fn: (userId: string) => Promise<T>, revalidate = true): Pr
   } catch (err) {
     if (err instanceof UnauthorizedError) return { ok: false, error: "Your session ended. Sign in again." };
     if (err instanceof z.ZodError) return { ok: false, error: "That doesn't look right. Check the value and try again." };
-    return { ok: false, error: err instanceof Error ? err.message : "Something went wrong." };
+    return { ok: false, error: publicError(err) };
   }
 }
 
@@ -80,7 +81,12 @@ export async function updateGoalAction(id: string, patch: { title?: string; targ
       .object({
         title: z.string().trim().min(1).max(40).optional(),
         targetDollars: dollars.min(0).nullable().optional(),
-        targetDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+        targetDate: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .refine((d) => !Number.isNaN(Date.parse(d)) && new Date(`${d}T00:00:00Z`).toISOString().startsWith(d), "Invalid date")
+          .nullable()
+          .optional(),
         status: z.enum(["active", "achieved", "paused", "archived"]).optional(),
         kind: z.enum(GOAL_KINDS).optional(),
       })

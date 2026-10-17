@@ -125,7 +125,8 @@ export async function correctTransaction(
       transactionId: id,
       merchantKey: row.merchantKey,
       before: { category: row.category, kind: row.kind, classSource: row.classSource },
-      after: { category: change.category, kind, applyToMerchant },
+      // Learning is per direction: money in from a merchant isn't the same as money out.
+      after: { category: change.category, kind, applyToMerchant, direction: row.amountMinor > 0 ? "in" : "out" },
     });
     await tx
       .update(schema.transactions)

@@ -75,9 +75,10 @@ export function applyChanges(inputs: PlanInputs, changes: ScenarioChange[]): { i
               : `Invest ${formatMoney(c.monthlyDelta)} more each month; ${formatMoney(c.monthlyDelta - fromCash)} of it has to come from spending less.`,
           );
         } else {
-          next.investingMonthly = Math.max(0, next.investingMonthly + c.monthlyDelta);
-          next.cashRetainedMonthly -= c.monthlyDelta;
-          assumptions.push(`Invest ${formatMoney(-c.monthlyDelta)} less each month and keep it as cash.`);
+          const cut = Math.min(next.investingMonthly, -c.monthlyDelta);
+          next.investingMonthly -= cut;
+          next.cashRetainedMonthly += cut;
+          assumptions.push(`Invest ${formatMoney(cut)} less each month and keep it as cash.`);
         }
         break;
       }

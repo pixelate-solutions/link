@@ -14,6 +14,7 @@ import { audit } from "../services/audit";
 import { activeRecommendations, computeContext } from "../services/picture";
 import { scenario, setFact } from "../services/plan";
 import { createProposal } from "../services/proposals";
+import { publicError } from "../errors";
 
 /**
  * One registry of typed tools, used by the in-app agent and exposed over MCP.
@@ -25,6 +26,8 @@ import { createProposal } from "../services/proposals";
 export interface ToolCtx {
   userId: string;
   channel: "agent" | "mcp";
+  /** The user's message this turn (agent channel). Facts and memories must be grounded in it. */
+  userMessage?: string;
   conversationId?: string | null;
   runId?: string | null;
 }
@@ -361,12 +364,13 @@ export const TOOLS = [
     effect: "read",
     async run(ctx, a) {
       const { inputs } = await computeContext(ctx.userId);
-      const minimums = inputs.debts.reduce((s, d) => s + (d.minPayment ?? Math.max(25_00, Math.round(d.balance * 0.02))), 0);
+      const minimums = inputs.debts.filter((d) => d.aprBps != null).reduce((s, d) => s + (d.minPayment ?? Math.max(25_00, Math.round(d.balance * 0.02))), 0);
       const budget = minimums + toMinor(a.extra_monthly ?? 0);
       const plans = (["avalanche", "snowball"] as const).map((s) => payoffPlan(inputs.debts, budget, s));
       return {
         debts: inputs.debts.map((d) => ({ name: untrusted(d.name, 30), balance: usd(d.balance), apr_percent: d.aprBps == null ? null : d.aprBps / 100, minimum: usd(d.minPayment) })),
         monthly_budget: usd(budget),
+        note: "Only debts with a known interest rate are simulated; their minimums plus the extra fund the plan.",
         plans: plans.map((p) => ({ strategy: p.strategy, months: p.months, total_interest: usd(p.totalInterest), excluded: p.excluded })),
       };
     },
@@ -395,6 +399,11 @@ export const TOOLS = [
       const moneyKeys = ["retirement_spending_annual", "outside_investments", "workplace_contribution_monthly", "social_security_annual", "home_price", "travel_budget_annual", "child_cost_monthly"];
       const value = a.value == null ? null : moneyKeys.includes(a.key) ? toMinor(a.value) : a.value;
       if (a.key === "birth_year" && value != null && (value < 1900 || value > new Date().getFullYear())) return { error: "Invalid birth year" };
+      // Saved directly only when the user's own message states it; otherwise it needs approval.
+      if (!grounded(ctx.userMessage, a.user_quote, a.key, value, moneyKeys.includes(a.key))) {
+        const id = await createProposal(ctx.userId, { kind: "fact", key: a.key, value }, "", ctx.conversationId);
+        return { proposal_id: id, status: "awaiting_user_approval", note: "Not stated directly by the user this turn, so it needs approval." };
+      }
       await setFact(ctx.userId, a.key, value);
       await audit(ctx.userId, "agent", "facts.set_from_conversation", a.key, { channel: ctx.channel });
       return { saved: true, key: a.key };
@@ -403,9 +412,10 @@ export const TOOLS = [
   def({
     name: "remember",
     description: "Remember a durable preference or constraint the USER stated (e.g. 'never suggest cutting travel'). Not for facts derived from data.",
-    input: z.object({ content: z.string().min(3).max(200), kind: z.enum(["preference", "constraint", "fact"]) }),
+    input: z.object({ content: z.string().min(3).max(200), kind: z.enum(["preference", "constraint", "fact"]), user_quote: z.string().max(200).describe("The user's words this turn") }),
     effect: "record",
     async run(ctx, a) {
+      if (!ctx.userMessage || !quoted(ctx.userMessage, a.user_quote)) return { error: "Only things the user said this turn can be remembered." };
       const db = await getDb();
       const existing = await db.select({ id: schema.memories.id }).from(schema.memories).where(and(eq(schema.memories.userId, ctx.userId), eq(schema.memories.content, a.content)));
       if (!existing.length) await db.insert(schema.memories).values({ userId: ctx.userId, content: a.content, kind: a.kind, source: "agent" });
@@ -500,6 +510,35 @@ export const TOOLS = [
   }),
 ] as const;
 
+const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9$.]+/g, " ").trim();
+
+function quoted(message: string, quote: string) {
+  const q = norm(quote);
+  return q.length >= 3 && norm(message).includes(q);
+}
+
+/** A fact is grounded when the user's message contains the quote and the value it implies. */
+function grounded(message: string | undefined, quote: string, key: string, value: number | null, money: boolean): boolean {
+  if (!message || !quoted(message, quote)) return false;
+  if (value == null) return true;
+  if (money) {
+    // Every number in the message, with and without a k/m multiplier ("401k" yields 401 and 401,000).
+    const candidates: number[] = [];
+    for (const m of message.matchAll(/(\d[\d,]*(?:\.\d+)?)\s*(k|thousand|m|mm|million)?\b/gi)) {
+      const n = Number(m[1]!.replace(/,/g, ""));
+      const unit = (m[2] ?? "").toLowerCase();
+      candidates.push(n * 100);
+      if (unit) candidates.push(n * (unit.startsWith("k") || unit === "thousand" ? 1_000 : 1_000_000) * 100);
+    }
+    return candidates.some((c) => Math.abs(c - value) <= Math.max(100, value * 0.01));
+  }
+  if (key === "birth_year") {
+    const year = new Date().getFullYear();
+    return message.includes(String(value)) || [year - value, year - value - 1].some((age) => new RegExp(`\\b${age}\\b`).test(message));
+  }
+  return new RegExp(`\\b${value}\\b`).test(message);
+}
+
 export type ToolName = (typeof TOOLS)[number]["name"];
 const byName = new Map<string, ToolDef>(TOOLS.map((t) => [t.name, t as unknown as ToolDef]));
 
@@ -526,7 +565,7 @@ export async function runTool(ctx: ToolCtx, name: string, rawArgs: unknown): Pro
         result = await tool.run(ctx, parsed.data);
         ok = !(result && typeof result === "object" && "error" in (result as object));
       } catch (err) {
-        result = { error: err instanceof Error ? err.message : "Tool failed" };
+        result = { error: publicError(err, "That tool failed.") };
       }
     }
   }
