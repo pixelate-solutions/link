@@ -30,6 +30,8 @@ interface KnownMerchant {
 
 /** Small curated dictionary for very common merchants with messy descriptors. */
 const KNOWN: KnownMerchant[] = [
+  { pattern: /\binternal\s+revenue\s+service\b|\birs\s+(usataxpymt|treas)/i, name: "IRS", category: "taxes" },
+  { pattern: /\bmychart\b/i, name: "MyChart", category: "healthcare" },
   { pattern: /\bamzn\b|\bamazon\b|amazon\.com|amzn\s*mktp/i, name: "Amazon", category: "shopping" },
   { pattern: /\bprime\s*video\b/i, name: "Prime Video", category: "subscriptions" },
   { pattern: /\bnetflix\b/i, name: "Netflix", category: "subscriptions" },
@@ -137,9 +139,11 @@ export function normalizeMerchant(raw: string, providerMerchant?: string | null)
   for (const k of KNOWN) {
     if (k.pattern.test(source)) return { name: k.name, key: merchantKey(k.name), category: k.category, known: true };
   }
+  // Toast (TST*) is a restaurant-only payment processor.
+  const toast = /^\s*tst\s*\*/i.test(raw);
   if (providerMerchant && providerMerchant.trim()) {
     const name = providerMerchant.trim();
-    return { name, key: merchantKey(name), known: false };
+    return { name, key: merchantKey(name), known: false, ...(toast ? { category: "dining" as const } : {}) };
   }
   let s = raw.trim();
   for (const p of PROCESSOR_PREFIXES) s = s.replace(p, "");
@@ -147,5 +151,5 @@ export function normalizeMerchant(raw: string, providerMerchant?: string | null)
   s = s.replace(/[^\p{L}\p{N}&' ]+/gu, " ").replace(/\s+/g, " ").trim();
   if (!s) s = raw.trim() || "Unknown";
   const name = titleCase(s).slice(0, 60);
-  return { name, key: merchantKey(name), known: false };
+  return { name, key: merchantKey(name), known: false, ...(toast ? { category: "dining" as const } : {}) };
 }

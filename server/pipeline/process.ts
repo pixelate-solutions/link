@@ -74,8 +74,10 @@ export async function pairTransfers(db: Db, userId: string, asOf: string) {
 
   // Large transfers with no matching leg may be money leaving the user's accounts: worth one look.
   const paired = new Set(matches.flatMap((m) => [m.outflowId, m.inflowId]));
+  // Only bank accounts: a payment arriving on a loan or card is never spending.
   const lonely = rows.filter(
     (r) =>
+      acct.get(r.accountId)?.type === "depository" &&
       !r.userLocked &&
       !r.transferPairId &&
       !paired.has(r.id) &&

@@ -85,6 +85,8 @@ export interface Classification {
 
 /** Above this size an uncertain transaction is worth asking about. */
 export const REVIEW_THRESHOLD_MINOR = 50_00;
+/** Low-confidence but plausible categories only interrupt for larger amounts. */
+export const REVIEW_THRESHOLD_LOW_CONFIDENCE_MINOR = 250_00;
 
 const PFC_DETAILED: Record<string, CategoryId> = {
   INCOME_WAGES: "paycheck",
@@ -215,11 +217,15 @@ export function detectStructure(input: ClassifyInput): Structural | null {
   if (input.accountType === "depository" && !inflow && (RE.cardPayment.test(text) || RE.issuerDebit.test(text))) {
     return { kind: "card_payment", category: "card_payment", confidence: 0.9, reason: "Payment to a credit card" };
   }
-  if (input.accountType === "loan" || input.accountType === "credit") {
-    // Inflows to liabilities are payments arriving from elsewhere.
-    if (inflow && input.accountType === "loan") {
-      return { kind: "transfer", category: "transfer", confidence: 0.9, reason: "Payment received on a loan" };
-    }
+  if (input.accountType === "loan") {
+    // Activity inside a loan account is never spending: payments arrive from elsewhere,
+    // and interest added to the balance is paid through the loan payment (counted there).
+    return inflow
+      ? { kind: "transfer", category: "transfer", confidence: 0.9, reason: "Payment received on a loan" }
+      : { kind: "transfer", category: "debt_interest", confidence: 0.9, reason: "Interest added to the loan balance; it's paid through your loan payments" };
+  }
+  if (p === "LOAN_DISBURSEMENTS" || d === "TRANSFER_IN_CASH_ADVANCES_AND_LOANS") {
+    return { kind: "transfer", category: "transfer", confidence: 0.9, reason: "Borrowed money (a loan or cash advance), not income" };
   }
   if (input.accountType === "investment") {
     return {
@@ -349,9 +355,10 @@ export function classify(input: ClassifyInput, ctx: ClassifyContext = {}): Class
   }
 
   if (providerCat) {
+    // A plausible bank category is only worth a question when the amount is large.
     return done(
       { kind: defaultKind(input, providerCat), category: providerCat, source: "provider", confidence: providerConf, reason: "Low-confidence bank category" },
-      Math.abs(input.amount) >= REVIEW_THRESHOLD_MINOR,
+      Math.abs(input.amount) >= REVIEW_THRESHOLD_LOW_CONFIDENCE_MINOR,
     );
   }
 
