@@ -13,6 +13,8 @@ export interface TxnFilters {
   category?: string;
   kind?: string;
   accountId?: string;
+  /** "personal", or a business id. */
+  scope?: string;
   from?: string;
   to?: string;
   minAbs?: Minor;
@@ -34,6 +36,8 @@ export async function searchTransactions(userId: string, f: TxnFilters) {
   if (f.category && isCategoryId(f.category)) conds.push(eq(t.category, f.category));
   if (f.kind && (TRANSACTION_KINDS as readonly string[]).includes(f.kind)) conds.push(eq(t.kind, f.kind));
   if (f.accountId) conds.push(eq(t.accountId, f.accountId));
+  if (f.scope === "personal") conds.push(isNull(schema.accounts.businessId));
+  else if (f.scope) conds.push(eq(schema.accounts.businessId, f.scope));
   if (f.from) conds.push(gte(t.date, f.from));
   if (f.to) conds.push(lte(t.date, f.to));
   if (f.minAbs != null) conds.push(sql`abs(${t.amountMinor}) >= ${f.minAbs}`);
@@ -48,6 +52,7 @@ export async function searchTransactions(userId: string, f: TxnFilters) {
       accountId: t.accountId,
       accountName: schema.accounts.name,
       accountMask: schema.accounts.mask,
+      businessId: schema.accounts.businessId,
       date: t.date,
       amount: t.amountMinor,
       currency: t.currency,
@@ -278,6 +283,7 @@ export async function listAccounts(userId: string) {
       mask: schema.accounts.mask,
       type: schema.accounts.type,
       subtype: schema.accounts.subtype,
+      businessId: schema.accounts.businessId,
       currentMinor: schema.accounts.currentMinor,
       hidden: schema.accounts.hidden,
       connectionId: schema.accounts.connectionId,

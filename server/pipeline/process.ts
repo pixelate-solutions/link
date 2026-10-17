@@ -15,9 +15,15 @@ import { refreshPicture } from "../services/picture";
 const UNPAIRED_REVIEW_MINOR = 250_00;
 
 /** Pair transfers between the user's own accounts and update both legs. */
+function pairReason(category: string) {
+  if (category === "owner_draw") return "Money you took out of your business (an owner's draw)";
+  if (category === "owner_contribution") return "Money you put into your business";
+  return "Matched with a transfer between your accounts";
+}
+
 export async function pairTransfers(db: Db, userId: string, asOf: string) {
   const accounts = await db
-    .select({ id: schema.accounts.id, type: schema.accounts.type, subtype: schema.accounts.subtype })
+    .select({ id: schema.accounts.id, type: schema.accounts.type, subtype: schema.accounts.subtype, businessId: schema.accounts.businessId })
     .from(schema.accounts)
     .where(eq(schema.accounts.userId, userId));
   const acct = new Map(accounts.map((a) => [a.id, a]));
@@ -42,6 +48,7 @@ export async function pairTransfers(db: Db, userId: string, asOf: string) {
       accountId: r.accountId,
       accountType: (acct.get(r.accountId)?.type ?? "other") as AccountType,
       accountSubtype: acct.get(r.accountId)?.subtype,
+      businessId: acct.get(r.accountId)?.businessId ?? null,
       amount: r.amount,
       date: r.date,
       kind: r.kind as never,
@@ -54,18 +61,18 @@ export async function pairTransfers(db: Db, userId: string, asOf: string) {
     await db.transaction(async (tx) => {
       await tx
         .update(schema.transactions)
-        .set({ kind: m.outflowKind, category: m.outflowCategory, transferPairId: pair, classSource: "transfer_match", confidence: 0.97, needsReview: false, reason: "Matched with a transfer between your accounts", updatedAt: new Date() })
+        .set({ kind: m.outflowKind, category: m.outflowCategory, transferPairId: pair, classSource: "transfer_match", confidence: 0.97, needsReview: false, reason: pairReason(m.outflowCategory), updatedAt: new Date() })
         .where(and(eq(schema.transactions.id, m.outflowId), eq(schema.transactions.userId, userId)));
       await tx
         .update(schema.transactions)
         .set({
           kind: m.inflowKind,
-          category: m.inflowKind === "card_payment" ? "card_payment" : m.inflowKind === "investment_transfer" ? "investment" : "transfer",
+          category: m.inflowCategory,
           transferPairId: pair,
           classSource: "transfer_match",
           confidence: 0.97,
           needsReview: false,
-          reason: "Matched with a transfer between your accounts",
+          reason: pairReason(m.inflowCategory),
           updatedAt: new Date(),
         })
         .where(and(eq(schema.transactions.id, m.inflowId), eq(schema.transactions.userId, userId)));

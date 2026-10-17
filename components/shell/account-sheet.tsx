@@ -18,6 +18,7 @@ import {
   syncNowAction,
 } from "@/app/actions";
 import { ConnectBank } from "@/components/connect/connect-bank";
+import { AccountOwner, BusinessSettings } from "./business-controls";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { LifestyleSlider } from "@/components/plan/lifestyle-slider";
@@ -159,11 +160,14 @@ export function AccountSheet({ open, onOpenChange }: { open: boolean; onOpenChan
                     {accts.length > 0 && (
                       <ul className="mt-2.5 space-y-1">
                         {accts.map((a) => (
-                          <li key={a.id} className="flex justify-between text-[13px]">
-                            <span className="text-fg-2">
+                          <li key={a.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[13px]">
+                            <span className="min-w-0 flex-1 truncate text-fg-2">
                               {a.name} {a.mask && <span className="text-muted">··{a.mask}</span>}
                             </span>
                             <span className="tabular text-fg-2">{a.currentMinor == null ? "—" : formatMoney(a.type === "credit" || a.type === "loan" ? -Math.abs(a.currentMinor) : a.currentMinor)}</span>
+                            <span className="flex basis-full justify-end">
+                              <AccountOwner accountId={a.id} businessId={a.businessId} businesses={data.businesses} onChanged={() => act(async () => ({ ok: true }))} />
+                            </span>
                           </li>
                         ))}
                       </ul>
@@ -191,6 +195,17 @@ export function AccountSheet({ open, onOpenChange }: { open: boolean; onOpenChan
               )}
             </div>
           </Section>
+
+          {data.businesses.length > 0 && (
+            <Section title="Your businesses">
+              <div className="space-y-2">
+                {data.businesses.map((b) => (
+                  <BusinessSettings key={b.id} business={b} onChanged={() => act(async () => ({ ok: true }))} />
+                ))}
+              </div>
+              <p className="mt-2 text-[12px] text-muted">Business accounts stay out of your personal spending and Safe to Spend. Money you move to yourself counts as your income.</p>
+            </Section>
+          )}
 
           <Section title="How Link balances your plan">
             <LifestyleSlider value={data.prefs.lifestyleWeight} onCommit={(v) => act(() => setPreferencesAction({ lifestyleWeight: v }))} />

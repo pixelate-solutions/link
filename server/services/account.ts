@@ -55,11 +55,13 @@ export async function exportUserData(userId: string) {
     db.select().from(schema.messages).where(eq(schema.messages.userId, userId)),
     db.select().from(schema.memories).where(eq(schema.memories.userId, userId)),
   ]);
+  const businesses = await db.select().from(schema.businesses).where(eq(schema.businesses.userId, userId));
   const connections = (await listConnections(userId)).map((c) => ({ ...c, note: "Access tokens are never exported." }));
   return {
     exportedAt: new Date().toISOString(),
     conventions: { money: "integer minor units (cents); positive = money into your account" },
     user: user[0] ?? null,
+    businesses,
     connections,
     accounts,
     transactions,

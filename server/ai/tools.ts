@@ -159,6 +159,10 @@ export const TOOLS = [
           limitations: p.safeToSpend.limitations,
         },
         coverage: { ...p.coverage, months_of_history_analyzed: p.baseline.monthsAnalyzed },
+        businesses: p.businesses.map((b) => ({ name: untrusted(b.name, 40), profit_monthly: usd(b.profit), owner_draws_monthly: usd(b.draws), cash: usd(b.cash) })),
+        note: p.businesses.length
+          ? "Everything above is personal only. Business accounts are excluded; owner draws from a business count as personal income. Use get_businesses for business detail."
+          : undefined,
         open_questions: p.questions.slice(0, 3),
       };
     },
@@ -304,6 +308,35 @@ export const TOOLS = [
     async run(ctx) {
       const { picture } = await computeContext(ctx.userId);
       return picture.recurring.map((r) => ({ merchant: untrusted(r.merchant), kind: r.kind, category: r.category, cadence: r.cadence, amount: usd(r.amount), next_expected: r.nextDate, confidence: r.confidence, occurrences: r.occurrences }));
+    },
+  }),
+  def({
+    name: "get_businesses",
+    description:
+      "The user's own businesses (sole proprietorship, LLC, …): revenue, expenses, profit and margin per month, owner draws, cash, runway, top costs, recurring costs, and an estimated tax set-aside. Business accounts are kept out of personal figures.",
+    input: z.object({}),
+    effect: "read",
+    async run(ctx) {
+      const { picture } = await computeContext(ctx.userId);
+      return picture.businesses.map((b) => ({
+        name: untrusted(b.name, 40),
+        structure: b.structure,
+        ownership_percent: b.ownershipPct,
+        counts_toward_personal_goals: b.countTowardGoals,
+        months_analyzed: b.monthsAnalyzed,
+        typical_month: { revenue: usd(b.revenue), expenses: usd(b.expenses), profit: usd(b.profit), margin: b.margin, owner_draws: usd(b.draws), owner_contributions: usd(b.contributions) },
+        by_month: b.months.map((m) => ({ month: m.month, revenue: usd(m.revenue), expenses: usd(m.expenses), profit: usd(m.profit), owner_draws: usd(m.draws) })),
+        this_month: { revenue: usd(b.thisMonth.revenue), expenses: usd(b.thisMonth.expenses), profit: usd(b.thisMonth.profit) },
+        cash: usd(b.cash),
+        debt: usd(b.debt),
+        owner_share_of_net_worth: usd(b.ownerShare),
+        runway_months: b.runwayMonths,
+        losing_money: b.burning,
+        top_expenses: b.topExpenses.map((e) => ({ category: e.category, monthly: usd(e.monthly) })),
+        recurring_costs: b.recurringCosts.map((r) => ({ merchant: untrusted(r.merchant), monthly: usd(r.monthly) })),
+        estimated_tax_set_aside_monthly: usd(b.taxSetAsideMonthly),
+        tax_set_aside_percent: b.taxSetAsidePct,
+      }));
     },
   }),
   def({

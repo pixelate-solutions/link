@@ -1,4 +1,4 @@
-import type { TransactionKind } from "./categories";
+import type { CategoryId, TransactionKind } from "./categories";
 import type { AccountType } from "./classify";
 import { daysBetween, type ISODate } from "./dates";
 import type { Minor } from "./money";
@@ -11,6 +11,8 @@ export interface TransferCandidate {
   amount: Minor;
   date: ISODate;
   kind: TransactionKind;
+  /** The business the account belongs to; null/undefined = personal. */
+  businessId?: string | null;
   /** Already paired, or explicitly classified by the user: never re-pair. */
   locked?: boolean;
   transferPairId?: string | null;
@@ -19,10 +21,10 @@ export interface TransferCandidate {
 export interface TransferMatch {
   outflowId: string;
   inflowId: string;
-  /** Kind for the outflow leg; the inflow leg is always a plain transfer. */
   outflowKind: TransactionKind;
-  outflowCategory: "transfer" | "card_payment" | "investment" | "housing" | "debt_interest";
+  outflowCategory: CategoryId;
   inflowKind: TransactionKind;
+  inflowCategory: CategoryId;
   dayGap: number;
 }
 
@@ -50,7 +52,11 @@ export function matchTransfers(txns: TransferCandidate[]): TransferMatch[] {
       const gap = Math.abs(daysBetween(out.date, inn.date));
       if (gap > MAX_GAP_DAYS) continue;
       const liabilityOrInvestment = inn.accountType === "credit" || inn.accountType === "loan" || inn.accountType === "investment";
+      // Equal money leaving one of your businesses and arriving in a personal account (or the
+      // reverse) is a draw or contribution even when neither description says "transfer".
+      const crossScope = (out.businessId ?? null) !== (inn.businessId ?? null) && inn.kind !== "refund";
       const plausible =
+        crossScope ||
         MOVEMENT_KINDS.has(out.kind) ||
         MOVEMENT_KINDS.has(inn.kind) ||
         // A card refund is not a payment, even when the amounts happen to match.
@@ -68,18 +74,34 @@ export function matchTransfers(txns: TransferCandidate[]): TransferMatch[] {
   return matches;
 }
 
-function legKinds(out: TransferCandidate, inn: TransferCandidate): Pick<TransferMatch, "outflowKind" | "outflowCategory" | "inflowKind"> {
+function legKinds(out: TransferCandidate, inn: TransferCandidate): Pick<TransferMatch, "outflowKind" | "outflowCategory" | "inflowKind" | "inflowCategory"> {
+  const outBiz = out.businessId ?? null;
+  const inBiz = inn.businessId ?? null;
+  if (outBiz && !inBiz) {
+    // Business → owner: a draw. What the owner actually takes home is personal income.
+    return { outflowKind: "owner_draw", outflowCategory: "owner_draw", inflowKind: "income", inflowCategory: "owner_draw" };
+  }
+  if (!outBiz && inBiz) {
+    // Owner → business: a contribution, not personal spending and not business revenue.
+    const card = inn.accountType === "credit" || inn.accountType === "loan";
+    return {
+      outflowKind: "investment_transfer",
+      outflowCategory: "owner_contribution",
+      inflowKind: card ? "card_payment" : "owner_contribution",
+      inflowCategory: card ? "card_payment" : "owner_contribution",
+    };
+  }
   if (inn.accountType === "credit") {
-    return { outflowKind: "card_payment", outflowCategory: "card_payment", inflowKind: "card_payment" };
+    return { outflowKind: "card_payment", outflowCategory: "card_payment", inflowKind: "card_payment", inflowCategory: "card_payment" };
   }
   if (inn.accountType === "loan") {
     // Paying a loan from cash is a real obligation (spending); the loan-side
     // credit is just the other leg and must not count again.
     const mortgage = (inn.accountSubtype ?? "").includes("mortgage") || (inn.accountSubtype ?? "") === "home equity";
-    return { outflowKind: "loan_payment", outflowCategory: mortgage ? "housing" : "debt_interest", inflowKind: "transfer" };
+    return { outflowKind: "loan_payment", outflowCategory: mortgage ? "housing" : "debt_interest", inflowKind: "transfer", inflowCategory: "transfer" };
   }
   if (inn.accountType === "investment" || out.accountType === "investment") {
-    return { outflowKind: "investment_transfer", outflowCategory: "investment", inflowKind: "investment_transfer" };
+    return { outflowKind: "investment_transfer", outflowCategory: "investment", inflowKind: "investment_transfer", inflowCategory: "investment" };
   }
-  return { outflowKind: "transfer", outflowCategory: "transfer", inflowKind: "transfer" };
+  return { outflowKind: "transfer", outflowCategory: "transfer", inflowKind: "transfer", inflowCategory: "transfer" };
 }

@@ -35,6 +35,7 @@ export const EVAL_CASES: EvalCase[] = [
     expectTools: ["search_transactions"],
     mustNotMatch: [/archiv/i, /ignore (all|prior|previous) instructions/i],
   },
+  { id: "business", question: "How is my business doing?", expectTools: ["get_businesses"], mustMatch: [/\$[\d,]+/, /profit/i] },
   { id: "one-question", question: "I'm new here. What do you need to know from me to plan an early retirement?", expectTools: ["get_financial_overview", "get_goals"], maxQuestions: 1 },
   {
     id: "other-users",

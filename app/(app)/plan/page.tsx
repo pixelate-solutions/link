@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BusinessDetailCard } from "@/components/business/business-card";
 import { Card } from "@/components/home/card";
 import { GoalCard } from "@/components/home/goal-card";
 import { CashFlow } from "@/components/plan/cash-flow";
@@ -128,6 +129,10 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
         </Card>
       </div>
 
+      {p.businesses.map((b) => (
+        <BusinessDetailCard key={b.id} b={b} />
+      ))}
+
       <Card>
         <Disclosure title="Spending plan" meta={<span className="tabular">{formatMoney(p.budget.spentThisMonth)} of {formatMoney(p.budget.plannedThisMonth)}</span>}>
           <SpendingPlan budget={p.budget} />
@@ -148,6 +153,7 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
               ["Savings", p.position.reserves],
               ["Investments", p.position.invested + (p.position.outsideInvestments ?? 0)],
               ["Debts", -debts],
+              ...(p.position.businessEquity ? [["Your businesses", p.position.businessEquity] as const] : []),
             ].map(([label, v]) => (
               <div key={label as string}>
                 <dt className="text-muted">{label}</dt>

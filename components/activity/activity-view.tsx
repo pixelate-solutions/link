@@ -24,10 +24,12 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: "transfers", label: "Transfers" },
 ];
 
-function filterArgs(f: Filter, query: string, accountId: string) {
+function filterArgs(f: Filter, query: string, where: string) {
+  // `where` is "", "scope:personal", "scope:<businessId>" or "acct:<accountId>".
   return {
     query: query || undefined,
-    accountId: accountId || undefined,
+    accountId: where.startsWith("acct:") ? where.slice(5) : undefined,
+    scope: where.startsWith("scope:") ? where.slice(6) : undefined,
     review: f === "review" || undefined,
     kind: f === "income" ? "income" : f === "transfers" ? "transfer" : undefined,
     limit: 60,
@@ -47,13 +49,15 @@ export function ActivityView({
   hasMore: initialMore,
   reviewCount,
   accounts,
+  businesses,
   recurring,
   today,
 }: {
   initial: TxnListRow[];
   hasMore: boolean;
   reviewCount: number;
-  accounts: { id: string; name: string; mask: string | null }[];
+  accounts: { id: string; name: string; mask: string | null; businessId: string | null }[];
+  businesses: { id: string; name: string }[];
   recurring: Picture["recurring"];
   today: string;
 }) {
@@ -92,6 +96,7 @@ export function ActivityView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, query, accountId]);
 
+  const bizName = new Map(businesses.map((b) => [b.id, b.name]));
   const groups: { date: string; rows: TxnListRow[] }[] = [];
   for (const r of rows) {
     const g = groups.at(-1);
@@ -135,20 +140,32 @@ export function ActivityView({
             </span>
           </button>
         ))}
-        {accounts.length > 1 && filter !== "recurring" && (
+        {(accounts.length > 1 || businesses.length > 0) && filter !== "recurring" && (
           <select
-            aria-label="Account"
+            aria-label="Which accounts"
             value={accountId}
             onChange={(e) => setAccountId(e.target.value)}
             className="ml-auto h-8 shrink-0 rounded-full bg-surface px-3 text-[13px] text-fg-2 outline-none"
           >
             <option value="">All accounts</option>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-                {a.mask ? ` ··${a.mask}` : ""}
-              </option>
-            ))}
+            {businesses.length > 0 && (
+              <optgroup label="Personal or business">
+                <option value="scope:personal">Personal</option>
+                {businesses.map((b) => (
+                  <option key={b.id} value={`scope:${b.id}`}>
+                    {b.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            <optgroup label="Account">
+              {accounts.map((a) => (
+                <option key={a.id} value={`acct:${a.id}`}>
+                  {a.name}
+                  {a.mask ? ` ··${a.mask}` : ""}
+                </option>
+              ))}
+            </optgroup>
           </select>
         )}
       </div>
@@ -177,6 +194,7 @@ export function ActivityView({
                           {r.hasSplits ? "Split" : categoryLabel(r.category)}
                           {r.pending && " · Pending"}
                           {r.accountMask && ` · ··${r.accountMask}`}
+                          {r.businessId && <span className="ml-1.5 rounded-full bg-accent-soft px-1.5 py-px text-[11px] font-medium text-accent-ink">{bizName.get(r.businessId) ?? "Business"}</span>}
                         </span>
                       </span>
                       <span className={cn("shrink-0 text-[15px] tabular", r.amount > 0 && "text-accent-ink", r.pending && "opacity-60")}>{formatMoney(r.amount, { cents: true, signed: r.amount > 0 })}</span>

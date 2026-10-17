@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BusinessSummaryCard } from "@/components/business/business-card";
 import { ConnectBank } from "@/components/connect/connect-bank";
 import { GoalCard } from "@/components/home/goal-card";
 import { NextStep } from "@/components/home/next-step";
@@ -55,6 +56,14 @@ export default async function HomePage() {
         <ThisMonth picture={p} />
         <ComingUp picture={p} />
       </div>
+
+      {p.businesses.length > 0 && (
+        <div className="grid gap-3 md:grid-cols-2 md:gap-4">
+          {p.businesses.map((b) => (
+            <BusinessSummaryCard key={b.id} b={b} />
+          ))}
+        </div>
+      )}
 
       {others.length > 0 && (
         <div className="grid gap-3 md:grid-cols-2 md:gap-4">

@@ -7,7 +7,7 @@ import { loadClassifyContext } from "./context";
 export async function reclassify(db: Db, userId: string, scope: { merchantKey?: string; ids?: string[]; sources?: string[] } = {}) {
   const ctx = await loadClassifyContext(db, userId);
   const accounts = await db
-    .select({ id: schema.accounts.id, type: schema.accounts.type, subtype: schema.accounts.subtype })
+    .select({ id: schema.accounts.id, type: schema.accounts.type, subtype: schema.accounts.subtype, businessId: schema.accounts.businessId })
     .from(schema.accounts)
     .where(eq(schema.accounts.userId, userId));
   const acct = new Map(accounts.map((a) => [a.id, a]));
@@ -29,6 +29,7 @@ export async function reclassify(db: Db, userId: string, scope: { merchantKey?: 
         accountId: r.accountId,
         accountType: a.type as AccountType,
         accountSubtype: a.subtype,
+        business: Boolean(a.businessId),
         providerPrimary: r.providerPrimary,
         providerDetailed: r.providerDetailed,
         providerConfidence: r.providerConfidence,

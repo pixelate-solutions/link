@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { EVAL_CASES, INJECTED_TXN, runEval } from "@/server/ai/eval";
 import { applySyncBatch } from "@/server/plaid/sync";
+import { attachDemoBusiness } from "@/server/demo/business";
 import { ACCOUNTS } from "./fixtures/household";
 import { createGoalsFromStatement } from "@/server/services/plan";
 import { testDb } from "./helpers/db";
@@ -14,6 +15,7 @@ describe("AI evaluation suite (deterministic planner)", () => {
     const { db } = await testDb();
     const { connId } = await seedHousehold(db, "eval_user");
     await applySyncBatch(db, { id: connId, userId: "eval_user" }, { accounts: ACCOUNTS, added: [INJECTED_TXN], modified: [], removed: [], nextCursor: "inj" }, NOW);
+    await attachDemoBusiness({ id: connId, userId: "eval_user" }, NOW);
     await createGoalsFromStatement("eval_user", "I want to retire as soon as possible without completely sacrificing my lifestyle.");
   }, 120_000);
 

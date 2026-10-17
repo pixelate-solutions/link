@@ -13,6 +13,7 @@ export const GOAL_KINDS = [
   "travel",
   "stability",
   "wealth",
+  "business_growth",
   "custom",
 ] as const;
 export type GoalKind = (typeof GOAL_KINDS)[number];
@@ -118,6 +119,7 @@ const PATTERNS: Pattern[] = [
   { kind: "stability", test: /\b(paycheck\s*to\s*paycheck|stop\s+worrying|less\s+stress|stressed|stable|stability|security|secure|peace\s+of\s+mind|breathing\s+room)\b/i },
   { kind: "family", test: /\b(child|children|kids?|baby|family|college\s+fund|529)\b/i },
   { kind: "travel", test: /\b(travel|vacation|trips?|see\s+the\s+world)\b/i },
+  { kind: "business_growth", test: /\b(grow|scale|expand|build)\b[^.]*\b(business|company|llc|practice|agency|studio|shop|side\s*hustle)\b|\bbusiness\s+(revenue|profit|income)\b/i },
   { kind: "wealth", test: /\b(wealth|wealthy|rich|net\s*worth|grow\s+my\s+money|invest(ing)?\s+more)\b/i },
   { kind: "purchase", test: /\b(buy|afford|save\s+for)\b[^.]*\b(car|truck|wedding|ring|boat|renovat\w*|tuition|laptop|bike)\b/i },
 ];
@@ -136,6 +138,7 @@ const TITLES: Record<GoalKind, (q: GoalInterpretation["qualifiers"], text: strin
   travel: () => "Travel more",
   stability: () => "Financial breathing room",
   wealth: () => "Build wealth",
+  business_growth: () => "Grow my business",
   custom: (_q, t) => t.trim().replace(/^i\s+(want|would\s+like)\s+to\s+/i, "").replace(/[.!]+$/, "").slice(0, 48) || "My goal",
 };
 
@@ -150,6 +153,7 @@ const SUMMARIES: Record<GoalKind, string> = {
   travel: "A travel budget you can spend without guilt.",
   stability: "A cash cushion and a positive monthly surplus.",
   wealth: "Net worth growing steadily through saving and investing.",
+  business_growth: "A business that earns more each year and funds your other goals.",
   custom: "Link will track this alongside your other goals.",
 };
 
@@ -164,6 +168,7 @@ const METRICS: Record<GoalKind, string> = {
   travel: "Travel budget funded",
   stability: "Months of breathing room",
   wealth: "Net worth trend",
+  business_growth: "Monthly profit",
   custom: "Progress",
 };
 

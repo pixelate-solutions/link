@@ -202,3 +202,31 @@ Impact is log-scaled on annual dollars.
 - Active recommendations refresh in place, and ones that disappear expire.
 - A dismissed one returns only after 30 days *and* a 50% or larger change in impact.
 - "Done" records the user's statement and never fabricates a transaction.
+
+## Businesses (`business.ts`)
+
+Any account can belong to one of the user's businesses (a sole proprietorship, LLC, S corp, partnership, or other). That choice changes how its money counts.
+
+**Kept separate.** The personal picture uses personal accounts only: baseline, Safe to Spend, forecast, recurring, budget, recommendations and goals. Business revenue is never personal income, and business costs are never personal spending.
+
+**What crosses over.** Transfer pairing looks at who owns each leg:
+- Business → personal is an **owner draw**. On the business side it's kind `owner_draw` (not an expense); on the personal side it's `income` with category `owner_draw`, so what you take home is your income.
+- Personal → business is an **owner contribution**. On the personal side it's an `investment_transfer` (not spending); on the business side it's `owner_contribution` (not revenue). Paying a business card from personal money is a contribution plus a card payment.
+- Equal and opposite amounts between a business and a personal account pair within 5 days even if neither description says "transfer".
+
+**Business categories.** On business accounts the classifier maps income to `revenue` (payment-processor payouts like Stripe count as revenue), and costs to `payroll`, `contractors`, `software`, `advertising`, `professional` and `supplies`. Other categories (travel, utilities, insurance, meals) keep their names. Rules and corrections always win.
+
+**The business view** uses up to 6 complete months:
+- Typical revenue, expenses and draws are means, because business income is lumpy. Profit = revenue − expenses; margin = profit / revenue.
+- Runway: when cash is shrinking (expenses + draws > revenue + contributions), months of cash at that pace; otherwise, months of expenses the cash covers.
+- Top costs by category, recurring costs, and this month so far.
+- Estimated tax set-aside = profit × the business's set-aside rate (default 25%, editable). It's a rule of thumb, labeled as an estimate.
+
+**In the personal plan:**
+- Net worth includes each business's net worth × ownership share (`position.businessEquity`).
+- Business cash counts toward personal goals only when that business's "count toward my goals" switch is on, and only the owner's share of positive cash.
+- Personal surplus is never allocated to a "grow my business" goal; that goal tracks the business's own profit.
+
+**Recommendations:** short runway (under 4 months while losing money), draws more than 15% above profit while cash is under 3 months of outflows, and a monthly tax set-aside when profit is $500/month or more.
+
+Changing an account's owner re-labels its history: every transfer touching it is unpaired, both legs are reclassified, and the pipeline re-pairs them as draws, contributions or plain transfers.

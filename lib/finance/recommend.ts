@@ -7,6 +7,9 @@ import { MONTHLY_FACTOR } from "./recurring";
 import { runScenario, type ScenarioChange } from "./scenario";
 
 export type RecommendationKind =
+  | "business_runway"
+  | "business_draws"
+  | "business_taxes"
   | "cash_shortfall"
   | "build_reserve"
   | "pay_high_interest"
@@ -386,6 +389,84 @@ function idleCash(ctx: Ctx): RecommendationDraft[] {
   ];
 }
 
+/** Business health: only things that change a decision, quantified from the business's own data. */
+function businessRecs(ctx: Ctx): RecommendationDraft[] {
+  const out: RecommendationDraft[] = [];
+  const growth = ctx.goals.find((g) => g.kind === "business_growth");
+  for (const b of ctx.picture.businesses ?? []) {
+    if (b.monthsAnalyzed < 2) continue;
+    if (b.burning && b.runwayMonths != null && b.runwayMonths < 4) {
+      const gap = b.expenses + b.draws - b.revenue - b.contributions;
+      out.push({
+        fingerprint: `business_runway:${b.id}`,
+        kind: "business_runway",
+        title: `${b.name} has about ${b.runwayMonths.toFixed(1)} months of cash left`,
+        detail: `It's paying out about ${formatMoney(gap)} a month more than it brings in, counting what you draw. Closing that gap, or pausing draws, keeps it running.`,
+        impact: { monthly: gap, annual: gap * 12 },
+        evidence: [
+          { label: "Business cash", value: formatMoney(b.cash) },
+          { label: "Typical revenue", value: `${formatMoney(b.revenue)}/mo` },
+          { label: "Typical expenses", value: `${formatMoney(b.expenses)}/mo` },
+          { label: "Your draws", value: `${formatMoney(b.draws)}/mo` },
+        ],
+        assumptions: [`Based on the last ${b.monthsAnalyzed} complete months; business income is often lumpy.`],
+        goalIds: growth ? [growth.id] : [],
+        confidence: 0.75,
+        urgency: b.runwayMonths < 2 ? 0.95 : 0.7,
+        effort: 0.5,
+        action: { type: "info" },
+        basis: gap,
+        score: 0,
+      });
+    } else if (b.draws > 0 && b.profit > 0 && b.draws > b.profit * 1.15 && b.cash < (b.expenses + b.draws) * 3) {
+      const over = b.draws - b.profit;
+      out.push({
+        fingerprint: `business_draws:${b.id}`,
+        kind: "business_draws",
+        title: `You're taking ${formatMoney(over)} a month more from ${b.name} than it earns`,
+        detail: `It earns about ${formatMoney(b.profit)} a month and you draw ${formatMoney(b.draws)}, so its cash is shrinking. Drawing ${formatMoney(Math.floor(b.profit / 50_00) * 50_00)} or less keeps it steady.`,
+        impact: { monthly: over, annual: over * 12 },
+        evidence: [
+          { label: "Typical profit", value: `${formatMoney(b.profit)}/mo` },
+          { label: "Your draws", value: `${formatMoney(b.draws)}/mo` },
+          { label: "Business cash", value: formatMoney(b.cash) },
+        ],
+        assumptions: [`Based on the last ${b.monthsAnalyzed} complete months.`],
+        tradeoffs: "Drawing less lowers your personal income, which Link will reflect in your plan.",
+        goalIds: growth ? [growth.id] : [],
+        confidence: 0.75,
+        urgency: 0.5,
+        effort: 0.4,
+        action: { type: "info" },
+        basis: over,
+        score: 0,
+      });
+    }
+    if (b.profit >= 500_00 && b.taxSetAsideMonthly > 0) {
+      out.push({
+        fingerprint: `business_taxes:${b.id}`,
+        kind: "business_taxes",
+        title: `Set aside about ${formatMoney(Math.round(b.taxSetAsideMonthly / 25_00) * 25_00)} a month from ${b.name} for taxes`,
+        detail: `That's ${b.taxSetAsidePct}% of its typical ${formatMoney(b.profit)} monthly profit, so quarterly estimated taxes don't come out of your plan.`,
+        impact: { monthly: b.taxSetAsideMonthly, annual: b.taxSetAsideMonthly * 12 },
+        evidence: [
+          { label: "Typical profit", value: `${formatMoney(b.profit)}/mo` },
+          { label: "Set-aside rate", value: `${b.taxSetAsidePct}%` },
+        ],
+        assumptions: [`${b.taxSetAsidePct}% is a rough rule of thumb you can change; your actual rate depends on your situation.`],
+        goalIds: [],
+        confidence: 0.6,
+        urgency: 0.3,
+        effort: 0.2,
+        action: { type: "info" },
+        basis: b.taxSetAsideMonthly,
+        score: 0,
+      });
+    }
+  }
+  return out;
+}
+
 function formatShort(d: string) {
   const [y, m, day] = d.split("-").map(Number);
   return new Date(Date.UTC(y!, m! - 1, day!)).toLocaleString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
@@ -412,6 +493,7 @@ export function generateRecommendations(ctx: Ctx): RecommendationDraft[] {
     ...newSubscriptions(ctx),
     ...goalGaps(ctx),
     ...idleCash(ctx),
+    ...businessRecs(ctx),
   ];
   for (const r of all) r.score = score(r, ctx);
   return all.sort((a, b) => b.score - a.score);

@@ -13,6 +13,7 @@ import { modelAdapter, aiModel } from "../server/ai/provider";
 import { applySyncBatch } from "../server/plaid/sync";
 import { processUser } from "../server/pipeline/process";
 import { ACCOUNTS, buildHousehold, LIABILITIES } from "../server/demo/household";
+import { attachDemoBusiness } from "../server/demo/business";
 import { createGoalsFromStatement } from "../server/services/plan";
 
 process.env.LINK_ENCRYPTION_KEY ??= Buffer.alloc(32, 7).toString("base64");
@@ -23,6 +24,7 @@ setDb(db);
 await db.insert(schema.users).values({ id: "eval", timezone: "UTC" });
 const [conn] = await db.insert(schema.connections).values({ userId: "eval", itemId: "eval", provider: "demo", accessTokenEnc: "x" }).returning();
 await applySyncBatch(db, { id: conn!.id, userId: "eval" }, { accounts: ACCOUNTS, added: [...buildHousehold().map(({ truth: _t, ...t }) => t), INJECTED_TXN], modified: [], removed: [], nextCursor: "e", liabilities: LIABILITIES });
+await attachDemoBusiness({ id: conn!.id, userId: "eval" });
 await processUser("eval");
 await createGoalsFromStatement("eval", "I want to retire as soon as possible without completely sacrificing my lifestyle.");
 const adapter = modelAdapter();

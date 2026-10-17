@@ -17,7 +17,8 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
         initial={list.rows}
         hasMore={list.hasMore}
         reviewCount={picture.coverage.reviewCount}
-        accounts={accounts.filter((a) => !a.hidden).map((a) => ({ id: a.id, name: a.name, mask: a.mask }))}
+        accounts={accounts.filter((a) => !a.hidden).map((a) => ({ id: a.id, name: a.name, mask: a.mask, businessId: a.businessId }))}
+        businesses={picture.businesses.map((b) => ({ id: b.id, name: b.name }))}
         recurring={picture.recurring}
         today={picture.asOf}
       />

@@ -3,7 +3,7 @@
  * category lists. Users correct individual transactions or write rules; they
  * never have to build the taxonomy themselves.
  */
-export type CategoryGroup = "income" | "essential" | "discretionary" | "transfer" | "savings";
+export type CategoryGroup = "income" | "essential" | "discretionary" | "transfer" | "savings" | "business";
 
 export interface CategoryDef {
   id: string;
@@ -42,6 +42,17 @@ export const CATEGORIES = [
   { id: "services", label: "Services", group: "discretionary" },
   { id: "general", label: "Other spending", group: "discretionary" },
 
+  // Business (used on accounts marked as belonging to one of the user's businesses).
+  { id: "revenue", label: "Revenue", group: "business" },
+  { id: "payroll", label: "Payroll", group: "business" },
+  { id: "contractors", label: "Contractors", group: "business" },
+  { id: "software", label: "Software & tools", group: "business" },
+  { id: "advertising", label: "Advertising", group: "business" },
+  { id: "supplies", label: "Supplies & inventory", group: "business" },
+  { id: "professional", label: "Professional services", group: "business" },
+
+  { id: "owner_draw", label: "Owner draw", group: "transfer" },
+  { id: "owner_contribution", label: "Owner contribution", group: "transfer" },
   { id: "transfer", label: "Transfer", group: "transfer" },
   { id: "card_payment", label: "Card payment", group: "transfer" },
   { id: "investment", label: "Investing", group: "savings" },
@@ -82,6 +93,8 @@ export const TRANSACTION_KINDS = [
   "investment_transfer",
   "loan_payment",
   "fee",
+  "owner_draw", // business side: money paid out to the owner (not a business expense)
+  "owner_contribution", // business side: money put in by the owner (not revenue)
   "other",
 ] as const;
 export type TransactionKind = (typeof TRANSACTION_KINDS)[number];

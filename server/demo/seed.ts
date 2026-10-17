@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { addDays, daysBetween, todayISO } from "@/lib/finance/dates";
 import { encryptSecret } from "../crypto";
 import { getDb, schema } from "../db/client";
@@ -32,5 +33,12 @@ export async function seedDemo(userId: string, timezone = "UTC") {
     mortgage: LIABILITIES.mortgage?.map((m) => ({ ...m, next_payment_due_date: m.next_payment_due_date ? addDays(m.next_payment_due_date, shift) : null })),
   };
   await applySyncBatch(db, { id: conn.id, userId }, { accounts: ACCOUNTS, added: txns, modified: [], removed: [], nextCursor: "demo", liabilities: shiftLiab });
+  const { BUSINESS_ACCOUNTS, buildBusiness } = await import("./business");
+  const bizTxns = buildBusiness().map(({ truth: _t, ...t }) => ({ ...t, date: addDays(t.date, shift) }));
+  await applySyncBatch(db, { id: conn.id, userId }, { accounts: [...ACCOUNTS, ...BUSINESS_ACCOUNTS], added: bizTxns, modified: [], removed: [], nextCursor: "demo" });
+  const { createBusiness, setAccountBusiness } = await import("../services/business");
+  const b = await createBusiness(userId, { name: "Rivera Studio LLC (demo)", structure: "llc" });
+  const accts = await db.select({ id: schema.accounts.id, p: schema.accounts.providerAccountId }).from(schema.accounts).where(eq(schema.accounts.connectionId, conn.id));
+  for (const a of accts) if (a.p === "bizchk" || a.p === "bizcc") await setAccountBusiness(userId, a.id, b.id);
   await processUser(userId);
 }

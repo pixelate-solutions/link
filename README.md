@@ -7,6 +7,7 @@ Link connects to your bank accounts, sorts every transaction automatically, and 
 - **Home**: Safe to Spend, your goal's projected window, and the single most valuable next step.
 - **Activity**: the ledger, with automatic categories, transfer matching, recurring detection, and one-tap corrections that Link learns from.
 - **Plan**: an interactive projection, what-if scenarios, goals in priority order, the lifestyle-vs-speed dial, an optional spending plan, and a 90-day cash forecast.
+- **Businesses**: mark any account as belonging to your sole proprietorship or LLC. Its money stays out of your personal numbers, owner draws count as your income, and the business gets its own revenue, profit and runway view.
 - **Ask Link** (⌘K, or the tab bar on mobile): answers questions using the same tools and numbers as the rest of the app.
 
 ## Quick start (local)

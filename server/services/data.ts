@@ -1,5 +1,6 @@
 import { and, desc, eq, gte, inArray, isNull } from "drizzle-orm";
 import type { BudgetItem } from "@/lib/finance/budget";
+import type { BusinessRecord } from "@/lib/finance/business";
 import { type CategoryId, type TransactionKind } from "@/lib/finance/categories";
 import { toCategoryId, type AccountType } from "@/lib/finance/classify";
 import { addDays, todayISO } from "@/lib/finance/dates";
@@ -30,6 +31,7 @@ export function toLedgerAccount(a: AccountRow): LedgerAccount {
     nextPaymentDue: a.nextPaymentDue,
     hidden: a.hidden || a.closed,
     manual: a.source !== "plaid",
+    businessId: a.businessId,
   };
 }
 
@@ -114,6 +116,7 @@ export interface UserData {
   budget: BudgetItem[] | null;
   budgetVersion: number | null;
   ignoredRecurring: Set<string>;
+  businesses: BusinessRecord[];
 }
 
 /** Everything the finance engines need for one user, scoped by user id in every query. */
@@ -123,7 +126,7 @@ export async function loadUserData(db: Db, userId: string, now = new Date()): Pr
   const asOf = todayISO(user.timezone, now);
   const since = addDays(asOf, -LEDGER_DAYS);
 
-  const [accounts, txnRows, goalRows, factRows, prefRows, budgetRows, ignored] = await Promise.all([
+  const [accounts, txnRows, goalRows, factRows, prefRows, budgetRows, ignored, businessRows] = await Promise.all([
     db.select().from(schema.accounts).where(eq(schema.accounts.userId, userId)),
     db
       .select()
@@ -146,6 +149,7 @@ export async function loadUserData(db: Db, userId: string, now = new Date()): Pr
       .select({ key: schema.recurring.key })
       .from(schema.recurring)
       .where(and(eq(schema.recurring.userId, userId), eq(schema.recurring.status, "ignored"))),
+    db.select().from(schema.businesses).where(eq(schema.businesses.userId, userId)).orderBy(schema.businesses.createdAt),
   ]);
 
   const splitIds = txnRows.filter((t) => t.hasSplits).map((t) => t.id);
@@ -185,5 +189,6 @@ export async function loadUserData(db: Db, userId: string, now = new Date()): Pr
     budget: budgetRows[0] ? (budgetRows[0].items as BudgetItem[]) : null,
     budgetVersion: budgetRows[0]?.version ?? null,
     ignoredRecurring: new Set(ignored.map((r) => r.key)),
+    businesses: businessRows.map((b) => ({ id: b.id, name: b.name, structure: b.structure, ownershipPct: b.ownershipPct, countTowardGoals: b.countTowardGoals, taxSetAsidePct: b.taxSetAsidePct })),
   };
 }

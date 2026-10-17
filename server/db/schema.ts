@@ -73,6 +73,31 @@ export const preferences = link.table("preferences", {
   updatedAt: updatedAt(),
 });
 
+// ── Businesses ──────────────────────────────────────────────────────────────
+
+/**
+ * A business the user owns (sole proprietorship, LLC, …). Accounts assigned to it
+ * are kept out of the personal picture; money moving between it and personal
+ * accounts becomes owner draws and contributions.
+ */
+export const businesses = link.table(
+  "businesses",
+  {
+    id: id(),
+    userId: userId(),
+    name: text("name").notNull(),
+    structure: text("structure").notNull().default("llc"), // sole_prop | llc | s_corp | partnership | other
+    /** Share of the business the user owns, in percent. */
+    ownershipPct: integer("ownership_pct").notNull().default(100),
+    /** When on, the user's share of business cash counts toward personal goals. */
+    countTowardGoals: boolean("count_toward_goals").notNull().default(false),
+    /** Share of profit to set aside for income taxes, in percent (an estimate the user can change). */
+    taxSetAsidePct: integer("tax_set_aside_pct").notNull().default(25),
+    createdAt: createdAt(),
+  },
+  (t) => [index("businesses_user").on(t.userId)],
+);
+
 // ── Connections & accounts ──────────────────────────────────────────────────
 
 export const connections = link.table(
@@ -105,6 +130,8 @@ export const accounts = link.table(
     userId: userId(),
     connectionId: uuid("connection_id").references(() => connections.id, { onDelete: "cascade" }),
     providerAccountId: text("provider_account_id"),
+    /** Null = personal. */
+    businessId: uuid("business_id").references(() => businesses.id, { onDelete: "set null" }),
     name: text("name").notNull(),
     officialName: text("official_name"),
     mask: text("mask"),

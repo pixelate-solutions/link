@@ -1,4 +1,5 @@
 import { type Baseline, computeBaseline, monthToDate, typicalSpendByDay } from "./analysis";
+import { type BusinessRecord, type BusinessView, computeBusiness } from "./business";
 import { type BudgetItem, type BudgetLine, autoBudget, budgetStatus } from "./budget";
 import { type CashModel, type Forecast, type SafeToSpend, buildCashModel, forecastCash, safeToSpend } from "./cashflow";
 import type { CategoryId } from "./categories";
@@ -121,6 +122,8 @@ export interface Picture {
     loanDebt: Minor;
     netWorth: Minor;
     investmentsKnown: boolean;
+    /** The user's share of their businesses' net worth (included in netWorth). */
+    businessEquity: Minor;
   };
   baseline: Baseline;
   flows: { investingMonthly: Minor; savingsMonthly: Minor; surplusUnassigned: Minor };
@@ -131,6 +134,7 @@ export interface Picture {
   goals: GoalView[];
   allocations: Allocation[];
   questions: { key: FactKey; question: string; why: string; goalId: string }[];
+  businesses: BusinessView[];
 }
 
 const RECURRING_TOP = 40;
@@ -519,7 +523,8 @@ export function allocate(inputs: PlanInputs, goals: GoalRecord[], prefs: Prefere
     pool -= monthly;
   }
 
-  const active = goals.filter((g) => g.kind !== "travel" && g.kind !== "family" && g.kind !== "custom" && !(g.kind === "debt_freedom" && highInterest.length));
+  // Business growth is funded by the business itself, not by personal surplus.
+  const active = goals.filter((g) => g.kind !== "travel" && g.kind !== "family" && g.kind !== "custom" && g.kind !== "business_growth" && !(g.kind === "debt_freedom" && highInterest.length));
   // Time-bound goals get what they need first, capped at half the remaining pool each.
   for (const g of [...active].sort((a, b) => a.priority - b.priority)) {
     const due = g.targetDate ?? g.interpretation.target.date;
@@ -555,6 +560,7 @@ export interface PictureInput {
   /** Series the user marked as not recurring. */
   ignoredRecurring?: Set<string>;
   now?: Date;
+  businesses?: BusinessRecord[];
 }
 
 export function computePicture(input: PictureInput): Picture {
@@ -564,9 +570,18 @@ export function computePicture(input: PictureInput): Picture {
 /** Picture plus the PlanInputs it was derived from (scenarios start from the same inputs). */
 export function computeAll(input: PictureInput): { picture: Picture; inputs: PlanInputs } {
   const { asOf, accounts, txns, goals, facts, prefs } = input;
-  const visible = accounts.filter((a) => !a.hidden);
+  const businesses = input.businesses ?? [];
+  const businessIds = new Set(businesses.map((b) => b.id));
+  const allVisible = accounts.filter((a) => !a.hidden);
+  // The personal picture only ever sees personal accounts; each business is summarized on its own.
+  const visible = allVisible.filter((a) => !a.businessId || !businessIds.has(a.businessId));
   const visibleIds = new Set(visible.map((a) => a.id));
   const ledger = txns.filter((t) => visibleIds.has(t.accountId));
+  const businessViews = businesses.map((b) => {
+    const accts = allVisible.filter((a) => a.businessId === b.id);
+    const ids = new Set(accts.map((a) => a.id));
+    return computeBusiness(b, accts, txns.filter((t) => ids.has(t.accountId)), asOf);
+  });
 
   const series = detectRecurring(ledger, asOf).filter((s) => !input.ignoredRecurring?.has(s.key));
   const baseline = computeBaseline(ledger, series, asOf);
@@ -580,6 +595,13 @@ export function computeAll(input: PictureInput): { picture: Picture; inputs: Pla
     cardMonthly: model.cardMonthly,
     cashRetainedMonthly: cashRetained(ledger, visible, baseline.months),
   });
+  // Only businesses the user opted in count toward personal goals, and only their cash.
+  const businessForGoals = businessViews.filter((b) => b.countTowardGoals).reduce((s, b) => s + Math.max(0, Math.round((b.cash * b.ownershipPct) / 100)), 0);
+  if (businessForGoals > 0) {
+    const retirementAmount = inputs.retirementShare * inputs.invested;
+    inputs.invested += businessForGoals;
+    inputs.retirementShare = inputs.invested > 0 ? retirementAmount / inputs.invested : 0;
+  }
   const cardPaymentDays = new Map<string, number[]>();
   for (const t of ledger) {
     const acct = visible.find((a) => a.id === t.accountId);
@@ -644,7 +666,29 @@ export function computeAll(input: PictureInput): { picture: Picture; inputs: Pla
   const loanDebt = visible.filter((a) => a.type === "loan").reduce((s, a) => s + Math.max(0, a.current ?? 0), 0);
   const invested = visible.filter((a) => a.type === "investment").reduce((s, a) => s + (a.current ?? 0), 0);
   const retirement = visible.filter(isRetirement).reduce((s, a) => s + (a.current ?? 0), 0);
-  const netWorth = visible.reduce((s, a) => s + netWorthValue(a), 0) + (facts.outsideInvestments ?? 0);
+  const businessEquity = businessViews.reduce((s, b) => s + b.ownerShare, 0);
+  const netWorth = visible.reduce((s, a) => s + netWorthValue(a), 0) + (facts.outsideInvestments ?? 0) + businessEquity;
+  for (const v of goalViews) {
+    if (v.kind === "financial_independence" && businessForGoals > 0) {
+      v.assumptions.push(`Includes ${formatMoney(businessForGoals)} of business cash you chose to count toward your goals.`);
+    }
+    if (v.kind === "business_growth") {
+      const b = businessViews[0];
+      if (!b) {
+        Object.assign(v, { status: "needs_info", headline: "No business accounts yet", detail: "Mark an account as a business account to track it here." });
+      } else if (!b.monthsAnalyzed) {
+        Object.assign(v, { status: "tracking", headline: "Learning your business", detail: "A full month of history is needed for a trend." });
+      } else {
+        const last = b.months.at(-1)!;
+        Object.assign(v, {
+          status: b.profit > 0 ? "projected" : "behind",
+          headline: `${formatMoney(b.profit)}/mo profit`,
+          detail: `${b.name}: about ${formatMoney(b.revenue)} revenue a month${b.margin != null ? `, ${Math.round(b.margin * 100)}% margin` : ""}. Last month ${formatMoney(last.profit)} profit.`,
+          progress: null,
+        });
+      }
+    }
+  }
   const auto = ledger.length ? ledger.filter((t) => !t.pending).length : 0;
 
   const picture: Picture = {
@@ -655,7 +699,7 @@ export function computeAll(input: PictureInput): { picture: Picture; inputs: Pla
     coverage: {
       historyDays: baseline.historyDays,
       monthsAnalyzed: baseline.monthsAnalyzed,
-      accounts: visible.length,
+      accounts: allVisible.length,
       transactions: ledger.length,
       autoCategorized: auto ? Math.round(((auto - input.reviewCount) / auto) * 1000) / 1000 : 1,
       reviewCount: input.reviewCount,
@@ -671,6 +715,7 @@ export function computeAll(input: PictureInput): { picture: Picture; inputs: Pla
       loanDebt,
       netWorth,
       investmentsKnown: connectedInvestments || facts.outsideInvestments != null,
+      businessEquity,
     },
     baseline,
     flows: { investingMonthly: inputs.investingMonthly, savingsMonthly: inputs.savingsMonthly, surplusUnassigned: unassigned },
@@ -706,6 +751,7 @@ export function computeAll(input: PictureInput): { picture: Picture; inputs: Pla
     goals: goalViews,
     allocations,
     questions,
+    businesses: businessViews,
   };
   return { picture, inputs };
 }

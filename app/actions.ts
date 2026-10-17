@@ -8,6 +8,7 @@ import { FACT_KEYS, GOAL_KINDS, type FactKey } from "@/lib/finance/goals";
 import { toMinor } from "@/lib/finance/money";
 import { authMode, DEV_COOKIE, requireUser, UnauthorizedError } from "@/server/auth";
 import { publicError } from "@/server/errors";
+import { log } from "@/server/log";
 import { toScenarioChange } from "@/server/ai/tools";
 import { getDb, schema } from "@/server/db/client";
 import { seedDemo } from "@/server/demo/seed";
@@ -43,7 +44,10 @@ async function run<T>(fn: (userId: string) => Promise<T>, revalidate = true): Pr
   } catch (err) {
     if (err instanceof UnauthorizedError) return { ok: false, error: "Your session ended. Sign in again." };
     if (err instanceof z.ZodError) return { ok: false, error: "That doesn't look right. Check the value and try again." };
-    return { ok: false, error: publicError(err) };
+    const message = publicError(err);
+    // Anything we replaced with a generic message is unexpected: keep the real cause in the logs.
+    if (err instanceof Error && message !== err.message) log.error("action failed", err);
+    return { ok: false, error: message };
   }
 }
 
@@ -166,6 +170,7 @@ export async function proposalAction(id: string, approve: boolean) {
 
 const filtersSchema = z.object({
   query: z.string().max(80).optional(),
+  scope: z.union([z.literal("personal"), z.string().uuid()]).optional(),
   category: z.string().max(40).optional(),
   kind: z.string().max(40).optional(),
   accountId: z.string().uuid().optional(),
@@ -300,6 +305,14 @@ export async function accountOverviewAction() {
       connections: connections.map((c) => ({ ...c, lastSyncedAt: c.lastSyncedAt?.toISOString() ?? null, createdAt: c.createdAt.toISOString() })),
       accounts: accounts.map((a) => ({ ...a, lastSyncedAt: a.lastSyncedAt?.toISOString() ?? null })),
       memories: memories.map((m) => ({ id: m.id, content: m.content, kind: m.kind })),
+      businesses: (await (await import("@/server/services/business")).listBusinesses(u)).map((b) => ({
+        id: b.id,
+        name: b.name,
+        structure: b.structure,
+        ownershipPct: b.ownershipPct,
+        countTowardGoals: b.countTowardGoals,
+        taxSetAsidePct: b.taxSetAsidePct,
+      })),
       rules: rules.map((r) => ({ id: r.id, description: r.description })),
       prefs: { lifestyleWeight: prefs.lifestyleWeight, protectedCategories: prefs.protectedCategories as string[], bufferMinor: prefs.bufferMinor },
       facts: facts.map((f) => ({ key: f.key, value: f.value as { value?: number; skipped?: boolean }, source: f.source })),
@@ -312,5 +325,48 @@ export async function pumpJobsAction() {
   return run(async (u) => {
     const r = await runJobs({ userId: u, limit: 3, timeBudgetMs: 25_000 });
     return { processed: r.processed };
+  });
+}
+
+// ── Businesses ──────────────────────────────────────────────────────────────
+
+const structure = z.enum(["sole_prop", "llc", "s_corp", "partnership", "other"]);
+
+export async function createBusinessAction(name: string, struct: string, accountId?: string) {
+  return run(async (u) => {
+    const { createBusiness, setAccountBusiness } = await import("@/server/services/business");
+    const b = await createBusiness(u, { name: z.string().trim().min(1).max(60).parse(name), structure: structure.parse(struct) });
+    if (accountId) await setAccountBusiness(u, uuid.parse(accountId), b.id);
+    return { id: b.id };
+  });
+}
+
+export async function updateBusinessAction(id: string, patch: { name?: string; structure?: string; ownershipPct?: number; countTowardGoals?: boolean; taxSetAsidePct?: number }) {
+  return run(async (u) => {
+    const { updateBusiness } = await import("@/server/services/business");
+    const p = z
+      .object({
+        name: z.string().trim().min(1).max(60).optional(),
+        structure: structure.optional(),
+        ownershipPct: z.number().int().min(1).max(100).optional(),
+        countTowardGoals: z.boolean().optional(),
+        taxSetAsidePct: z.number().int().min(0).max(60).optional(),
+      })
+      .parse(patch);
+    await updateBusiness(u, uuid.parse(id), p);
+  });
+}
+
+export async function deleteBusinessAction(id: string) {
+  return run(async (u) => {
+    const { deleteBusiness } = await import("@/server/services/business");
+    await deleteBusiness(u, uuid.parse(id));
+  });
+}
+
+export async function setAccountBusinessAction(accountId: string, businessId: string | null) {
+  return run(async (u) => {
+    const { setAccountBusiness } = await import("@/server/services/business");
+    await setAccountBusiness(u, uuid.parse(accountId), businessId == null ? null : uuid.parse(businessId));
   });
 }

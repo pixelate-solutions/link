@@ -36,6 +36,8 @@ export interface LedgerAccount {
   nextPaymentDue?: ISODate | null;
   hidden?: boolean;
   manual?: boolean;
+  /** Set when the account belongs to one of the user's businesses. */
+  businessId?: string | null;
 }
 
 /** Expand a transaction into its (amount, category, kind) lines, honoring splits. */

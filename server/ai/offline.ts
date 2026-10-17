@@ -199,7 +199,35 @@ export async function answerOffline(ctx: ToolCtx, message: string, call: Call): 
     return [`${recs.length === 1 ? "The most valuable thing" : `The ${recs.length} most valuable things`} you can do now:`, ...recs.map((r, i) => `${i + 1}. ${r.title}. ${r.detail}`)].join("\n");
   }
 
-  // 10. "What was my last/most recent X charge?"
+  // 10. "How is my business doing?"
+  if (/\b(my\s+)?(business|llc|company|studio|agency|side\s*hustle)\b/i.test(lower) && /\b(how|doing|profit|revenue|earn|making|runway|cash)\b/i.test(lower)) {
+    const list = (await call("get_businesses", {})) as {
+      name: string;
+      months_analyzed: number;
+      typical_month: { revenue: number; expenses: number; profit: number; margin: number | null; owner_draws: number };
+      this_month: { profit: number };
+      cash: number;
+      runway_months: number | null;
+      losing_money: boolean;
+    }[];
+    if (!list.length) return "You haven't marked any accounts as a business yet. In Account, set an account to a business and Link will track it separately.";
+    return list
+      .map((b) =>
+        !b.months_analyzed
+          ? `${b.name}: Link needs a full month of history before it can show a trend.`
+          : [
+              `${b.name} makes about ${$(b.typical_month.profit)} a month in profit on ${$(b.typical_month.revenue)} of revenue${b.typical_month.margin != null ? ` (${Math.round(b.typical_month.margin * 100)}% margin)` : ""}.`,
+              `- You take home about ${$(b.typical_month.owner_draws)} a month from it.`,
+              `- This month so far: ${$(b.this_month.profit)} profit.`,
+              b.runway_months != null ? `- ${b.losing_money ? `At the current pace its cash lasts about ${b.runway_months} months` : `Its cash (${$(b.cash)}) covers about ${b.runway_months} months of expenses`}.` : "",
+            ]
+              .filter(Boolean)
+              .join("\n"),
+      )
+      .join("\n\n");
+  }
+
+  // 11. "What was my last/most recent X charge?"
   const last = text.match(/\b(?:last|latest|most recent|recent)\s+([A-Za-z0-9'& ]{2,30}?)\s+(?:payment|charge|transaction|purchase|bill)s?\b/i);
   if (last) {
     const q = last[1]!.trim();
@@ -209,7 +237,7 @@ export async function answerOffline(ctx: ToolCtx, message: string, call: Call): 
     return `${r.merchant}: ${$(Math.abs(r.amount), true)} ${r.amount > 0 ? "received" : "paid"} on ${new Date(`${r.date}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}${r.pending ? " (pending)" : ""}, in ${categoryLabel(r.category)}.`;
   }
 
-  // 11. Default: a short status read.
+  // 12. Default: a short status read.
   const [o, g] = (await Promise.all([call("get_financial_overview", {}), call("get_goals", {})])) as [
     { safe_to_spend: { amount: number; status: string }; typical_month: { surplus: number; savings_rate: number | null } },
     { goals: Goal[] },

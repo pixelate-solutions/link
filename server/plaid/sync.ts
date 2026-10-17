@@ -90,6 +90,7 @@ export async function applySyncBatch(
             accountId: acct.id,
             accountType: acct.type,
             accountSubtype: acct.subtype,
+            business: acct.business,
             providerPrimary: facts.providerPrimary,
             providerDetailed: facts.providerDetailed,
             providerConfidence: facts.providerConfidence,
@@ -199,7 +200,7 @@ async function upsertAccounts(
   now: Date,
 ) {
   const liab = mapLiabilities(liabilities);
-  const out = new Map<string, { id: string; type: AccountType; subtype: string | null }>();
+  const out = new Map<string, { id: string; type: AccountType; subtype: string | null; business: boolean }>();
   const today = todayISO("UTC", now);
   for (const a of accounts) {
     const m = mapAccount(a, now);
@@ -209,9 +210,9 @@ async function upsertAccounts(
       .insert(schema.accounts)
       .values({ userId: conn.userId, connectionId: conn.id, source: "plaid", ...values })
       .onConflictDoUpdate({ target: [schema.accounts.connectionId, schema.accounts.providerAccountId], set: values })
-      .returning({ id: schema.accounts.id, type: schema.accounts.type, subtype: schema.accounts.subtype, userId: schema.accounts.userId });
+      .returning({ id: schema.accounts.id, type: schema.accounts.type, subtype: schema.accounts.subtype, userId: schema.accounts.userId, businessId: schema.accounts.businessId });
     if (!row || row.userId !== conn.userId) throw new Error("Account ownership mismatch");
-    out.set(a.account_id, { id: row.id, type: row.type as AccountType, subtype: row.subtype });
+    out.set(a.account_id, { id: row.id, type: row.type as AccountType, subtype: row.subtype, business: Boolean(row.businessId) });
     if (m.currentMinor != null) {
       await tx
         .insert(schema.balanceHistory)
@@ -221,10 +222,10 @@ async function upsertAccounts(
   }
   // Accounts we hadn't seen in this payload still need ids for transaction mapping.
   const known = await tx
-    .select({ id: schema.accounts.id, providerAccountId: schema.accounts.providerAccountId, type: schema.accounts.type, subtype: schema.accounts.subtype })
+    .select({ id: schema.accounts.id, providerAccountId: schema.accounts.providerAccountId, type: schema.accounts.type, subtype: schema.accounts.subtype, businessId: schema.accounts.businessId })
     .from(schema.accounts)
     .where(and(eq(schema.accounts.connectionId, conn.id), eq(schema.accounts.userId, conn.userId)));
-  for (const k of known) if (k.providerAccountId && !out.has(k.providerAccountId)) out.set(k.providerAccountId, { id: k.id, type: k.type as AccountType, subtype: k.subtype });
+  for (const k of known) if (k.providerAccountId && !out.has(k.providerAccountId)) out.set(k.providerAccountId, { id: k.id, type: k.type as AccountType, subtype: k.subtype, business: Boolean(k.businessId) });
   return out;
 }
 

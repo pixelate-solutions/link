@@ -17,6 +17,7 @@ Link serves its tool registry over the Model Context Protocol, using MCP TypeScr
 | `get_spending` | read | Baseline by category, monthly history, this month, budget |
 | `search_transactions` | read | Filters: text, category, dates, minimum amount, review flag (bank text sanitized) |
 | `explain_transaction` | read | Classification source, confidence, reason, correction history |
+| `get_businesses` | read | The user's businesses: revenue, expenses, profit, margin, draws, cash, runway, top and recurring costs, tax set-aside estimate |
 | `get_recurring` | read | Detected income, bills, subscriptions, transfers |
 | `run_scenario` | read* | What-if changes, returning before/after per goal and assumptions. *Saves a draft scenario row; never changes the plan |
 | `check_affordability` | read | Purchase against Safe to Spend, forecast, and goals (if monthly) |

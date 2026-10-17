@@ -39,6 +39,8 @@ export interface ClassifyInput {
   providerPrimary?: string | null;
   providerDetailed?: string | null;
   providerConfidence?: string | null;
+  /** The account belongs to one of the user's businesses. */
+  business?: boolean;
 }
 
 export interface RuleCondition {
@@ -269,7 +271,43 @@ export function detectStructure(input: ClassifyInput): Structural | null {
   return null;
 }
 
+const BIZ = {
+  payroll: /\b(payroll|adp|gusto|paychex|rippling|justworks|trinet)\b/i,
+  contractors: /\b(upwork|fiverr|toptal|deel|contractor|freelanc|1099)\b/i,
+  advertising: /\b(google\s*\*?\s*ads|adwords|facebk|facebook\s*ads|meta\s*(ads|platforms)|linkedin\s*ads|tiktok\s*ads|bing\s*ads|ads\s*manager)/i,
+  payout: /\b(stripe|square\s*inc|sq\s*\*?\s*(payout|deposit)|paypal\s*(transfer|payout)|shopify\s*(payments|payout)|etsy\s*(deposit|payout)|amazon\s*payments|venmo\s*business|toast\s*deposit)/i,
+  software: /\b(adobe|figma|github|notion|slack|zoom|aws|amazon\s*web\s*services|google\s*(workspace|cloud|gsuite)|microsoft|msft|dropbox|atlassian|vercel|heroku|openai|anthropic|quickbooks|intuit|xero|shopify|squarespace|wix|godaddy|namecheap|hubspot|mailchimp|canva|calendly|docusign|1password|cloudflare)\b/i,
+  professional: /\b(cpa|accounting|accountant|bookkeep|legal|law\s*(firm|office)|attorney|llc\s*filing|registered\s*agent|legalzoom)\b/i,
+};
+
+/**
+ * Re-label a personal-style classification for a business account. Rules and
+ * corrections are left alone; money movements keep their kind.
+ */
+function forBusiness(c: Classification, input: ClassifyInput): Classification {
+  if (c.source === "rule" || c.source === "learned" || c.source === "user") return c;
+  const text = `${input.name} ${input.merchantName ?? ""}`;
+  const out = input.amount < 0;
+  const set = (category: CategoryId, reason: string): Classification => ({ ...c, category, reason, needsReview: false });
+  if (c.kind === "income") return c.category === "interest" ? c : set("revenue", "Money coming into the business");
+  // Payment-processor payouts often say "transfer", but for a business they're sales.
+  if (c.kind === "transfer" && !out && BIZ.payout.test(text)) return { ...set("revenue", "Payout from a payment processor (sales)"), kind: "income" };
+  if (c.kind !== "expense" && c.kind !== "refund") return c;
+  if (out && BIZ.payroll.test(text)) return set("payroll", "Payroll for the business");
+  if (BIZ.contractors.test(text)) return set("contractors", "Payment to a contractor or freelance platform");
+  if (BIZ.advertising.test(text)) return set("advertising", "Advertising");
+  if (BIZ.software.test(text) || c.category === "subscriptions") return set("software", "Software or a business subscription");
+  if (BIZ.professional.test(text) || input.providerDetailed?.startsWith("GENERAL_SERVICES_ACCOUNTING")) return set("professional", "Accounting, legal or other professional services");
+  if (c.category === "shopping" || c.category === "home" || c.category === "general") return set("supplies", "Business supplies or inventory");
+  return c;
+}
+
 export function classify(input: ClassifyInput, ctx: ClassifyContext = {}): Classification {
+  const c = classifyBase(input, ctx);
+  return input.business ? forBusiness(c, input) : c;
+}
+
+function classifyBase(input: ClassifyInput, ctx: ClassifyContext): Classification {
   const m = normalizeMerchant(input.name, input.merchantName);
   const base = { merchant: m.name, merchantKey: m.key };
   const done = (c: Omit<Classification, "merchant" | "merchantKey" | "needsReview">, needsReview = false): Classification => ({

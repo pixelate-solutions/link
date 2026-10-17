@@ -4,7 +4,7 @@ import { generateRecommendations, type RecommendationDraft, shouldResurface } fr
 import { type Db, getDb, schema } from "../db/client";
 import { loadUserData, type UserData } from "./data";
 
-export const PICTURE_VERSION = 2;
+export const PICTURE_VERSION = 3;
 
 export interface PlanContext {
   data: UserData;
@@ -28,6 +28,7 @@ export async function computeContext(userId: string, now = new Date(), db?: Db):
     prefs: data.prefs,
     budget: data.budget,
     ignoredRecurring: data.ignoredRecurring,
+    businesses: data.businesses,
     now,
   });
   return { data, picture, inputs };

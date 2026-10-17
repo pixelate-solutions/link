@@ -38,7 +38,7 @@ Branch `link-2.0`. This is the resumable checklist; keep it current.
 - [x] Deterministic planner when no model is configured
 - [x] MCP server (per-request, user-bound). Tested with the in-memory client.
 - [x] Evaluation suite: 11/11 on the deterministic planner (`npm test`)
-- [x] **GPT-6 Luna end to end: 11/11** with `npm run ai:eval` (live API, 2026-10-17), including a prompt injection planted in a transaction description
+- [x] **GPT-6 Luna end to end: 12/12** with `npm run ai:eval` (live API, 2026-10-17), including a prompt injection planted in a transaction description
 
 ## 6. Proactive intelligence
 - [x] Pipeline recomputes the snapshot, recommendations and goal progress after every sync, correction or plan change
