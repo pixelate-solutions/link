@@ -1,6 +1,6 @@
 import { type CategoryId, categoryLabel } from "./categories";
 import { addDays, daysBetween } from "./dates";
-import { amortize } from "./debt";
+import { amortize, interestBearing } from "./debt";
 import { formatMoney, type Minor } from "./money";
 import { formatMonthYear, type GoalRecord, type Picture, type PlanInputs, type Preferences } from "./plan";
 import { runScenario, type ScenarioChange } from "./scenario";
@@ -61,10 +61,10 @@ function primaryGoal(ctx: Ctx) {
 function goalImpact(ctx: Ctx, changes: ScenarioChange[]) {
   const g = primaryGoal(ctx);
   if (!g) return undefined;
-  const allocations = new Map(ctx.picture.goals.map((v) => [v.id, v.allocationMonthly]));
+  const contributions = new Map(ctx.picture.goals.map((v) => [v.id, v.contributionMonthly]));
   const reserves = new Map(ctx.picture.goals.map((v) => [v.id, v.savedAmount ?? 0]));
   const r = runScenario("impact", ctx.inputs, [g], changes, {
-    allocations,
+    contributions,
     reserves,
     connectedInvestments: ctx.picture.position.investmentsKnown,
   });
@@ -74,16 +74,16 @@ function goalImpact(ctx: Ctx, changes: ScenarioChange[]) {
 }
 
 function describeGoalChange(goal: NonNullable<RecommendationDraft["impact"]["goal"]>): string {
-  if (goal.changeYears != null && goal.changeYears !== 0) {
+  let delta = "";
+  if (goal.changeYears) {
     const months = Math.round(Math.abs(goal.changeYears) * 12);
     const span = months >= 18 ? `${Math.round(Math.abs(goal.changeYears) * 10) / 10} years` : `${months} months`;
-    return goal.changeYears < 0 ? `Could bring ${goal.title.toLowerCase()} about ${span} closer.` : `Could push ${goal.title.toLowerCase()} back about ${span}.`;
-  }
-  if (goal.changeMonths != null && goal.changeMonths !== 0) {
+    delta = `, about ${span} ${goal.changeYears < 0 ? "sooner" : "later"}`;
+  } else if (goal.changeMonths) {
     const m = Math.abs(goal.changeMonths);
-    return goal.changeMonths < 0 ? `Could bring ${goal.title.toLowerCase()} forward by ${m} month${m === 1 ? "" : "s"}.` : `Could delay ${goal.title.toLowerCase()} by ${m} month${m === 1 ? "" : "s"}.`;
+    delta = `, ${m} month${m === 1 ? "" : "s"} ${goal.changeMonths < 0 ? "sooner" : "later"}`;
   }
-  return `${goal.title}: ${goal.before} → ${goal.after}.`;
+  return `${goal.title}: ${goal.before.replace(/^Age/, "age")} → ${goal.after.replace(/^Age/, "age")}${delta}.`;
 }
 
 function cashShortfall(ctx: Ctx): RecommendationDraft[] {
@@ -125,15 +125,17 @@ function buildReserve(ctx: Ctx): RecommendationDraft[] {
   const surplus = inputs.monthlyIncome - inputs.monthlySpending - inputs.investingMonthly - inputs.savingsMonthly;
   if (surplus <= 50_00) return [];
   const gap = target * essential - inputs.reserves;
-  const monthly = Math.min(Math.round(surplus * 0.5 / 25_00) * 25_00 || 25_00, Math.ceil(gap / 25_00) * 25_00);
+  const planned = ctx.picture.allocations.find((a) => a.target === "reserve")?.monthly ?? 0;
+  const monthly = Math.ceil(Math.min(gap, planned || surplus * 0.3) / 25_00) * 25_00;
+  if (monthly <= 0) return [];
   const reach = Math.ceil(gap / monthly);
   const goal = ctx.goals.find((g) => g.kind === "emergency_fund" || g.kind === "stability");
   return [
     {
       fingerprint: "build_reserve",
       kind: "build_reserve",
-      title: `Set aside ${formatMoney(monthly)} a month for emergencies`,
-      detail: `Gets you to ${target} months of essentials by ${formatMonthYear(addDays(ctx.picture.asOf, reach * 30))}. You have ${months.toFixed(1)} now.`,
+      title: reach <= 1 ? `Move ${formatMoney(monthly)} into savings for emergencies` : `Set aside ${formatMoney(monthly)} a month for emergencies`,
+      detail: `${reach <= 1 ? "That completes" : `Reaches ${target} months of essentials by ${formatMonthYear(addDays(ctx.picture.asOf, reach * 30))}, completing`} a ${target}-month emergency reserve. You have ${months.toFixed(1)} months now.`,
       impact: { monthly, annual: monthly * 12 },
       evidence: [
         { label: "Essential spending", value: `${formatMoney(essential)}/mo` },
@@ -156,8 +158,8 @@ function buildReserve(ctx: Ctx): RecommendationDraft[] {
 function payHighInterest(ctx: Ctx): RecommendationDraft[] {
   const out: RecommendationDraft[] = [];
   const surplus = ctx.inputs.monthlyIncome - ctx.inputs.monthlySpending - ctx.inputs.investingMonthly - ctx.inputs.savingsMonthly;
-  for (const d of ctx.inputs.debts) {
-    if (d.balance < 200_00) continue;
+  for (const d of ctx.inputs.debts.filter(interestBearing)) {
+    if (d.balance < 200_00 || d.kind === "mortgage") continue;
     const min = d.minPayment ?? Math.max(25_00, Math.round(d.balance * 0.02));
     if (d.aprBps == null) {
       out.push({
@@ -214,12 +216,12 @@ function payHighInterest(ctx: Ctx): RecommendationDraft[] {
 }
 
 function investSurplus(ctx: Ctx): RecommendationDraft[] {
-  const surplus = ctx.picture.flows.surplusUnassigned;
   const fiGoal = ctx.goals.find((g) => g.kind === "financial_independence" || g.kind === "wealth");
-  const allocated = ctx.picture.allocations.filter((a) => a.target !== "reserve").reduce((s, a) => s + a.monthly, 0);
-  const amount = Math.floor((allocated > 0 ? allocated : surplus * 0.6) / 25_00) * 25_00;
-  if (!fiGoal || amount < 50_00) return [];
-  if (ctx.inputs.debts.some((d) => (d.aprBps ?? 0) >= 800)) return [];
+  if (!fiGoal) return [];
+  if (ctx.inputs.debts.some((d) => interestBearing(d) && (d.aprBps ?? 0) >= 800)) return [];
+  const planned = ctx.picture.allocations.filter((a) => a.target === fiGoal.id).reduce((s, a) => s + a.monthly, 0);
+  const amount = Math.floor((planned || ctx.picture.flows.surplusUnassigned * 0.6) / 25_00) * 25_00;
+  if (amount < 50_00) return [];
   const impact = goalImpact(ctx, [{ type: "investing", monthlyDelta: amount }]);
   return [
     {
@@ -231,9 +233,10 @@ function investSurplus(ctx: Ctx): RecommendationDraft[] {
       evidence: [
         { label: "Typical income", value: `${formatMoney(ctx.inputs.monthlyIncome)}/mo` },
         { label: "Typical spending", value: `${formatMoney(ctx.inputs.monthlySpending)}/mo` },
-        { label: "Already investing", value: `${formatMoney(ctx.inputs.investingMonthly)}/mo` },
+        { label: "Investing now", value: `${formatMoney(ctx.inputs.investingMonthly)}/mo` },
+        { label: "Staying in your bank", value: `${formatMoney(ctx.inputs.cashRetainedMonthly)}/mo` },
       ],
-      assumptions: ["Uses money that currently stays in checking each month.", ...(impact?.assumptions ?? [])],
+      assumptions: impact?.assumptions ?? [],
       tradeoffs: "Invested money can fall in value and may be harder to reach before retirement age.",
       goalIds: [fiGoal.id],
       confidence: 0.8,
@@ -250,13 +253,16 @@ function spendingDrift(ctx: Ctx): RecommendationDraft[] {
   const out: RecommendationDraft[] = [];
   const protectedCats = new Set<CategoryId>([...ctx.prefs.protectedCategories, ...ctx.goals.flatMap((g) => g.interpretation.protectedCategories)]);
   for (const c of ctx.picture.baseline.categories) {
-    if (c.group !== "discretionary" || protectedCats.has(c.category) || c.irregular || c.months.length < 3) continue;
+    // "Other spending" is a catch-all, not a habit Link can name.
+    if (c.group !== "discretionary" || c.category === "general" || protectedCats.has(c.category) || c.irregular || c.months.length < 3) continue;
     const recent = c.months.slice(-2);
     const earlier = c.months.slice(0, -2);
     const recentAvg = Math.round(recent.reduce((a, b) => a + b, 0) / recent.length);
     const earlierAvg = Math.round(earlier.reduce((a, b) => a + b, 0) / earlier.length);
     const increase = recentAvg - earlierAvg;
-    if (increase < 75_00 || increase < earlierAvg * 0.2) continue;
+    if (increase < 100_00 || increase < earlierAvg * 0.25) continue;
+    // Sustained, not a one-off: every recent month must be clearly above the earlier level.
+    if (Math.min(...recent) < earlierAvg + increase * 0.5) continue;
     const reduceBy = Math.round(increase / 5_00) * 5_00;
     const impact = goalImpact(ctx, [{ type: "spending", monthlyDelta: -reduceBy, category: c.category, redirect: "invest" }]);
     const label = categoryLabel(c.category);
@@ -264,7 +270,7 @@ function spendingDrift(ctx: Ctx): RecommendationDraft[] {
       fingerprint: `spending_drift:${c.category}`,
       kind: "spending_drift",
       title: `Bring ${label.toLowerCase()} back to ${formatMoney(earlierAvg)} a month`,
-      detail: `It's up ${formatMoney(increase)} a month lately. Returning to your usual frees ${formatMoney(reduceBy * 12)} a year.${impact ? " " + describeGoalChange(impact.goal) : ""}`,
+      detail: `It's up ${formatMoney(increase)} a month lately. Going back to your usual frees ${formatMoney(reduceBy * 12)} a year.${impact ? " " + describeGoalChange(impact.goal) : ""}`,
       impact: { monthly: reduceBy, annual: reduceBy * 12, goal: impact?.goal },
       evidence: [
         { label: `${label}, last 2 months`, value: `${formatMoney(recentAvg)}/mo` },

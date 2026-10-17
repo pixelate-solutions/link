@@ -49,6 +49,17 @@ export function cadenceDays(c: Cadence): number {
   return CADENCES.find((x) => x.cadence === c)!.days;
 }
 
+/**
+ * How much the amount may vary and still be a "recurring" commitment. Variable
+ * shopping at the same store on a regular day is a habit, not a bill.
+ */
+const BILL_LIKE = new Set<CategoryId>(["housing", "utilities", "insurance", "childcare", "debt_interest", "taxes", "fees", "subscriptions", "services", "healthcare"]);
+
+function maxVariability(kind: TransactionKind, cat: CategoryId): number {
+  if (kind !== "expense" && kind !== "fee") return 0.6;
+  return BILL_LIKE.has(cat) ? 0.6 : 0.12;
+}
+
 const ELIGIBLE: Set<TransactionKind> = new Set(["income", "expense", "loan_payment", "transfer", "investment_transfer", "card_payment", "fee"]);
 
 /** Split one merchant's transactions into clusters of similar amounts. */
@@ -144,6 +155,7 @@ export function detectRecurring(txns: LedgerTxn[], asOf: ISODate): RecurringSeri
       const gracePeriod = cadenceDays(cad.cadence) * 0.6 + 5;
       const active = daysBetween(next, asOf) <= gracePeriod;
       const head = byDate.at(-1)!;
+      if (variability > maxVariability(head.kind, head.category)) continue;
       const kind = seriesKind(head.kind, head.category, amount, variability);
       const countScore = Math.min(1, dates.length / 6);
       const stability = Math.max(0, 1 - variability);

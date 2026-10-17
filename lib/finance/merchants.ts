@@ -84,6 +84,9 @@ const KNOWN: KnownMerchant[] = [
 ];
 
 const NOISE = [
+  /\b(ppd|ccd|web|tel)\s*id:?\s*\w*/gi, // ACH company ids
+  /\b(des|indn|co\s*id|trace)\s*:.*$/gi, // ACH addenda
+  /\bxx+\d*\b/gi, // masked account numbers
   /#\s*\d+/g, // store numbers
   /\*[a-z0-9]{4,}\b/gi, // processor reference codes like *42G7X
   /\b\d{3,}\b/g, // long digit runs (store ids, phone fragments)
@@ -101,12 +104,19 @@ export interface NormalizedMerchant {
   known: boolean;
 }
 
+const SMALL_WORDS = new Set(["to", "of", "at", "in", "on", "by", "an", "or", "is", "it", "my", "as", "we", "me", "up", "so", "no", "go", "do", "be", "if", "and", "the", "for"]);
+
 function titleCase(s: string) {
   return s
     .toLowerCase()
     .split(/\s+/)
     .filter(Boolean)
-    .map((w) => (w.length <= 2 && /^[a-z]+$/.test(w) && w !== "of" ? w.toUpperCase() : w[0]!.toUpperCase() + w.slice(1)))
+    .map((w, i) => {
+      if (w.includes("&") && w.length <= 5) return w.toUpperCase(); // PG&E, AT&T
+      if (SMALL_WORDS.has(w)) return i === 0 ? w[0]!.toUpperCase() + w.slice(1) : w;
+      if (w.length <= 2 && /^[a-z]+$/.test(w)) return w.toUpperCase(); // state codes, "SF"
+      return w[0]!.toUpperCase() + w.slice(1);
+    })
     .join(" ");
 }
 

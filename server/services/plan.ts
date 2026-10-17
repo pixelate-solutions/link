@@ -201,7 +201,7 @@ export async function resetBudget(userId: string) {
 export async function scenario(userId: string, title: string, changes: ScenarioChange[], save = true): Promise<ScenarioResult & { id?: string }> {
   const ctx = await computeContext(userId);
   const result = runScenario(title, ctx.inputs, ctx.data.goals, changes, {
-    allocations: new Map(ctx.picture.goals.map((g) => [g.id, g.allocationMonthly])),
+    contributions: new Map(ctx.picture.goals.map((g) => [g.id, g.contributionMonthly])),
     reserves: new Map(ctx.picture.goals.map((g) => [g.id, g.savedAmount ?? 0])),
     connectedInvestments: ctx.picture.position.investmentsKnown,
   });

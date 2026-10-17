@@ -218,9 +218,10 @@ export interface SafeToSpend {
 export const STALE_AFTER_HOURS = 36;
 
 /**
- * Safe to Spend = spendable cash − obligations due before the next paycheck −
- * committed savings in that window − a minimum buffer. Expected income is not
- * counted: the window ends the day before it arrives.
+ * Safe to Spend = spendable cash + reliable paychecks inside the window −
+ * bills and card payments due in the window − scheduled or committed savings −
+ * a minimum buffer. The window ends the day before the first paycheck that is
+ * at least a week away; uncertain income is never counted.
  */
 export function safeToSpend(input: {
   model: CashModel;
@@ -248,11 +249,19 @@ export function safeToSpend(input: {
     };
   }
 
-  const look = cashEvents(model, addDays(model.asOf, 35), input.cardPaymentDays);
-  const nextIncome = look.find((e) => e.kind === "income" && e.amount > 0 && e.date > model.asOf);
-  const horizonEnd = nextIncome ? addDays(nextIncome.date, -1) : addDays(model.asOf, 30);
+  const look = cashEvents(model, addDays(model.asOf, 45), input.cardPaymentDays);
+  const incomes = look.filter((e) => e.kind === "income" && e.amount > 0 && e.date > model.asOf);
+  // The window runs to the day before the first paycheck at least a week away,
+  // so a paycheck due tomorrow doesn't shrink the answer to a single day.
+  const anchor = incomes.find((e) => daysBetween(model.asOf, e.date) >= 7);
+  const horizonEnd = anchor ? addDays(anchor.date, -1) : addDays(model.asOf, 30);
   const horizonDays = Math.max(1, daysBetween(model.asOf, horizonEnd) + 1);
-  if (!nextIncome) limitations.push("No regular income detected, so this covers the next 30 days.");
+  if (!incomes.length) limitations.push("No regular income detected, so this covers the next 30 days.");
+  const inWindow = incomes.filter((e) => e.date <= horizonEnd);
+  const reliable = inWindow.filter((e) => e.confidence >= 0.75);
+  const incomeTotal = reliable.reduce((s, e) => s + e.amount, 0);
+  if (reliable.length < inWindow.length) limitations.push("An irregular deposit in this window isn't counted.");
+  const nextIncome = anchor ?? incomes[0];
 
   const due = look.filter((e) => e.amount < 0 && e.date <= horizonEnd);
   const bills = due.filter((e) => e.kind !== "savings");
@@ -267,11 +276,12 @@ export function safeToSpend(input: {
   const buffer =
     input.bufferOverride ?? Math.max(100_00, Math.round(((input.essentialMonthly / DAYS_PER_MONTH) * 7) / 10_00) * 10_00);
 
-  const amount = model.cash - billsTotal - savingsTotal - committed - buffer;
+  const amount = model.cash + incomeTotal - billsTotal - savingsTotal - committed - buffer;
   const breakdown = [
     { label: "Spendable cash", amount: model.cash },
+    ...(incomeTotal ? [{ label: reliable.length === 1 ? "Paycheck expected first" : "Paychecks expected first", amount: incomeTotal }] : []),
     ...(model.usedAvailable || !model.pendingOutflows ? [] : [{ label: "Pending (deducted)", amount: -model.pendingOutflows }]),
-    { label: "Bills before payday", amount: -billsTotal },
+    { label: "Bills in this window", amount: -billsTotal },
     ...(savingsTotal ? [{ label: "Scheduled savings", amount: -savingsTotal }] : []),
     ...(committed ? [{ label: "Savings you committed to", amount: -committed }] : []),
     { label: "Safety buffer", amount: -buffer },
@@ -285,7 +295,7 @@ export function safeToSpend(input: {
       limitations.push("Balances haven't refreshed recently.");
     }
   }
-  if (status === "ok" && (!nextIncome || bills.some((b) => b.confidence < 0.6))) status = "estimate";
+  if (status === "ok" && (!nextIncome || bills.some((b) => b.confidence < 0.6) || reliable.length < inWindow.length)) status = "estimate";
   if (bills.some((b) => b.overdue)) limitations.push("A regular bill looks late; it's still counted.");
 
   return {

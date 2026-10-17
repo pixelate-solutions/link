@@ -26,6 +26,13 @@ export interface ScenarioResult {
   deltas: { goalId: string; title: string; before: string; after: string; changeYears?: number | null; changeMonths?: number | null }[];
 }
 
+/** Money for new costs comes from cash that would stay in the bank first, then from investing. */
+function fund(next: PlanInputs, monthly: Minor) {
+  const fromCash = Math.min(next.cashRetainedMonthly, monthly);
+  next.cashRetainedMonthly -= fromCash;
+  next.investingMonthly = Math.max(0, next.investingMonthly - (monthly - fromCash));
+}
+
 export function applyChanges(inputs: PlanInputs, changes: ScenarioChange[]): { inputs: PlanInputs; assumptions: string[] } {
   const next: PlanInputs = { ...inputs, facts: { ...inputs.facts }, events: [...inputs.events], debts: [...inputs.debts] };
   const assumptions: string[] = [];
@@ -34,29 +41,52 @@ export function applyChanges(inputs: PlanInputs, changes: ScenarioChange[]): { i
       case "spending": {
         next.monthlySpending = Math.max(0, next.monthlySpending + c.monthlyDelta);
         if (c.category === "travel") next.travelMonthly = Math.max(0, next.travelMonthly + c.monthlyDelta);
-        const redirect = c.redirect ?? (c.monthlyDelta < 0 ? "invest" : "none");
-        if (redirect === "invest") {
-          next.investingMonthly = Math.max(0, next.investingMonthly - c.monthlyDelta);
-          if (c.monthlyDelta < 0) assumptions.push(`The ${formatMoney(-c.monthlyDelta)} you don't spend is invested every month.`);
-          else assumptions.push(`The extra ${formatMoney(c.monthlyDelta)} comes out of what you invest.`);
-        } else if (redirect === "save") {
-          next.savingsMonthly = Math.max(0, next.savingsMonthly - c.monthlyDelta);
-          assumptions.push(`The ${formatMoney(Math.abs(c.monthlyDelta))} difference goes to savings.`);
+        if (c.monthlyDelta > 0) {
+          fund(next, c.monthlyDelta);
+          assumptions.push(`The extra ${formatMoney(c.monthlyDelta)} comes out of money that would otherwise be saved.`);
+        } else {
+          const freed = -c.monthlyDelta;
+          const redirect = c.redirect ?? "invest";
+          if (redirect === "invest") {
+            next.investingMonthly += freed;
+            assumptions.push(`The ${formatMoney(freed)} you don't spend is invested every month.`);
+          } else if (redirect === "save") {
+            next.savingsMonthly += freed;
+            next.cashRetainedMonthly += freed;
+            assumptions.push(`The ${formatMoney(freed)} you don't spend goes to savings.`);
+          } else {
+            next.cashRetainedMonthly += freed;
+            assumptions.push(`The ${formatMoney(freed)} you don't spend stays in your bank accounts.`);
+          }
         }
         if (!next.facts.retirementSpendingAnnual) {
           assumptions.push("Retirement spending moves with today's spending.");
         }
         break;
       }
-      case "investing":
-        next.investingMonthly = Math.max(0, next.investingMonthly + c.monthlyDelta);
-        assumptions.push(`Invest ${formatMoney(Math.abs(c.monthlyDelta))} ${c.monthlyDelta >= 0 ? "more" : "less"} each month.`);
+      case "investing": {
+        if (c.monthlyDelta >= 0) {
+          const fromCash = Math.min(next.cashRetainedMonthly, c.monthlyDelta);
+          next.cashRetainedMonthly -= fromCash;
+          next.investingMonthly += c.monthlyDelta;
+          assumptions.push(
+            fromCash >= c.monthlyDelta
+              ? `Invest ${formatMoney(c.monthlyDelta)} more each month from money that currently stays in your bank accounts.`
+              : `Invest ${formatMoney(c.monthlyDelta)} more each month; ${formatMoney(c.monthlyDelta - fromCash)} of it has to come from spending less.`,
+          );
+        } else {
+          next.investingMonthly = Math.max(0, next.investingMonthly + c.monthlyDelta);
+          next.cashRetainedMonthly -= c.monthlyDelta;
+          assumptions.push(`Invest ${formatMoney(-c.monthlyDelta)} less each month and keep it as cash.`);
+        }
         break;
+      }
       case "income": {
         if (!c.startInYears) {
           next.monthlyIncome += c.monthlyDelta;
-          next.investingMonthly = Math.max(0, next.investingMonthly + c.monthlyDelta);
-          assumptions.push(`Income changes by ${formatMoney(c.monthlyDelta, { signed: true })} a month; the difference flows to investing.`);
+          if (c.monthlyDelta >= 0) next.cashRetainedMonthly += c.monthlyDelta;
+          else fund(next, -c.monthlyDelta);
+          assumptions.push(`Income changes by ${formatMoney(c.monthlyDelta, { signed: true })} a month; the difference ${c.monthlyDelta >= 0 ? "stays in your bank accounts unless you invest it" : "comes out of what you save"}.`);
         } else {
           next.events.push({ label: "Income change", startYear: c.startInYears, years: null, monthlyContributionDelta: c.monthlyDelta });
           assumptions.push(`Income changes by ${formatMoney(c.monthlyDelta, { signed: true })} a month starting in ${c.startInYears} years.`);
@@ -81,12 +111,13 @@ export function applyChanges(inputs: PlanInputs, changes: ScenarioChange[]): { i
         const monthly = Math.round(c.annualDelta / 12);
         next.monthlySpending += monthly;
         next.travelMonthly += monthly;
-        next.investingMonthly = Math.max(0, next.investingMonthly - monthly);
+        if (monthly > 0) fund(next, monthly);
+        else next.cashRetainedMonthly -= monthly;
         next.facts.travelBudgetAnnual = Math.max(0, (next.facts.travelBudgetAnnual ?? inputs.travelMonthly * 12) + c.annualDelta);
         next.facts.retirementSpendingAnnual = Math.max(0, (next.facts.retirementSpendingAnnual ?? inputs.monthlySpending * 12) + c.annualDelta);
         assumptions.push(
           `${formatMoney(Math.abs(c.annualDelta))} ${c.annualDelta >= 0 ? "more" : "less"} a year on travel, now and in retirement.`,
-          "It comes out of what you invest each month.",
+          "It comes out of what you'd otherwise save each month.",
         );
         break;
       }
@@ -108,11 +139,11 @@ export function runScenario(
   inputs: PlanInputs,
   goals: GoalRecord[],
   changes: ScenarioChange[],
-  current: { allocations: Map<string, Minor>; reserves: Map<string, Minor>; connectedInvestments: boolean },
+  current: { contributions: Map<string, Minor>; reserves: Map<string, Minor>; connectedInvestments: boolean },
 ): ScenarioResult {
   const project = (pi: PlanInputs) =>
     goals.map((g) =>
-      projectGoal(g, pi, current.allocations.get(g.id) ?? 0, {
+      projectGoal(g, pi, current.contributions.get(g.id) ?? 0, {
         reservesForGoal: current.reserves.get(g.id) ?? 0,
         connectedInvestments: current.connectedInvestments,
       }),

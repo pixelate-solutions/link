@@ -6,6 +6,14 @@ export interface Debt {
   balance: Minor; // positive amount owed
   aprBps: number | null; // null = unknown; never invented
   minPayment: Minor | null;
+  kind?: "card" | "mortgage" | "loan";
+  /** For cards: false when the balance is just this cycle's charges, paid in full. */
+  revolving?: boolean;
+}
+
+/** Debts that actually accrue interest month to month. */
+export function interestBearing(d: Debt): boolean {
+  return d.kind !== "card" || d.revolving !== false;
 }
 
 export interface Amortization {

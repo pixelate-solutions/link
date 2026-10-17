@@ -19,7 +19,9 @@ export interface FiInputs {
   investable: Minor;
   /** Fraction of investable assets in tax-advantaged retirement accounts. */
   retirementShare: number;
-  monthlyContribution: Minor;
+  monthlyContribution: Minor; // invested each month
+  /** Surplus that stays in the bank each month; counts toward independence but earns no real return. */
+  cashContribution?: Minor;
   annualSpending: Minor; // in retirement, today's dollars
   socialSecurityAnnual?: Minor | null;
   socialSecurityAge?: number;
@@ -48,14 +50,22 @@ function yearsToMonths(y: number) {
   return Math.round(y * 12);
 }
 
-function contributionAt(inputs: FiInputs, month: number): Minor {
-  let c = inputs.monthlyContribution;
+/** Monthly flows into each bucket. Life-event costs come out of uninvested cash first. */
+function contributionAt(inputs: FiInputs, month: number): { invest: Minor; cash: Minor } {
+  let delta = 0;
   for (const e of inputs.events ?? []) {
     const start = yearsToMonths(e.startYear);
     const end = e.years == null ? Infinity : start + yearsToMonths(e.years);
-    if (month >= start && month < end) c += e.monthlyContributionDelta ?? 0;
+    if (month >= start && month < end) delta += e.monthlyContributionDelta ?? 0;
   }
-  return c;
+  let invest = inputs.monthlyContribution;
+  let cash = inputs.cashContribution ?? 0;
+  if (delta < 0) {
+    const fromCash = Math.min(cash, -delta);
+    cash -= fromCash;
+    invest += delta + fromCash;
+  } else invest += delta;
+  return { invest, cash };
 }
 
 function retirementSpendingAt(inputs: FiInputs, month: number): Minor {
@@ -93,15 +103,22 @@ export interface FiPath {
 /** Deterministic month-by-month accumulation until the portfolio covers spending. */
 export function simulateFi(inputs: FiInputs, a: Assumptions, annualReturns?: number[]): FiPath {
   let p = inputs.investable;
+  let cash = 0;
   for (let m = 0; m <= MAX_YEARS * 12; m++) {
     const req = requiredPortfolio(inputs, a, m);
-    if (p >= req) {
-      return { months: m, portfolioAtFi: Math.round(p), requiredAtFi: req };
+    if (p + cash >= req) {
+      return { months: m, portfolioAtFi: Math.round(p + cash), requiredAtFi: req };
     }
     const yearly = annualReturns ? annualReturns[Math.floor(m / 12)] ?? a.realReturn : a.realReturn;
     const r = (1 + yearly) ** (1 / 12) - 1;
-    p = p * (1 + r) + contributionAt(inputs, m);
-    for (const e of inputs.events ?? []) if (e.oneTime && yearsToMonths(e.startYear) === m) p += e.oneTime;
+    const c = contributionAt(inputs, m);
+    p = p * (1 + r) + c.invest;
+    cash += c.cash;
+    for (const e of inputs.events ?? []) if (e.oneTime && yearsToMonths(e.startYear) === m) cash += e.oneTime;
+    if (cash < 0) {
+      p += cash;
+      cash = 0;
+    }
     if (p < 0) p = 0;
   }
   return { months: null, portfolioAtFi: null, requiredAtFi: null };
@@ -238,7 +255,10 @@ export function projectFi(inputs: FiInputs, opts: { paths?: number; sensitivity?
   const sensitivity: FiProjection["sensitivity"] = [];
   if (opts.sensitivity !== false && base.years != null) {
     const variants: [string, FiInputs][] = [
-      ["Invest $250 more a month", { ...inputs, monthlyContribution: inputs.monthlyContribution + 250_00 }],
+      [
+        "Invest $250 more a month",
+        { ...inputs, monthlyContribution: inputs.monthlyContribution + 250_00, cashContribution: Math.max(0, (inputs.cashContribution ?? 0) - 250_00) },
+      ],
       ["Spend 10% less in retirement", { ...inputs, annualSpending: Math.round(inputs.annualSpending * 0.9) }],
       ["Spend 10% more in retirement", { ...inputs, annualSpending: Math.round(inputs.annualSpending * 1.1) }],
     ];

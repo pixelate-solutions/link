@@ -3,7 +3,7 @@ import { type BudgetItem, type BudgetLine, autoBudget, budgetStatus } from "./bu
 import { type CashModel, type Forecast, type SafeToSpend, buildCashModel, forecastCash, safeToSpend } from "./cashflow";
 import type { CategoryId } from "./categories";
 import { addMonths, DAYS_PER_MONTH, daysBetween, type ISODate } from "./dates";
-import { type Debt, payoffPlan } from "./debt";
+import { type Debt, interestBearing, payoffPlan } from "./debt";
 import { type FiInputs, type FiProjection, type LifeEvent, projectFi } from "./fi";
 import { type FactKey, FACT_QUESTIONS, type GoalInterpretation, type GoalKind } from "./goals";
 import { isCashReserve, isRetirement, isSpendable, type LedgerAccount, type LedgerTxn, netWorthValue } from "./ledger";
@@ -54,6 +54,8 @@ export interface PlanInputs {
   travelMonthly: Minor;
   investingMonthly: Minor; // observed transfers to investments + stated payroll contributions
   savingsMonthly: Minor; // observed transfers to cash savings
+  /** Net monthly growth of bank (depository) balances: surplus that stays as cash. */
+  cashRetainedMonthly: Minor;
   invested: Minor; // connected + stated outside investments
   retirementShare: number;
   reserves: Minor; // savings-type cash
@@ -74,7 +76,12 @@ export interface GoalView {
   headline: string; // e.g. "Age 48–53"
   detail: string; // one sentence
   progress: number | null; // 0..1
-  allocationMonthly: Minor; // planned monthly contribution
+  /** What the user puts toward this goal today (observed). */
+  contributionMonthly: Minor;
+  /** Extra monthly amount Link's plan suggests on top. */
+  allocationMonthly: Minor;
+  /** The projection if the plan's extra amount is followed. */
+  withPlan?: { headline: string; status: GoalStatus; projectedDate?: ISODate | null } | null;
   fi?: FiProjection;
   targetAmount?: Minor;
   savedAmount?: Minor;
@@ -154,6 +161,9 @@ export function buildPlanInputs(args: {
   baseline: Baseline;
   series: RecurringSeries[];
   facts: Facts;
+  /** Typical monthly charges per card, to tell revolving balances from pay-in-full ones. */
+  cardMonthly?: Map<string, Minor>;
+  cashRetainedMonthly?: Minor;
 }): PlanInputs {
   const { accounts, baseline, series, facts, asOf } = args;
   const visible = accounts.filter((a) => !a.hidden);
@@ -167,7 +177,13 @@ export function buildPlanInputs(args: {
   const flows = observedFlows(series, visible);
   const debts: Debt[] = visible
     .filter((a) => (a.type === "credit" || a.type === "loan") && (a.current ?? 0) > 0)
-    .map((a) => ({ id: a.id, name: a.name, balance: a.current ?? 0, aprBps: a.aprBps ?? null, minPayment: a.minPayment ?? null }));
+    .map((a) => {
+      const balance = a.current ?? 0;
+      const kind = a.type === "credit" ? ("card" as const) : (a.subtype ?? "").includes("mortgage") ? ("mortgage" as const) : ("loan" as const);
+      const monthly = args.cardMonthly?.get(a.id) ?? 0;
+      const revolving = kind === "card" ? balance > Math.max(monthly * 1.6, 100_00) : true;
+      return { id: a.id, name: a.name, balance, aprBps: a.aprBps ?? null, minPayment: a.minPayment ?? null, kind, revolving };
+    });
   const events: LifeEvent[] = [];
   if (facts.childrenPlannedInYears != null) events.push(childEvent(facts.childrenPlannedInYears, facts.childCostMonthly));
   return {
@@ -179,6 +195,7 @@ export function buildPlanInputs(args: {
     travelMonthly: baseline.categories.find((c) => c.category === "travel")?.monthly ?? 0,
     investingMonthly: flows.investing + (facts.workplaceContributionMonthly ?? 0),
     savingsMonthly: flows.saving,
+    cashRetainedMonthly: Math.max(0, args.cashRetainedMonthly ?? 0),
     invested,
     // Unknown outside investments are assumed to be retirement accounts (the common case: a 401(k)).
     retirementShare: invested > 0 ? (retirement + outside) / invested : 0,
@@ -212,6 +229,8 @@ export function fiInputs(inputs: PlanInputs, extraMonthly = 0): FiInputs {
     investable: inputs.invested,
     retirementShare: inputs.retirementShare,
     monthlyContribution: Math.max(0, inputs.investingMonthly + extraMonthly),
+    // Extra investing comes out of cash that would otherwise sit in the bank.
+    cashContribution: Math.max(0, inputs.cashRetainedMonthly - Math.max(0, extraMonthly)),
     annualSpending: spend.annual,
     socialSecurityAnnual: inputs.facts.socialSecurityAnnual ?? null,
     events: inputs.events,
@@ -242,7 +261,7 @@ function missingFor(goal: GoalRecord, facts: Facts, inputs: PlanInputs, connecte
     birth_year: facts.birthYear != null,
     retirement_spending_annual: facts.retirementSpendingAnnual != null,
     outside_investments: facts.outsideInvestments != null,
-    workplace_contribution_monthly: facts.workplaceContributionMonthly != null || inputs.investingMonthly > 0,
+    workplace_contribution_monthly: facts.workplaceContributionMonthly != null,
     social_security_annual: facts.socialSecurityAnnual != null,
     home_price: facts.homePrice != null || goal.targetMinor != null,
     travel_budget_annual: facts.travelBudgetAnnual != null,
@@ -255,9 +274,14 @@ function missingFor(goal: GoalRecord, facts: Facts, inputs: PlanInputs, connecte
     .map((m) => (m.key === "outside_investments" && !connectedInvestments ? { ...m, impact: "high" as const } : m));
 }
 
+/**
+ * Project one goal. `allocation` is the monthly amount going to it: for
+ * independence it is investing *on top of* current investing; for cash goals
+ * it is the monthly saving toward it; for debt the extra payment.
+ */
 export function projectGoal(goal: GoalRecord, inputs: PlanInputs, allocation: Minor, ctx: { reservesForGoal: Minor; connectedInvestments: boolean }): GoalView {
   const missing = missingFor(goal, inputs.facts, inputs, ctx.connectedInvestments);
-  const base = { id: goal.id, kind: goal.kind, title: goal.title, priority: goal.priority, allocationMonthly: allocation, missing };
+  const base = { id: goal.id, kind: goal.kind, title: goal.title, priority: goal.priority, contributionMonthly: allocation, allocationMonthly: 0, missing };
   const assumptions: string[] = [];
   const target = goal.interpretation.target;
 
@@ -269,7 +293,8 @@ export function projectGoal(goal: GoalRecord, inputs: PlanInputs, allocation: Mi
       if (!inputs.facts.outsideInvestments && !ctx.connectedInvestments) assumptions.push("No investments outside the accounts you've connected.");
       if (!inputs.facts.socialSecurityAnnual) assumptions.push("Social Security is not counted.");
       assumptions.push("Returns are after inflation: 3%, 4.5% or 6% a year depending on the scenario.");
-      if (allocation > 0) assumptions.push(`Includes investing ${formatMoney(allocation)} more each month, as planned.`);
+      if (allocation > 0) assumptions.push(`Includes investing ${formatMoney(allocation)} more each month.`);
+      if (fi.cashContribution) assumptions.push(`The ${formatMoney(fi.cashContribution)} a month that stays in your bank accounts keeps building up as cash, earning nothing after inflation.`);
       const proj = projectFi(fi, { paths: 600 });
       if (!proj.window) {
         return {
@@ -310,7 +335,7 @@ export function projectGoal(goal: GoalRecord, inputs: PlanInputs, allocation: Mi
       const targetAmount = months * essential;
       const saved = ctx.reservesForGoal;
       const covered = saved / essential;
-      const left = monthsToTarget(targetAmount - saved, inputs.savingsMonthly + allocation);
+      const left = monthsToTarget(targetAmount - saved, allocation);
       return {
         ...base,
         status: saved >= targetAmount ? "on_track" : left == null ? "behind" : "projected",
@@ -329,10 +354,11 @@ export function projectGoal(goal: GoalRecord, inputs: PlanInputs, allocation: Mi
       };
     }
     case "debt_freedom": {
-      const known = inputs.debts.filter((d) => d.aprBps != null);
-      const minimums = inputs.debts.reduce((s, d) => s + (d.minPayment ?? Math.max(25_00, Math.round(d.balance * 0.02))), 0);
-      const totalDebt = inputs.debts.reduce((s, d) => s + d.balance, 0);
-      if (!inputs.debts.length) {
+      const debts = inputs.debts.filter(interestBearing);
+      const known = debts.filter((d) => d.aprBps != null);
+      const minimums = debts.reduce((s, d) => s + (d.minPayment ?? Math.max(25_00, Math.round(d.balance * 0.02))), 0);
+      const totalDebt = debts.reduce((s, d) => s + d.balance, 0);
+      if (!debts.length) {
         return { ...base, status: "on_track", headline: "No debt", detail: "No balances on connected accounts.", progress: 1, assumptions };
       }
       if (!known.length) {
@@ -345,7 +371,7 @@ export function projectGoal(goal: GoalRecord, inputs: PlanInputs, allocation: Mi
           assumptions: ["Interest rates are never guessed."],
         };
       }
-      const plan = payoffPlan(inputs.debts, minimums + allocation, "avalanche");
+      const plan = payoffPlan(debts, minimums + allocation, "avalanche");
       const date = plan.months == null ? null : addMonths(inputs.asOf, plan.months);
       return {
         ...base,
@@ -461,15 +487,16 @@ export function allocate(inputs: PlanInputs, goals: GoalRecord[], prefs: Prefere
   const margin = Math.round(surplus * (0.1 + 0.3 * (prefs.lifestyleWeight / 100)));
   let pool = surplus - margin;
 
-  const reserveTarget = inputs.essentialSpending; // at least one month before anything else
+  // An emergency reserve comes before anything else.
+  const reserveTarget = (inputs.facts.emergencyMonths ?? 3) * inputs.essentialSpending;
   if (inputs.reserves < reserveTarget && pool > 0) {
     const need = reserveTarget - inputs.reserves;
     const monthly = Math.min(pool, Math.max(Math.ceil(need / 6), 50_00));
-    allocations.push({ target: "reserve", label: "Cash reserve", monthly, reason: "One month of essentials in savings comes first." });
+    allocations.push({ target: "reserve", label: "Emergency reserve", monthly, reason: `${inputs.facts.emergencyMonths ?? 3} months of essentials in savings comes first.` });
     pool -= monthly;
   }
 
-  const highInterest = inputs.debts.filter((d) => (d.aprBps ?? 0) >= 800);
+  const highInterest = inputs.debts.filter((d) => interestBearing(d) && (d.aprBps ?? 0) >= 800);
   const debtGoal = goals.find((g) => g.kind === "debt_freedom");
   if (highInterest.length && pool > 0) {
     const monthly = Math.round(pool * (debtGoal ? 0.6 : 0.4));
@@ -528,9 +555,16 @@ export function computeAll(input: PictureInput): { picture: Picture; inputs: Pla
 
   const series = detectRecurring(ledger, asOf).filter((s) => !input.ignoredRecurring?.has(s.key));
   const baseline = computeBaseline(ledger, series, asOf);
-  const inputs = buildPlanInputs({ asOf, accounts: visible, baseline, series, facts });
-
   const model: CashModel = buildCashModel({ accounts: visible, txns: ledger, series, asOf });
+  const inputs = buildPlanInputs({
+    asOf,
+    accounts: visible,
+    baseline,
+    series,
+    facts,
+    cardMonthly: model.cardMonthly,
+    cashRetainedMonthly: cashRetained(ledger, visible, baseline.months),
+  });
   const cardPaymentDays = new Map<string, number[]>();
   for (const t of ledger) {
     const acct = visible.find((a) => a.id === t.accountId);
@@ -570,9 +604,20 @@ export function computeAll(input: PictureInput): { picture: Picture; inputs: Pla
     reservesLeft -= Math.max(0, Math.min(take, reservesLeft));
   }
   const connectedInvestments = visible.some((a) => a.type === "investment");
+  const current = currentContributions(inputs, goals, reservesFor);
   const goalViews = [...goals]
     .sort((a, b) => a.priority - b.priority)
-    .map((g) => projectGoal(g, inputs, allocationFor(g.id), { reservesForGoal: reservesFor.get(g.id) ?? 0, connectedInvestments }));
+    .map((g) => {
+      const ctx = { reservesForGoal: reservesFor.get(g.id) ?? 0, connectedInvestments };
+      const contribution = current.get(g.id) ?? 0;
+      const view = projectGoal(g, inputs, contribution, ctx);
+      const extra = allocationFor(g.id);
+      if (extra > 0) {
+        const planned = projectGoal(g, inputs, contribution + extra, ctx);
+        view.withPlan = { headline: planned.headline, status: planned.status, projectedDate: planned.projectedDate ?? null };
+      }
+      return { ...view, contributionMonthly: contribution, allocationMonthly: extra };
+    });
 
   const questions = goalViews
     .flatMap((g) => g.missing.map((m) => ({ key: m.key, question: m.question, why: m.why, goalId: g.id, impact: m.impact, priority: g.priority })))
@@ -647,6 +692,38 @@ export function computeAll(input: PictureInput): { picture: Picture; inputs: Pla
     questions,
   };
   return { picture, inputs };
+}
+
+/** Net monthly change of bank balances over complete months: money that stays as cash. */
+export function cashRetained(ledger: LedgerTxn[], accounts: LedgerAccount[], months: string[]): Minor {
+  if (!months.length) return 0;
+  const bank = new Set(accounts.filter((a) => a.type === "depository").map((a) => a.id));
+  const set = new Set(months);
+  let total = 0;
+  for (const t of ledger) if (!t.pending && bank.has(t.accountId) && set.has(t.date.slice(0, 7))) total += t.amount;
+  return Math.round(total / months.length);
+}
+
+/**
+ * What the user actually contributes to each goal today. Investing already
+ * flows into independence (counted in PlanInputs), so FI gets 0 extra here;
+ * observed transfers to savings go to the first cash goal that still needs money.
+ */
+function currentContributions(inputs: PlanInputs, goals: GoalRecord[], reservesFor: Map<string, Minor>): Map<string, Minor> {
+  const out = new Map<string, Minor>();
+  const cashGoals = [...goals]
+    .filter((g) => ["emergency_fund", "stability", "home_purchase", "savings_target", "purchase"].includes(g.kind))
+    .sort((a, b) => {
+      const rank = (g: GoalRecord) => (g.kind === "emergency_fund" || g.kind === "stability" ? 0 : 1);
+      return rank(a) - rank(b) || a.priority - b.priority;
+    });
+  for (const g of cashGoals) {
+    const target = g.targetMinor ?? g.interpretation.target.amount ?? (g.kind === "emergency_fund" || g.kind === "stability" ? (inputs.facts.emergencyMonths ?? 3) * inputs.essentialSpending : null);
+    if (target != null && (reservesFor.get(g.id) ?? 0) >= target) continue;
+    out.set(g.id, inputs.savingsMonthly);
+    break;
+  }
+  return out;
 }
 
 function rankImpact(i: "high" | "medium" | "low") {
