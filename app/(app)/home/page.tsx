@@ -58,7 +58,7 @@ export default async function HomePage() {
             </Link>
           )}
         </div>
-        <div className="grid gap-4 md:grid-cols-[1.6fr_1fr]">
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
           {shortfall ? <ShortfallHero picture={p} /> : p.budget.plannedThisMonth > 0 ? <SpendingHero picture={p} /> : <CashAfterBills picture={p} />}
           {shortfall || p.budget.plannedThisMonth > 0 ? <CashAfterBills picture={p} compact /> : <ComingUp picture={p} logos={v.logos} />}
         </div>
@@ -67,7 +67,7 @@ export default async function HomePage() {
 
       <NextMoves recs={recs} />
 
-      <div className="grid gap-4 md:grid-cols-[1.6fr_1fr]">
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <GoalsPanel goals={p.goals} />
         {p.budget.plannedThisMonth > 0 || shortfall ? <ComingUp picture={p} logos={v.logos} /> : <div className="hidden md:block" />}
       </div>

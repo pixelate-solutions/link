@@ -18,3 +18,14 @@ describe("merchant branding from Plaid", () => {
     expect(mapTransactionFacts({ ...base, logo_url: "not a url" }).logoUrl).toBeNull();
   });
 });
+
+describe("payment rails", () => {
+  it("groups peer payments by payee and keeps checks apart", async () => {
+    const { isPaymentRail, railPayee } = await import("@/lib/finance/merchants");
+    expect(isPaymentRail("zelle")).toBe(true);
+    expect(isPaymentRail("starbucks")).toBe(false);
+    expect(railPayee("zelle", "Zelle payment to Sam Park 30859074451")).toBe(railPayee("zelle", "Zelle payment to Sam Park 30552841525"));
+    expect(railPayee("zelle", "Zelle payment to Sam Park 30859074451")).toBe("Zelle payment to Sam Park");
+    expect(railPayee("check", "CHECK # 141 05/26")).not.toBe(railPayee("check", "CHECK # 142 06/02"));
+  });
+});

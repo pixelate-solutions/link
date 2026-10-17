@@ -8,7 +8,7 @@ import { recurringAction, searchAction, settleReviewAction } from "@/app/actions
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { categoryLabel } from "@/lib/finance/categories";
-import { isPaymentRail } from "@/lib/finance/merchants";
+import { isPaymentRail, railPayee } from "@/lib/finance/merchants";
 import { formatMoney } from "@/lib/finance/money";
 import type { Picture } from "@/lib/finance/plan";
 import type { TxnListRow } from "@/server/services/activity";
@@ -296,7 +296,7 @@ function ReviewList({ rows, busy, onOpen, onChanged }: { rows: TxnListRow[]; bus
   for (const r of rows) {
     if (!r.needsReview) continue;
     // Payment rails (Zelle, checks) group by the bank's description, i.e. by who was paid.
-    const key = `${r.merchantKey}|${r.amount < 0 ? "out" : "in"}${isPaymentRail(r.merchantKey) ? `|${r.name}` : ""}`;
+    const key = `${r.merchantKey}|${r.amount < 0 ? "out" : "in"}${isPaymentRail(r.merchantKey) ? `|${railPayee(r.merchantKey, r.name).toLowerCase()}` : ""}`;
     groups.set(key, [...(groups.get(key) ?? []), r]);
   }
 
@@ -352,7 +352,7 @@ function ReviewList({ rows, busy, onOpen, onChanged }: { rows: TxnListRow[]; bus
                     <span className={cn("shrink-0 text-[15px] tabular", total > 0 && "text-accent-ink")}>{formatMoney(total, { cents: items.length === 1, signed: total > 0 })}</span>
                   </div>
                   <p className="truncate text-[13px] text-muted">
-                    {isPaymentRail(first.merchantKey) && `${first.name} · `}
+                    {isPaymentRail(first.merchantKey) && `${railPayee(first.merchantKey, first.name)} · `}
                     {items.length > 1 ? `${items.length} transactions · latest ${shortDate(first.date)}` : shortDate(first.date)}
                   </p>
                   <p className="mt-3 text-[15px] font-medium">{p.ask}</p>

@@ -139,6 +139,22 @@ export function isPaymentRail(key: string): boolean {
   return RAILS.test(key);
 }
 
+const PEER = /^(zelle|venmo|paypal|cash-app|square-cash|apple-cash)(-|$)/;
+
+/**
+ * Who a payment-rail transaction went to, for grouping: "Zelle payment to Sam
+ * Park 30859074451" and "... 30552841525" are the same payee. Checks, ATM and
+ * deposits stay one per transaction: the description doesn't name a payee.
+ */
+export function railPayee(key: string, name: string): string {
+  if (!PEER.test(key)) return name;
+  return name
+    .replace(/\S*\d\S*/g, " ")
+    .replace(/[#*]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function merchantKey(name: string): string {
   return name
     .toLowerCase()
