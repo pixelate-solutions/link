@@ -27,6 +27,20 @@ export interface PlaidTxnLike {
   pending_transaction_id?: string | null;
   payment_channel?: string | null;
   personal_finance_category?: { primary: string; detailed: string; confidence_level?: string | null } | null;
+  logo_url?: string | null;
+  website?: string | null;
+  counterparties?: { name?: string | null; type?: string | null; logo_url?: string | null; website?: string | null }[] | null;
+}
+
+/** Only https image URLs from the provider are kept; anything else is dropped. */
+function httpsUrl(v: string | null | undefined): string | null {
+  if (!v) return null;
+  try {
+    const u = new URL(v);
+    return u.protocol === "https:" ? u.toString().slice(0, 500) : null;
+  } catch {
+    return null;
+  }
 }
 
 export interface PlaidLiabilitiesLike {
@@ -104,5 +118,8 @@ export function mapTransactionFacts(t: PlaidTxnLike) {
     providerDetailed: t.personal_finance_category?.detailed ?? null,
     providerConfidence: t.personal_finance_category?.confidence_level ?? null,
     paymentChannel: t.payment_channel ?? null,
+    // The merchant's logo, else the first counterparty that has one (e.g. a payment processor's merchant).
+    logoUrl: httpsUrl(t.logo_url) ?? httpsUrl(t.counterparties?.find((c) => c.logo_url)?.logo_url),
+    website: (t.website ?? t.counterparties?.find((c) => c.website)?.website ?? null)?.slice(0, 200) ?? null,
   };
 }

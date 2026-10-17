@@ -172,7 +172,7 @@ export function AccountSheet({ open, onOpenChange }: { open: boolean; onOpenChan
                         ))}
                       </ul>
                     )}
-                    {c.status === "login_required" && <ConnectBank connectionId={c.id} label="Reconnect" size="sm" className="mt-3" />}
+                    {c.status === "login_required" && <ConnectBank connectionId={c.id} label="Reconnect" size="sm" className="mt-3" onOpening={() => onOpenChange(false)} />}
                     {c.status === "disconnected" && (
                       <button onClick={() => act(() => disconnectAction(c.id, true))} className="mt-2 text-[12px] text-caution">
                         Delete this history
@@ -184,7 +184,7 @@ export function AccountSheet({ open, onOpenChange }: { open: boolean; onOpenChan
             </ul>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {data.plaidConfigured ? (
-                <ConnectBank size="sm" label="Add an account" onConnected={load} />
+                <ConnectBank size="sm" label="Add an account" onOpening={() => onOpenChange(false)} />
               ) : (
                 <p className="text-[13px] text-muted">Bank connections aren&apos;t configured on this server.</p>
               )}

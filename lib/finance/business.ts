@@ -17,6 +17,18 @@ export interface BusinessRecord {
   taxSetAsidePct: number;
 }
 
+/**
+ * Pass-through entities (sole proprietorships, LLCs, S corps, partnerships):
+ * the owner's share of profit is taxed on their personal return whether or
+ * not it is drawn. "other" is treated like a C corp that pays its own tax.
+ */
+export const PASS_THROUGH = new Set(["sole_prop", "llc", "s_corp", "partnership"]);
+
+/** A sole proprietorship isn't separate from its owner: its money is theirs, opted in or not. */
+export function isOwnersMoney(b: Pick<BusinessRecord, "structure" | "countTowardGoals">): boolean {
+  return b.structure === "sole_prop" || b.countTowardGoals;
+}
+
 export interface BusinessMonth {
   month: string;
   revenue: Minor;
@@ -46,7 +58,15 @@ export interface BusinessView extends BusinessRecord {
   thisMonth: { revenue: Minor; expenses: Minor; profit: Minor };
   topExpenses: { category: CategoryId; monthly: Minor }[];
   recurringCosts: { merchant: string; monthly: Minor; cadence: string }[];
+  /** The user's share of typical monthly profit. Revenue isn't income; this is. */
+  ownerProfit: Minor;
+  passThrough: boolean;
+  /** Estimated tax on the owner's share of profit. */
   taxSetAsideMonthly: Minor;
+  /** The part of that tax the owner's personal money has to cover, because the profit was drawn out. */
+  personalTaxMonthly: Minor;
+  /** The owner's after-tax share of profit that stays in the business each month. */
+  retainedMonthly: Minor;
 }
 
 function monthTotals(txns: LedgerTxn[], month: string) {
@@ -130,6 +150,21 @@ export function computeBusiness(record: BusinessRecord, accounts: LedgerAccount[
     thisMonth: { revenue: now.revenue, expenses: now.expenses, profit: now.revenue - now.expenses },
     topExpenses,
     recurringCosts,
-    taxSetAsideMonthly: Math.max(0, Math.round((profit * record.taxSetAsidePct) / 100)),
+    ...ownerEconomics(record, profit, draws),
   };
+}
+
+/**
+ * What the business means for the owner personally. Draws already reach the
+ * personal plan as income; tax on profit that was drawn out has to come from
+ * personal money, while profit left in the business can pay its own tax.
+ */
+export function ownerEconomics(record: BusinessRecord, profit: Minor, draws: Minor) {
+  const ownerProfit = Math.round((profit * record.ownershipPct) / 100);
+  const passThrough = PASS_THROUGH.has(record.structure);
+  const taxSetAsideMonthly = Math.max(0, Math.round((ownerProfit * record.taxSetAsidePct) / 100));
+  const leftInBusiness = Math.max(0, ownerProfit - draws);
+  const personalTaxMonthly = passThrough ? Math.max(0, taxSetAsideMonthly - leftInBusiness) : 0;
+  const retainedMonthly = Math.max(0, ownerProfit - draws - (taxSetAsideMonthly - personalTaxMonthly));
+  return { ownerProfit, passThrough, taxSetAsideMonthly, personalTaxMonthly, retainedMonthly };
 }

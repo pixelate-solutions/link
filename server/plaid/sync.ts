@@ -110,7 +110,14 @@ export async function applySyncBatch(
       };
 
       if (prior && sameFacts(prior, facts) && !prior.removedAt) {
-        continue; // redelivery of an unchanged record: nothing to do
+        // Redelivery of an unchanged record. Only fill in branding we didn't have; never re-enrich.
+        if ((facts.logoUrl && facts.logoUrl !== prior.logoUrl) || (facts.website && facts.website !== prior.website)) {
+          await tx
+            .update(schema.transactions)
+            .set({ logoUrl: facts.logoUrl ?? prior.logoUrl, website: facts.website ?? prior.website })
+            .where(and(eq(schema.transactions.id, prior.id), eq(schema.transactions.userId, conn.userId)));
+        }
+        continue;
       }
       if (prior) {
         // Posted replaces pending in place, so user edits, notes and splits carry over.

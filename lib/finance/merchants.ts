@@ -132,6 +132,13 @@ function titleCase(s: string) {
     .join(" ");
 }
 
+/** Ways of paying people, not merchants: one Zelle payment says nothing about the next one. */
+const RAILS = /^(zelle|venmo|paypal|cash-app|square-cash|apple-cash|check|checks|atm|atm-withdrawal|withdrawal|wire|wire-transfer|deposit|mobile-deposit)(-|$)/;
+
+export function isPaymentRail(key: string): boolean {
+  return RAILS.test(key);
+}
+
 export function merchantKey(name: string): string {
   return name
     .toLowerCase()

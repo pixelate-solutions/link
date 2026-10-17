@@ -189,14 +189,39 @@ function ruleApplies(rule: Rule, input: ClassifyInput, merchant: string): boolea
 }
 
 function defaultKind(input: ClassifyInput, category: CategoryId): TransactionKind {
-  if (category === "transfer") return "transfer";
-  if (category === "card_payment") return "card_payment";
-  if (category === "investment") return "investment_transfer";
-  if (category === "paycheck" || category === "other_income" || category === "interest") {
-    return input.amount > 0 ? "income" : "expense";
+  return kindForCategory(category, input.amount);
+}
+
+/**
+ * The kind a category implies for money in or out. Used wherever a category is
+ * chosen by a rule, a person or the model, so "Revenue" counts as income and
+ * "Owner draw" as a draw rather than a refund or an expense.
+ */
+export function kindForCategory(category: CategoryId, amount: Minor, current?: TransactionKind): TransactionKind {
+  const inflow = amount > 0;
+  switch (category) {
+    case "transfer":
+      return "transfer";
+    case "card_payment":
+      return "card_payment";
+    case "investment":
+      return "investment_transfer";
+    case "paycheck":
+    case "other_income":
+    case "interest":
+    case "revenue":
+      return inflow ? "income" : "expense";
+    case "owner_draw":
+      // Out of the business it's a draw; into a personal account it's the owner's income.
+      return inflow ? "income" : "owner_draw";
+    case "owner_contribution":
+      return inflow ? "owner_contribution" : "investment_transfer";
+    case "fees":
+      return inflow ? "refund" : "fee";
+    default:
+      if (current === "loan_payment" && !inflow) return "loan_payment";
+      return inflow ? "refund" : "expense";
   }
-  if (category === "fees") return input.amount > 0 ? "refund" : "fee";
-  return input.amount > 0 ? "refund" : "expense";
 }
 
 interface Structural {

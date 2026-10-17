@@ -1,6 +1,7 @@
-import { and, desc, eq, gte, ilike, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { type CategoryId, isCategoryId, type TransactionKind, TRANSACTION_KINDS } from "@/lib/finance/categories";
-import type { Rule } from "@/lib/finance/classify";
+import { kindForCategory, type Rule } from "@/lib/finance/classify";
+import { isPaymentRail } from "@/lib/finance/merchants";
 import type { Minor } from "@/lib/finance/money";
 import { type ParsedRule, parseRuleText } from "@/lib/finance/rules";
 import { getDb, schema } from "../db/client";
@@ -70,6 +71,8 @@ export async function searchTransactions(userId: string, f: TxnFilters) {
       recurringId: t.recurringId,
       hasSplits: t.hasSplits,
       note: t.note,
+      merchantKey: t.merchantKey,
+      logoUrl: t.logoUrl,
     })
     .from(t)
     .innerJoin(schema.accounts, and(eq(schema.accounts.id, t.accountId), eq(schema.accounts.userId, userId)))
@@ -80,6 +83,18 @@ export async function searchTransactions(userId: string, f: TxnFilters) {
 }
 
 export type TxnListRow = Awaited<ReturnType<typeof searchTransactions>>["rows"][number];
+
+/** Latest known logo per merchant name (lowercased), for surfaces that only know the merchant. */
+export async function merchantLogos(userId: string): Promise<Record<string, string>> {
+  const db = await getDb();
+  const t = schema.transactions;
+  const rows = await db
+    .selectDistinctOn([t.merchant], { merchant: t.merchant, logoUrl: t.logoUrl })
+    .from(t)
+    .where(and(eq(t.userId, userId), isNull(t.removedAt), sql`${t.logoUrl} is not null`))
+    .orderBy(t.merchant, desc(t.date));
+  return Object.fromEntries(rows.map((r) => [r.merchant.toLowerCase(), r.logoUrl!]));
+}
 
 export async function getTransaction(userId: string, id: string) {
   const db = await getDb();
@@ -113,7 +128,7 @@ export async function getTransaction(userId: string, id: string) {
 export async function correctTransaction(
   userId: string,
   id: string,
-  change: { category: CategoryId; kind?: TransactionKind; applyToMerchant?: boolean; note?: string | null },
+  change: { category: CategoryId; kind?: TransactionKind; applyToMerchant?: boolean; note?: string | null; confirmed?: boolean },
   actor: "user" | "agent" = "user",
 ) {
   const db = await getDb();
@@ -140,7 +155,7 @@ export async function correctTransaction(
         kind,
         classSource: "user",
         confidence: 1,
-        reason: "You set this",
+        reason: change.confirmed ? "You confirmed this" : "You set this",
         needsReview: false,
         userLocked: true,
         ...(change.note !== undefined ? { note: change.note } : {}),
@@ -150,19 +165,66 @@ export async function correctTransaction(
   });
   let updatedOthers = 0;
   if (applyToMerchant) updatedOthers = await reclassify(db, userId, { merchantKey: row.merchantKey });
-  await audit(userId, actor, "transaction.correct", id, { category: change.category, kind, applyToMerchant });
+  await audit(userId, actor, change.confirmed ? "transaction.confirm" : "transaction.correct", id, { category: change.category, kind, applyToMerchant });
   await processUser(userId);
   return { kind, updatedOthers };
 }
 
+/**
+ * The user says Link's category is right. Recorded exactly like a correction
+ * to the same category, so the merchant mapping is learned and every other
+ * unlocked transaction from that merchant (same direction) follows.
+ */
+export async function confirmTransaction(userId: string, id: string) {
+  const db = await getDb();
+  const [row] = await db
+    .select({ category: schema.transactions.category, kind: schema.transactions.kind })
+    .from(schema.transactions)
+    .where(and(eq(schema.transactions.id, id), eq(schema.transactions.userId, userId)));
+  if (!row || !isCategoryId(row.category)) throw new Error("Transaction not found");
+  return correctTransaction(userId, id, { category: row.category, kind: row.kind as TransactionKind, applyToMerchant: true, confirmed: true });
+}
+
+/**
+ * Answer a "needs a look" group in one go. For a real merchant, one answer is
+ * learned and every transaction from it (same direction) follows. For payment
+ * rails like Zelle or checks, only these exact transactions are settled: the
+ * next Zelle payment may be to someone else entirely.
+ */
+export async function settleReview(userId: string, ids: string[], category: CategoryId | null) {
+  const db = await getDb();
+  const t = schema.transactions;
+  const rows = await db.select().from(t).where(and(eq(t.userId, userId), inArray(t.id, ids), isNull(t.removedAt)));
+  if (!rows.length) throw new Error("Transaction not found");
+  if (!isPaymentRail(rows[0]!.merchantKey)) {
+    const first = rows[0]!;
+    return category ? correctTransaction(userId, first.id, { category, applyToMerchant: true }) : confirmTransaction(userId, first.id);
+  }
+  await db.transaction(async (tx) => {
+    for (const row of rows) {
+      const cat = category ?? (isCategoryId(row.category) ? row.category : null);
+      if (!cat) continue;
+      const kind = inferKindForCategory(cat, row.amountMinor, row.kind as TransactionKind);
+      await tx.insert(schema.corrections).values({
+        userId,
+        transactionId: row.id,
+        merchantKey: row.merchantKey,
+        before: { category: row.category, kind: row.kind, classSource: row.classSource },
+        after: { category: cat, kind, applyToMerchant: false, direction: row.amountMinor > 0 ? "in" : "out" },
+      });
+      await tx
+        .update(t)
+        .set({ category: cat, kind, classSource: "user", confidence: 1, reason: category ? "You set this" : "You confirmed this", needsReview: false, userLocked: true, updatedAt: new Date() })
+        .where(and(eq(t.id, row.id), eq(t.userId, userId)));
+    }
+  });
+  await audit(userId, "user", "transaction.settle", rows[0]!.id, { count: rows.length, category });
+  await processUser(userId);
+  return { updatedOthers: rows.length - 1 };
+}
+
 function inferKindForCategory(category: CategoryId, amount: Minor, current: TransactionKind): TransactionKind {
-  if (category === "transfer") return "transfer";
-  if (category === "card_payment") return "card_payment";
-  if (category === "investment") return "investment_transfer";
-  if (category === "paycheck" || category === "other_income" || category === "interest") return amount > 0 ? "income" : "expense";
-  if (category === "fees") return "fee";
-  if (current === "loan_payment") return "loan_payment";
-  return amount > 0 ? "refund" : "expense";
+  return kindForCategory(category, amount, current);
 }
 
 /** Undo the latest correction on a transaction and let automation take over again. */

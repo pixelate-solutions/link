@@ -86,6 +86,9 @@ export async function pairTransfers(db: Db, userId: string, asOf: string) {
     (r) =>
       acct.get(r.accountId)?.type === "depository" &&
       !r.userLocked &&
+      // The user already told Link what this merchant is (a rule or an earlier confirmation).
+      r.classSource !== "rule" &&
+      r.classSource !== "learned" &&
       !r.transferPairId &&
       !paired.has(r.id) &&
       r.kind === "transfer" &&

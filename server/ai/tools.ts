@@ -272,6 +272,7 @@ export const TOOLS = [
         account: untrusted(r.accountName, 30),
         confidence: r.confidence,
         needs_review: r.needsReview,
+        user_note: r.note ? untrusted(r.note, 280) : undefined,
       }));
     },
   }),
@@ -295,6 +296,7 @@ export const TOOLS = [
         reason: t.reason,
         bank_category: t.providerDetailed,
         set_by_user: t.userLocked,
+        user_note: t.note ? untrusted(t.note, 280) : undefined,
         paired_transfer: t.pair.length > 0,
         corrections: t.corrections.map((c) => ({ at: c.createdAt, before: c.before, after: c.after, reverted: Boolean(c.revertedAt) })),
       };
@@ -313,7 +315,7 @@ export const TOOLS = [
   def({
     name: "get_businesses",
     description:
-      "The user's own businesses (sole proprietorship, LLC, …): revenue, expenses, profit and margin per month, owner draws, cash, runway, top costs, recurring costs, and an estimated tax set-aside. Business accounts are kept out of personal figures.",
+      "The user's own businesses (sole proprietorship, LLC, S corp, partnership, …): revenue, expenses, profit and margin per month, the user's share of profit, owner draws, cash, runway, top costs, recurring costs, and estimated taxes (including how much falls on personal money). Business accounts are kept out of personal figures.",
     input: z.object({}),
     effect: "read",
     async run(ctx) {
@@ -334,8 +336,13 @@ export const TOOLS = [
         losing_money: b.burning,
         top_expenses: b.topExpenses.map((e) => ({ category: e.category, monthly: usd(e.monthly) })),
         recurring_costs: b.recurringCosts.map((r) => ({ merchant: untrusted(r.merchant), monthly: usd(r.monthly) })),
+        owner_share_of_profit_monthly: usd(b.ownerProfit),
+        pass_through_taxation: b.passThrough,
         estimated_tax_set_aside_monthly: usd(b.taxSetAsideMonthly),
+        tax_paid_from_personal_money_monthly: usd(b.personalTaxMonthly),
+        after_tax_profit_left_in_business_monthly: usd(b.retainedMonthly),
         tax_set_aside_percent: b.taxSetAsidePct,
+        note: "Revenue and profit are for the whole business; owner_share_of_profit_monthly is the user's share. Personal figures already include draws as income and hold back tax_paid_from_personal_money_monthly.",
       }));
     },
   }),

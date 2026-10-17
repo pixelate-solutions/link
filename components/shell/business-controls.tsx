@@ -4,6 +4,8 @@ import { Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { createBusinessAction, deleteBusinessAction, setAccountBusinessAction, updateBusinessAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 export interface BusinessSummary {
@@ -72,24 +74,21 @@ export function AccountOwner({ accountId, businessId, businesses, onChanged }: {
 
   return (
     <>
-      <label className="sr-only" htmlFor={`owner-${accountId}`}>
-        Who this account belongs to
-      </label>
-      <select
-        id={`owner-${accountId}`}
-        value={businessId ?? "personal"}
-        disabled={pending}
-        onChange={(e) => assign(e.target.value)}
-        className={cn("h-7 max-w-[11rem] rounded-full px-2.5 text-[12px] outline-none disabled:opacity-50", businessId ? "bg-accent-soft text-accent-ink" : "bg-surface text-fg-2")}
-      >
-        <option value="personal">Personal</option>
-        {businesses.map((b) => (
-          <option key={b.id} value={b.id}>
-            {b.name}
-          </option>
-        ))}
-        <option value="__new">New business…</option>
-      </select>
+      <Select value={businessId ?? "personal"} disabled={pending} onValueChange={assign}>
+        <SelectTrigger aria-label="Who this account belongs to" size="sm" className={cn("max-w-[11rem]", businessId ? "bg-accent-soft text-accent-ink hover:bg-accent-soft" : "bg-surface text-fg-2")}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="personal">Personal</SelectItem>
+          {businesses.map((b) => (
+            <SelectItem key={b.id} value={b.id}>
+              {b.name}
+            </SelectItem>
+          ))}
+          <SelectSeparator />
+          <SelectItem value="__new">New business…</SelectItem>
+        </SelectContent>
+      </Select>
       {error && <span className="text-[12px] text-caution">{error}</span>}
     </>
   );
@@ -123,16 +122,21 @@ export function BusinessSettings({ business, onChanged }: { business: BusinessSu
         </button>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-3 text-[13px]">
-        <label className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1">
           <span className="text-muted">Structure</span>
-          <select defaultValue={business.structure} onChange={(e) => save({ structure: e.target.value })} className="h-8 rounded-full bg-surface px-2.5 outline-none">
-            {Object.entries(STRUCTURE_LABEL).map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
-              </option>
-            ))}
-          </select>
-        </label>
+          <Select defaultValue={business.structure} onValueChange={(v) => save({ structure: v })}>
+            <SelectTrigger aria-label="Structure" className="h-8 bg-surface px-2.5">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(STRUCTURE_LABEL).map(([v, l]) => (
+                <SelectItem key={v} value={v}>
+                  {l}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <label className="flex flex-col gap-1">
           <span className="text-muted">You own</span>
           <span className="flex items-center gap-1">
@@ -161,10 +165,14 @@ export function BusinessSettings({ business, onChanged }: { business: BusinessSu
             % of profit
           </span>
         </label>
-        <label className="flex items-center gap-2 self-end pb-1.5">
-          <input type="checkbox" defaultChecked={business.countTowardGoals} onChange={(e) => save({ countTowardGoals: e.target.checked })} className="h-4 w-4 accent-[var(--accent)]" />
-          <span className="text-fg-2">Count its cash toward my goals</span>
-        </label>
+        {business.structure === "sole_prop" ? (
+          <p className="self-end pb-1.5 text-[12px] text-muted">A sole proprietorship&apos;s cash is yours, so it counts toward your goals.</p>
+        ) : (
+          <label className="flex cursor-pointer items-center gap-2 self-end pb-1.5">
+            <Checkbox defaultChecked={business.countTowardGoals} onCheckedChange={(c) => save({ countTowardGoals: c === true })} />
+            <span className="text-fg-2">Count its cash toward my goals</span>
+          </label>
+        )}
       </div>
       {error && <p className="mt-2 text-[12px] text-caution">{error}</p>}
     </div>

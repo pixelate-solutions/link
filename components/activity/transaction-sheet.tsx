@@ -4,19 +4,24 @@ import { AnimatePresence, motion } from "motion/react";
 import { Check, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { correctAction, noteAction, revertAction, splitAction, transactionAction } from "@/app/actions";
+import { correctAction, settleReviewAction, noteAction, revertAction, splitAction, transactionAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet } from "@/components/ui/sheet";
-import { CATEGORIES, type CategoryId, categoryLabel } from "@/lib/finance/categories";
+import { type CategoryId, categoryLabel } from "@/lib/finance/categories";
+import { isPaymentRail } from "@/lib/finance/merchants";
 import { formatMoney } from "@/lib/finance/money";
 import { cn, shortDate } from "@/lib/utils";
+import { MerchantMark } from "./category-dot";
+import { PICKABLE, reviewPrompt } from "./review";
 
 type Detail = Extract<Awaited<ReturnType<typeof transactionAction>>, { ok: true }>["data"];
 
 const SOURCE: Record<string, string> = {
   user: "You set this",
   rule: "One of your rules",
-  learned: "Learned from your earlier correction",
+  learned: "Learned from you",
   structural: "Recognized from the transaction itself",
   transfer_match: "Matched with the other side of a transfer",
   provider: "From your bank's data",
@@ -26,7 +31,6 @@ const SOURCE: Record<string, string> = {
   default: "Best guess",
 };
 
-const PICKABLE = CATEGORIES.filter((c) => c.group !== "transfer" || c.id === "transfer").map((c) => c.id as CategoryId);
 
 export function TransactionSheet({ id, onClose, onChanged }: { id: string | null; onClose: () => void; onChanged: () => void }) {
   return (
@@ -43,6 +47,7 @@ function TransactionDetail({ id, onChanged }: { id: string; onChanged: () => voi
   const [picking, setPicking] = useState(false);
   const [splitting, setSplitting] = useState(false);
   const [note, setNote] = useState("");
+  const [noteSaved, setNoteSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -53,6 +58,8 @@ function TransactionDetail({ id, onChanged }: { id: string; onChanged: () => voi
       if (r.ok) {
         setT(r.data);
         setNote(r.data.note ?? "");
+        // A Zelle or check payment says nothing about the next one: don't generalize by default.
+        setAll(!isPaymentRail(r.data.merchantKey));
       } else setError(r.error);
     });
   }, [id]);
@@ -75,6 +82,29 @@ function TransactionDetail({ id, onChanged }: { id: string; onChanged: () => voi
       await refresh();
     });
 
+  const confirm = () =>
+    start(async () => {
+      if (!t) return;
+      const r = await settleReviewAction([t.id], null);
+      if (!r.ok) return setError(r.error);
+      const others = (r.data as { updatedOthers: number }).updatedOthers;
+      setSaved(
+        isPaymentRail(t.merchantKey)
+          ? "Got it. Saved for this payment."
+          : `Got it. Link will treat ${t.merchant} as ${categoryLabel(t.category)}${others ? ` and updated ${others} other transaction${others === 1 ? "" : "s"}` : ""}.`,
+      );
+      await refresh();
+    });
+
+  const saveNote = () =>
+    start(async () => {
+      if (!t || note === (t.note ?? "")) return;
+      const r = await noteAction(t.id, note);
+      if (!r.ok) return setError(r.error);
+      setT({ ...t, note: note || null });
+      setNoteSaved(true);
+    });
+
   return (
     <>
       {!t ? (
@@ -85,12 +115,19 @@ function TransactionDetail({ id, onChanged }: { id: string; onChanged: () => voi
         </div>
       ) : (
         <div className="pt-4">
-          <p className="text-[15px] font-medium text-fg-2">{t.merchant}</p>
+          <div className="flex items-center gap-2.5">
+            <MerchantMark name={t.merchant} cat={t.category} logo={t.logoUrl} className="h-8 w-8 text-[12px]" />
+            <p className="text-[15px] font-medium text-fg-2">{t.merchant}</p>
+          </div>
           <p className={cn("mt-1 text-figure font-semibold tabular", t.amountMinor > 0 && "text-accent-ink")}>{formatMoney(t.amountMinor, { cents: true, signed: t.amountMinor > 0 })}</p>
           <p className="mt-1 text-[13px] text-muted">
             {shortDate(t.date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
             {t.pending && " · Pending"}
           </p>
+
+          {t.needsReview && !t.hasSplits && (
+            <ReviewCallout t={t} busy={pending} onConfirm={confirm} onChange={() => setPicking(true)} />
+          )}
 
           <div className="mt-6 rounded-md bg-surface-2 p-4">
             <div className="flex items-center justify-between">
@@ -127,9 +164,9 @@ function TransactionDetail({ id, onChanged }: { id: string; onChanged: () => voi
           <AnimatePresence initial={false}>
             {picking && (
               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                <label className="mt-4 flex items-center justify-between gap-3 text-[14px]">
+                <label className="mt-4 flex cursor-pointer items-center justify-between gap-3 text-[14px]">
                   <span>Use for every {t.merchant} transaction</span>
-                  <input type="checkbox" checked={allForMerchant} onChange={(e) => setAll(e.target.checked)} className="h-5 w-5 accent-[var(--accent)]" />
+                  <Checkbox checked={allForMerchant} onCheckedChange={(c) => setAll(c === true)} className="h-5 w-5" />
                 </label>
                 <div className="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-3" role="listbox" aria-label="Choose a category">
                   {PICKABLE.map((c) => (
@@ -177,17 +214,24 @@ function TransactionDetail({ id, onChanged }: { id: string; onChanged: () => voi
           )}
 
           <div className="mt-6">
-            <label htmlFor="note" className="text-[12px] text-muted">
-              Note
+            <label htmlFor="note" className="text-[13px] font-medium">
+              Context for Link
             </label>
-            <input
+            <p className="mt-0.5 text-[12px] text-muted">Anything Link should know about this one. It uses this when it answers questions and plans.</p>
+            <textarea
               id="note"
+              rows={2}
+              maxLength={280}
               value={note}
-              onChange={(e) => setNote(e.target.value)}
-              onBlur={() => note !== (t.note ?? "") && start(async () => void (await noteAction(t.id, note)))}
-              placeholder="Add a note"
-              className="mt-1 h-10 w-full rounded-full bg-surface-2 px-4 text-[14px] outline-none focus:ring-2 focus:ring-[var(--focus)]"
+              onChange={(e) => {
+                setNote(e.target.value);
+                setNoteSaved(false);
+              }}
+              onBlur={saveNote}
+              placeholder="e.g. One-time gift for a friend's wedding"
+              className="mt-2 w-full resize-none rounded-sm bg-surface-2 px-4 py-2.5 text-[14px] outline-none placeholder:text-muted focus:ring-2 focus:ring-[var(--focus)]"
             />
+            {noteSaved && <p className="mt-1 text-[12px] text-accent-ink" role="status">Saved. Link will keep this in mind.</p>}
           </div>
 
           <dl className="mt-6 space-y-1.5 text-[13px]">
@@ -206,6 +250,27 @@ function TransactionDetail({ id, onChanged }: { id: string; onChanged: () => voi
         </div>
       )}
     </>
+  );
+}
+
+function ReviewCallout({ t, busy, onConfirm, onChange }: { t: Detail; busy: boolean; onConfirm: () => void; onChange: () => void }) {
+  const p = reviewPrompt(t.reason, t.category, t.kind, t.amountMinor);
+  return (
+    <div className="mt-6 rounded-md border border-caution/25 bg-caution-soft p-4">
+      <p className="text-[12px] font-medium text-caution">Needs a look</p>
+      <p className="mt-1 text-[16px] font-semibold tracking-[-0.01em]">{p.ask}</p>
+      <p className="mt-0.5 text-[13px] text-fg-2">
+        {p.why} {isPaymentRail(t.merchantKey) ? "Your answer applies to this payment only." : `Your answer teaches Link how to handle ${t.merchant} from now on.`}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button size="sm" variant="primary" busy={busy} onClick={onConfirm}>
+          <Check size={14} /> Yes, that&apos;s right
+        </Button>
+        <Button size="sm" onClick={onChange} disabled={busy} className="bg-surface hover:bg-surface-2">
+          No, change it
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -234,18 +299,18 @@ function SplitEditor({
       <ul className="mt-3 space-y-2">
         {parts.map((p, i) => (
           <li key={i} className="flex items-center gap-2">
-            <select
-              aria-label="Category"
-              value={p.category}
-              onChange={(e) => setParts((ps) => ps.map((x, j) => (j === i ? { ...x, category: e.target.value as CategoryId } : x)))}
-              className="h-9 min-w-0 flex-1 rounded-full bg-surface-2 px-3 text-[13px] outline-none"
-            >
-              {PICKABLE.map((c) => (
-                <option key={c} value={c}>
-                  {categoryLabel(c)}
-                </option>
-              ))}
-            </select>
+            <Select value={p.category} onValueChange={(v) => setParts((ps) => ps.map((x, j) => (j === i ? { ...x, category: v as CategoryId } : x)))}>
+              <SelectTrigger aria-label="Category" className="min-w-0 flex-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PICKABLE.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {categoryLabel(c)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <input
               aria-label="Amount"
               inputMode="decimal"

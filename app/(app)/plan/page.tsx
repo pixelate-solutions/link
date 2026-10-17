@@ -95,14 +95,20 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
         </Card>
       )}
 
-      <Card id="what-if">
+      {p.budget.lines.length > 0 && (
+        <Card id="spending" className="scroll-mt-24">
+          <SpendingPlan budget={p.budget} asOf={p.asOf} />
+        </Card>
+      )}
+
+      <Card id="what-if" className="scroll-mt-24">
         <h2 className="text-[17px] font-semibold tracking-[-0.01em]">What if…</h2>
         <p className="mb-4 mt-1 text-[14px] text-muted">Try a change. Nothing is saved unless you choose to.</p>
         <WhatIf initial={initialScenario} />
       </Card>
 
       <div className="grid gap-3 md:grid-cols-2 md:gap-4">
-        <Card id="goals">
+        <Card id="goals" className="scroll-mt-24">
           <h2 className="mb-4 text-[17px] font-semibold tracking-[-0.01em]">Goals, in order</h2>
           <GoalsList goals={p.goals} />
         </Card>
@@ -119,6 +125,18 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
                     <span className="tabular">{formatMoney(a.monthly)}/mo</span>
                   </li>
                 ))}
+                {p.flows.businessTaxMonthly > 0 && (
+                  <li className="flex justify-between gap-3">
+                    <span className="text-fg-2">Taxes on business profit you draw</span>
+                    <span className="tabular">{formatMoney(p.flows.businessTaxMonthly)}/mo</span>
+                  </li>
+                )}
+                {p.flows.businessRetainedMonthly > 0 && (
+                  <li className="flex justify-between gap-3">
+                    <span className="text-fg-2">Profit kept in your business (counted)</span>
+                    <span className="tabular">+{formatMoney(p.flows.businessRetainedMonthly)}/mo</span>
+                  </li>
+                )}
                 <li className="flex justify-between gap-3 text-muted">
                   <span>Left flexible</span>
                   <span className="tabular">{formatMoney(Math.max(0, p.flows.surplusUnassigned))}/mo</span>
@@ -132,12 +150,6 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
       {p.businesses.map((b) => (
         <BusinessDetailCard key={b.id} b={b} />
       ))}
-
-      <Card>
-        <Disclosure title="Spending plan" meta={<span className="tabular">{formatMoney(p.budget.spentThisMonth)} of {formatMoney(p.budget.plannedThisMonth)}</span>}>
-          <SpendingPlan budget={p.budget} />
-        </Disclosure>
-      </Card>
 
       <Card>
         <Disclosure title="Cash over the next 90 days">

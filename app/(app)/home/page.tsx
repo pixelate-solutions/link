@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
+import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { BusinessSummaryCard } from "@/components/business/business-card";
 import { ConnectBank } from "@/components/connect/connect-bank";
-import { GoalCard } from "@/components/home/goal-card";
-import { NextStep } from "@/components/home/next-step";
+import { CashAfterBills, ShortfallHero } from "@/components/home/cash-after-bills";
+import { ContextPanel } from "@/components/home/context-panel";
+import { GoalsPanel } from "@/components/home/goals-panel";
+import { NextMoves } from "@/components/home/next-moves";
 import { QuestionCard } from "@/components/home/question-card";
-import { SafeToSpend } from "@/components/home/safe-to-spend";
-import { ComingUp, Learned, ThisMonth } from "@/components/home/secondary";
+import { ComingUp } from "@/components/home/secondary";
+import { SpendingHero } from "@/components/home/spending-hero";
 import { EmptyHome, PendingApprovals, Syncing } from "@/components/home/states";
 import { requireUser } from "@/server/auth";
 import { demoEnabled } from "@/server/demo/seed";
@@ -15,9 +19,9 @@ import { homeView } from "@/server/services/views";
 export const metadata: Metadata = { title: "Home" };
 
 /**
- * Home answers three questions, in order: Am I okay? Am I moving toward my
- * goals? What should I do next? The lead card adapts (shortfall, new
- * connection), the structure does not.
+ * Home reads top to bottom: how this month is going, what to do next, where
+ * you're headed, and what Link should know about you. One dark hero card is
+ * the focal point; actions are the only other strong color.
  */
 export default async function HomePage() {
   const userId = await requireUser();
@@ -27,14 +31,15 @@ export default async function HomePage() {
   if (v.mode === "syncing" || !v.picture) return <Syncing />;
 
   const p = v.picture;
-  const goal = p.goals[0];
-  const first = v.recommendations[0];
-  const lead = v.mode === "shortfall" ? v.recommendations.find((r) => r.kind === "cash_shortfall") ?? first : first;
-  const others = v.recommendations.filter((r) => r.id !== lead?.id).slice(0, 2);
+  const shortfall = v.mode === "shortfall" && p.forecast.shortfall;
+  // In a shortfall, covering it is the first move.
+  const recs = shortfall ? [...v.recommendations].sort((a, b) => Number(b.kind === "cash_shortfall") - Number(a.kind === "cash_shortfall")) : v.recommendations;
   const question = p.questions[0];
+  const review = p.coverage.reviewCount;
+  const first = v.name?.trim().split(/\s+/)[0];
 
   return (
-    <div className="space-y-3 md:space-y-4">
+    <div className="space-y-8 md:space-y-10">
       {v.needsReconnect.map((c) => (
         <div key={c.id} className="flex items-center justify-between gap-3 rounded-md bg-caution-soft px-4 py-3">
           <p className="text-[14px] text-fg">{c.institution ?? "A bank"} needs you to sign in again. Until then, its balances are out of date.</p>
@@ -42,45 +47,54 @@ export default async function HomePage() {
         </div>
       ))}
 
-      <div className="grid gap-3 md:grid-cols-2 md:gap-4">
-        <SafeToSpend picture={p} shortfall={v.mode === "shortfall"} />
-        {goal ? <GoalCard goal={goal} /> : <NoGoal />}
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3 px-1">
+          <h1 className="text-[28px] font-semibold tracking-[-0.03em] md:text-[32px]">{first ? `Hi, ${first}` : "Your money"}</h1>
+          {review > 0 && (
+            <Link href="/activity?filter=review" className="inline-flex items-center gap-1.5 rounded-full bg-caution-soft px-3.5 py-1.5 text-[13px] font-medium text-caution transition-opacity hover:opacity-80">
+              <span className="h-1.5 w-1.5 rounded-full bg-caution" aria-hidden />
+              {review} transaction{review === 1 ? "" : "s"} need{review === 1 ? "s" : ""} a look
+              <ArrowRight size={14} />
+            </Link>
+          )}
+        </div>
+        <div className="grid gap-4 md:grid-cols-[1.6fr_1fr]">
+          {shortfall ? <ShortfallHero picture={p} /> : p.budget.plannedThisMonth > 0 ? <SpendingHero picture={p} /> : <CashAfterBills picture={p} />}
+          {shortfall || p.budget.plannedThisMonth > 0 ? <CashAfterBills picture={p} compact /> : <ComingUp picture={p} logos={v.logos} />}
+        </div>
+        <PendingApprovals items={v.proposals} />
       </div>
 
-      {v.mode === "new" && <Learned picture={p} />}
-      {lead && <NextStep rec={lead} />}
-      <PendingApprovals items={v.proposals} />
-      {question && <QuestionCard q={question} />}
+      <NextMoves recs={recs} />
 
-      <div className="grid gap-3 md:grid-cols-2 md:gap-4">
-        <ThisMonth picture={p} />
-        <ComingUp picture={p} />
+      <div className="grid gap-4 md:grid-cols-[1.6fr_1fr]">
+        <GoalsPanel goals={p.goals} />
+        {p.budget.plannedThisMonth > 0 || shortfall ? <ComingUp picture={p} logos={v.logos} /> : <div className="hidden md:block" />}
       </div>
+
+      <section aria-labelledby="understand-title" className="space-y-3">
+        <div className="px-1">
+          <h2 id="understand-title" className="text-[20px] font-semibold tracking-[-0.02em]">
+            Help Link understand you
+          </h2>
+          <p className="text-[13px] text-muted">The more Link knows about your life, the better your plan fits it.</p>
+        </div>
+        <div className={question ? "grid gap-4 md:grid-cols-2" : ""}>
+          {question && <QuestionCard q={question} />}
+          <ContextPanel items={v.context} />
+        </div>
+      </section>
 
       {p.businesses.length > 0 && (
-        <div className="grid gap-3 md:grid-cols-2 md:gap-4">
-          {p.businesses.map((b) => (
-            <BusinessSummaryCard key={b.id} b={b} />
-          ))}
-        </div>
-      )}
-
-      {others.length > 0 && (
-        <div className="grid gap-3 md:grid-cols-2 md:gap-4">
-          {others.map((r) => (
-            <NextStep key={r.id} rec={r} eyebrow="Also worth doing" compact />
-          ))}
-        </div>
+        <section className="space-y-3">
+          <h2 className="px-1 text-[20px] font-semibold tracking-[-0.02em]">Your businesses</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            {p.businesses.map((b) => (
+              <BusinessSummaryCard key={b.id} b={b} />
+            ))}
+          </div>
+        </section>
       )}
     </div>
-  );
-}
-
-function NoGoal() {
-  return (
-    <a href="/plan#goals" className="block rounded-lg border border-dashed border-line p-6 text-[15px] text-fg-2 hover:border-accent">
-      <span className="text-[13px] font-medium text-muted">Your goal</span>
-      <span className="mt-2 block text-[17px] font-medium text-fg">Tell Link what you want your money to do</span>
-    </a>
   );
 }

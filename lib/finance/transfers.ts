@@ -30,6 +30,8 @@ export interface TransferMatch {
 
 const MOVEMENT_KINDS = new Set<TransactionKind>(["transfer", "card_payment", "investment_transfer", "loan_payment"]);
 const MAX_GAP_DAYS = 5;
+/** Kinds that mean a leg is ordinary spending or income, not money moving between your accounts. */
+const REAL_ACTIVITY = new Set<TransactionKind>(["expense", "income", "fee"]);
 
 /**
  * Pair equal-and-opposite movements between two of the user's own accounts so
@@ -53,8 +55,11 @@ export function matchTransfers(txns: TransferCandidate[]): TransferMatch[] {
       if (gap > MAX_GAP_DAYS) continue;
       const liabilityOrInvestment = inn.accountType === "credit" || inn.accountType === "loan" || inn.accountType === "investment";
       // Equal money leaving one of your businesses and arriving in a personal account (or the
-      // reverse) is a draw or contribution even when neither description says "transfer".
-      const crossScope = (out.businessId ?? null) !== (inn.businessId ?? null) && inn.kind !== "refund";
+      // reverse) is usually a draw or contribution, even when neither description says
+      // "transfer". But when both legs already read as real activity (a payroll debit and the
+      // owner's paycheck, a client payment and the owner's rent) they are two separate events.
+      const crossScope =
+        (out.businessId ?? null) !== (inn.businessId ?? null) && inn.kind !== "refund" && !(REAL_ACTIVITY.has(out.kind) && REAL_ACTIVITY.has(inn.kind));
       const plausible =
         crossScope ||
         MOVEMENT_KINDS.has(out.kind) ||

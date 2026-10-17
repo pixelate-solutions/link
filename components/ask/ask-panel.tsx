@@ -155,8 +155,7 @@ export function AskPanel({ open, onOpenChange, prefill, autoSend, nonce }: { ope
         <div ref={scroller} className="-mx-5 flex-1 space-y-5 overflow-y-auto px-5 pb-4" aria-live="polite">
           {messages.length === 0 ? (
             <div className="pt-6">
-              <p className="text-[15px] text-fg-2">Ask about your money in your own words. Link answers from your actual accounts and shows its assumptions.</p>
-              <div className="mt-5 flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
                 {SUGGESTIONS.map((s) => (
                   <button key={s} onClick={() => void send(s)} className="rounded-full bg-surface-2 px-3.5 py-2 text-[13px] text-fg transition-colors hover:bg-surface-3">
                     {s}

@@ -77,13 +77,12 @@ export function Onboarding({ name, hasGoal, hasConnection, plaid, demo }: { name
                     </button>
                   ))}
                 </div>
-                <div className="mt-8 flex items-center gap-3">
+                <div className="mt-8 flex justify-center">
                   <Button type="submit" variant="primary" size="lg" busy={pending} disabled={!text.trim()}>
                     Continue
                   </Button>
-                  <span className="text-[13px] text-muted">No targets or dates needed.</span>
                 </div>
-                {error && <p className="mt-3 text-[13px] text-caution">{error}</p>}
+                {error && <p className="mt-3 text-center text-[13px] text-caution">{error}</p>}
               </form>
             </motion.div>
           )}
@@ -110,7 +109,7 @@ export function Onboarding({ name, hasGoal, hasConnection, plaid, demo }: { name
             <motion.div key="connect" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}>
               <h1 className="text-[32px] font-semibold leading-tight tracking-[-0.035em] md:text-[40px]">Connect your accounts</h1>
               <p className="mt-3 text-[17px] text-fg-2">Link reads balances and transactions to build your plan. It can never move money.</p>
-              <div className="mt-8 flex flex-col items-start gap-3">
+              <div className="mt-8 flex flex-col items-center gap-3">
                 {hasConnection ? (
                   <Button variant="primary" size="lg" onClick={finish} busy={pending}>
                     See my plan
@@ -139,7 +138,7 @@ export function Onboarding({ name, hasGoal, hasConnection, plaid, demo }: { name
                 <button onClick={finish} className="text-[13px] text-muted hover:text-fg">
                   Skip for now
                 </button>
-                {error && <p className="text-[13px] text-caution">{error}</p>}
+                {error && <p className="text-center text-[13px] text-caution">{error}</p>}
               </div>
             </motion.div>
           )}

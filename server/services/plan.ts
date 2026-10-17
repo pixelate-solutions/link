@@ -3,6 +3,7 @@ import { autoBudget, type BudgetItem } from "@/lib/finance/budget";
 import { type CategoryId, category as categoryDef, isCategoryId } from "@/lib/finance/categories";
 import { type FactKey, FACT_KEYS, type GoalInterpretation, type GoalKind, interpretGoals } from "@/lib/finance/goals";
 import type { Minor } from "@/lib/finance/money";
+import { SKIPPED } from "@/lib/finance/recommend";
 import { runScenario, type ScenarioChange, type ScenarioResult } from "@/lib/finance/scenario";
 import { getDb, schema } from "../db/client";
 import { interpretGoalsWithAI } from "../ai/interpret";
@@ -293,18 +294,19 @@ function describeChange(c: ScenarioChange): string {
 
 // ── Recommendations ─────────────────────────────────────────────────────────
 
-export async function actOnRecommendation(userId: string, id: string, action: "apply" | "done" | "dismiss", feedback?: string) {
+export async function actOnRecommendation(userId: string, id: string, action: "apply" | "done" | "dismiss" | "skip", feedback?: string) {
   const db = await getDb();
   const [rec] = await db.select().from(schema.recommendations).where(and(eq(schema.recommendations.id, id), eq(schema.recommendations.userId, userId)));
   if (!rec) throw new Error("Recommendation not found");
   if (rec.status !== "active") throw new Error("This was already handled.");
   const now = new Date();
-  if (action === "dismiss") {
+  if (action === "dismiss" || action === "skip") {
+    // Skipping is "not now", not "never": important items come back (see shouldResurface).
     await db
       .update(schema.recommendations)
-      .set({ status: "dismissed", feedback: feedback ?? null, resolvedAt: now })
+      .set({ status: "dismissed", feedback: action === "skip" ? SKIPPED : (feedback ?? null), resolvedAt: now })
       .where(and(eq(schema.recommendations.id, id), eq(schema.recommendations.userId, userId)));
-    await audit(userId, "user", "recommendation.dismiss", id, { feedback });
+    await audit(userId, "user", `recommendation.${action}`, id, { feedback });
     return { status: "dismissed" as const };
   }
   if (action === "done") {

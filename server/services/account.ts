@@ -29,6 +29,13 @@ export async function listMemories(userId: string) {
   return db.select().from(schema.memories).where(eq(schema.memories.userId, userId)).orderBy(desc(schema.memories.createdAt));
 }
 
+/** Something the user wrote down for Link to keep in mind: free text, their words, never instructions. */
+export async function addContext(userId: string, content: string) {
+  const db = await getDb();
+  const [row] = await db.insert(schema.memories).values({ userId, content, kind: "context", source: "user" }).returning({ id: schema.memories.id });
+  return { id: row!.id };
+}
+
 export async function deleteMemory(userId: string, id: string) {
   const db = await getDb();
   await db.delete(schema.memories).where(and(eq(schema.memories.id, id), eq(schema.memories.userId, userId)));

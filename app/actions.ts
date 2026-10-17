@@ -14,8 +14,8 @@ import { getDb, schema } from "@/server/db/client";
 import { seedDemo } from "@/server/demo/seed";
 import { enqueue, runJobs } from "@/server/jobs";
 import { disconnect } from "@/server/plaid/sync";
-import { addRuleFromText, correctTransaction, deleteRule, getTransaction, revertCorrection, searchTransactions, setRecurringStatus, splitTransaction, type TxnFilters } from "@/server/services/activity";
-import { deleteMemory, deleteUserData } from "@/server/services/account";
+import { addRuleFromText, correctTransaction, settleReview, deleteRule, getTransaction, revertCorrection, searchTransactions, setRecurringStatus, splitTransaction, type TxnFilters } from "@/server/services/activity";
+import { addContext, deleteMemory, deleteUserData } from "@/server/services/account";
 import { refreshPicture } from "@/server/services/picture";
 import {
   acceptScenario,
@@ -155,9 +155,9 @@ export async function acceptScenarioAction(id: string) {
 
 // ── Recommendations & proposals ─────────────────────────────────────────────
 
-export async function recommendationAction(id: string, action: "apply" | "done" | "dismiss", feedback?: string) {
+export async function recommendationAction(id: string, action: "apply" | "done" | "dismiss" | "skip", feedback?: string) {
   return run(async (u) => {
-    const r = await actOnRecommendation(u, uuid.parse(id), z.enum(["apply", "done", "dismiss"]).parse(action), feedback ? z.string().max(200).parse(feedback) : undefined);
+    const r = await actOnRecommendation(u, uuid.parse(id), z.enum(["apply", "done", "dismiss", "skip"]).parse(action), feedback ? z.string().max(200).parse(feedback) : undefined);
     return r;
   });
 }
@@ -195,6 +195,10 @@ export async function transactionAction(id: string) {
 
 export async function correctAction(id: string, cat: string, applyToMerchant: boolean) {
   return run((u) => correctTransaction(u, uuid.parse(id), { category: category.parse(cat), applyToMerchant: Boolean(applyToMerchant) }));
+}
+
+export async function settleReviewAction(ids: string[], cat: string | null) {
+  return run((u) => settleReview(u, z.array(uuid).min(1).max(100).parse(ids), cat == null ? null : category.parse(cat)));
 }
 
 export async function noteAction(id: string, note: string) {
@@ -248,6 +252,10 @@ export async function syncNowAction() {
 
 export async function disconnectAction(connectionId: string, deleteData: boolean) {
   return run((u) => disconnect(u, uuid.parse(connectionId), Boolean(deleteData)));
+}
+
+export async function addContextAction(text: string) {
+  return run((u) => addContext(u, z.string().trim().min(3).max(500).parse(text)));
 }
 
 export async function deleteMemoryAction(id: string) {

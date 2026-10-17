@@ -1,5 +1,5 @@
 import { type Baseline, computeBaseline, monthToDate, typicalSpendByDay } from "./analysis";
-import { type BusinessRecord, type BusinessView, computeBusiness } from "./business";
+import { type BusinessRecord, type BusinessView, computeBusiness, isOwnersMoney } from "./business";
 import { type BudgetItem, type BudgetLine, autoBudget, budgetStatus } from "./budget";
 import { type CashModel, type Forecast, type SafeToSpend, buildCashModel, forecastCash, safeToSpend } from "./cashflow";
 import type { CategoryId } from "./categories";
@@ -64,6 +64,10 @@ export interface PlanInputs {
   debts: Debt[];
   facts: Facts;
   events: LifeEvent[];
+  /** Tax on business profit that personal money has to cover (pass-through entities). */
+  businessTaxMonthly?: Minor;
+  /** The owner's after-tax business profit left in businesses whose money counts as theirs. */
+  businessRetainedMonthly?: Minor;
 }
 
 export type GoalStatus = "on_track" | "behind" | "ahead" | "projected" | "needs_info" | "not_reachable" | "tracking";
@@ -126,7 +130,7 @@ export interface Picture {
     businessEquity: Minor;
   };
   baseline: Baseline;
-  flows: { investingMonthly: Minor; savingsMonthly: Minor; surplusUnassigned: Minor };
+  flows: { investingMonthly: Minor; savingsMonthly: Minor; surplusUnassigned: Minor; businessTaxMonthly: Minor; businessRetainedMonthly: Minor };
   recurring: Pick<RecurringSeries, "key" | "merchant" | "kind" | "category" | "cadence" | "amount" | "nextDate" | "confidence" | "accountId" | "occurrences" | "firstDate" | "lastDate">[];
   safeToSpend: SafeToSpend;
   forecast: { days: number; points: { date: ISODate; expected: Minor; low: Minor; high: Minor }[]; shortfall: Forecast["shortfall"]; lowest: Forecast["lowest"]; events: Forecast["events"] };
@@ -146,7 +150,7 @@ const RECURRING_TOP = 40;
  */
 export function freeSurplus(inputs: PlanInputs): Minor {
   const fromBank = inputs.investingMonthly - (inputs.facts.workplaceContributionMonthly ?? 0);
-  return inputs.monthlyIncome - inputs.monthlySpending - Math.max(0, fromBank) - inputs.savingsMonthly;
+  return inputs.monthlyIncome - inputs.monthlySpending - Math.max(0, fromBank) - inputs.savingsMonthly - (inputs.businessTaxMonthly ?? 0) + (inputs.businessRetainedMonthly ?? 0);
 }
 
 export function factsAge(facts: Facts, asOf: ISODate): number | null {
@@ -595,8 +599,12 @@ export function computeAll(input: PictureInput): { picture: Picture; inputs: Pla
     cardMonthly: model.cardMonthly,
     cashRetainedMonthly: cashRetained(ledger, visible, baseline.months),
   });
-  // Only businesses the user opted in count toward personal goals, and only their cash.
-  const businessForGoals = businessViews.filter((b) => b.countTowardGoals).reduce((s, b) => s + Math.max(0, Math.round((b.cash * b.ownershipPct) / 100)), 0);
+  // Only businesses whose money is the owner's (opted in, or a sole proprietorship) count toward personal goals.
+  const owners = businessViews.filter(isOwnersMoney);
+  const businessForGoals = owners.reduce((s, b) => s + Math.max(0, Math.round((b.cash * b.ownershipPct) / 100)), 0);
+  // Every pass-through business's drawn profit carries personal tax; profit kept in an owner's business keeps accruing.
+  inputs.businessTaxMonthly = businessViews.reduce((s, b) => s + b.personalTaxMonthly, 0);
+  inputs.businessRetainedMonthly = owners.reduce((s, b) => s + b.retainedMonthly, 0);
   if (businessForGoals > 0) {
     const retirementAmount = inputs.retirementShare * inputs.invested;
     inputs.invested += businessForGoals;
@@ -718,7 +726,13 @@ export function computeAll(input: PictureInput): { picture: Picture; inputs: Pla
       businessEquity,
     },
     baseline,
-    flows: { investingMonthly: inputs.investingMonthly, savingsMonthly: inputs.savingsMonthly, surplusUnassigned: unassigned },
+    flows: {
+      investingMonthly: inputs.investingMonthly,
+      savingsMonthly: inputs.savingsMonthly,
+      surplusUnassigned: unassigned,
+      businessTaxMonthly: inputs.businessTaxMonthly ?? 0,
+      businessRetainedMonthly: inputs.businessRetainedMonthly ?? 0,
+    },
     recurring: series.slice(0, RECURRING_TOP).map((s) => ({
       key: s.key,
       merchant: s.merchant,

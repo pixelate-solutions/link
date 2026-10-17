@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Slider } from "radix-ui";
+import { Slider } from "@/components/ui/slider";
 import { useDeferredValue, useMemo, useState, useTransition } from "react";
 import { answerFactAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
@@ -148,12 +148,7 @@ function Control({ label, value, min, max, step, v, onChange }: { label: string;
         <span className="text-[13px] text-fg-2">{label}</span>
         <span className="text-[15px] font-medium tabular">{value}</span>
       </div>
-      <Slider.Root className="relative mt-2 flex h-6 touch-none select-none items-center" min={min} max={max} step={step} value={[v]} onValueChange={([n]) => onChange(n!)} aria-label={label}>
-        <Slider.Track className="relative h-1.5 grow rounded-full bg-surface-3">
-          <Slider.Range className="absolute h-full rounded-full bg-fg/70" />
-        </Slider.Track>
-        <Slider.Thumb className="block h-5 w-5 rounded-full border border-line bg-surface shadow-soft outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]" />
-      </Slider.Root>
+      <Slider className="mt-2" rangeClassName="bg-fg/70" min={min} max={max} step={step} value={[v]} onValueChange={([n]) => onChange(n!)} aria-label={label} />
     </div>
   );
 }

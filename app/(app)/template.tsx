@@ -3,10 +3,10 @@
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
 
-/** Calm, fast page entrance on navigation. Transform + opacity only. */
+/** Quick fade on navigation; nothing moves, so tab switches feel immediate. */
 export default function Template({ children }: { children: ReactNode }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 380, damping: 36 }}>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.12, ease: "easeOut" }}>
       {children}
     </motion.div>
   );

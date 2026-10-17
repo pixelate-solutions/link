@@ -1,11 +1,11 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { schema, type Db } from "@/server/db/client";
 import { runAgent, type AgentEvent } from "@/server/ai/agent";
 import { setModelAdapter } from "@/server/ai/provider";
 import { applySyncBatch } from "@/server/plaid/sync";
 import { processUser } from "@/server/pipeline/process";
-import { correctTransaction, searchTransactions } from "@/server/services/activity";
+import { confirmTransaction, correctTransaction, searchTransactions, settleReview } from "@/server/services/activity";
 import { activeRecommendations, computeContext } from "@/server/services/picture";
 import { createGoalsFromStatement, getPreferences } from "@/server/services/plan";
 import { listPendingProposals, resolveProposal } from "@/server/services/proposals";
@@ -152,6 +152,95 @@ describe("acceptance: 'retire as soon as possible without sacrificing my lifesty
     const [fresh] = await db.select().from(schema.transactions).where(and(eq(schema.transactions.userId, USER), eq(schema.transactions.providerId, "tx_new_mkt")));
     expect(fresh!.category).toBe("groceries");
     expect(fresh!.classSource).toBe("learned");
+  });
+
+  it("confirming one 'needs a look' transaction settles every one from that merchant and the next one", async () => {
+    const pfc = { primary: "GENERAL_MERCHANDISE", detailed: "GENERAL_MERCHANDISE_OTHER_GENERAL_MERCHANDISE", confidence_level: "LOW" };
+    await applySyncBatch(db, { id: connId, userId: USER }, {
+      accounts: ACCOUNTS,
+      added: [
+        { transaction_id: "tx_acme_1", account_id: "cc2", amount: 310, date: AS_OF, name: "ACME WIDGETS 991", pending: false, iso_currency_code: "USD", personal_finance_category: pfc },
+        { transaction_id: "tx_acme_2", account_id: "cc2", amount: 275, date: AS_OF, name: "ACME WIDGETS 991", pending: false, iso_currency_code: "USD", personal_finance_category: pfc },
+      ],
+      modified: [],
+      removed: [],
+      nextCursor: "c-acme",
+    }, NOW);
+    const flagged = await searchTransactions(USER, { query: "ACME WIDGETS", review: true, limit: 10 });
+    expect(flagged.rows).toHaveLength(2);
+    const r = await confirmTransaction(USER, flagged.rows[0]!.id);
+    expect(r.updatedOthers).toBe(1);
+    const after = await searchTransactions(USER, { query: "ACME WIDGETS", limit: 10 });
+    expect(after.rows.every((x) => !x.needsReview && x.category === flagged.rows[0]!.category)).toBe(true);
+    expect(after.rows.find((x) => x.id === flagged.rows[0]!.id)!.reason).toBe("You confirmed this");
+    await applySyncBatch(db, { id: connId, userId: USER }, {
+      accounts: ACCOUNTS,
+      added: [{ transaction_id: "tx_acme_3", account_id: "cc2", amount: 290, date: AS_OF, name: "ACME WIDGETS 991", pending: false, iso_currency_code: "USD", personal_finance_category: pfc }],
+      modified: [],
+      removed: [],
+      nextCursor: "c-acme-2",
+    }, NOW);
+    const [third] = await db.select().from(schema.transactions).where(and(eq(schema.transactions.userId, USER), eq(schema.transactions.providerId, "tx_acme_3")));
+    expect(third!.needsReview).toBe(false);
+    expect(third!.classSource).toBe("learned");
+  });
+
+  it("settles Zelle payments one recipient at a time and never learns a rule for Zelle itself", async () => {
+    await applySyncBatch(db, { id: connId, userId: USER }, {
+      accounts: ACCOUNTS,
+      added: [
+        { transaction_id: "tx_z1", account_id: "chk1", amount: 120, date: AS_OF, name: "ZELLE TO JORDAN LEE", pending: false, iso_currency_code: "USD" },
+        { transaction_id: "tx_z2", account_id: "chk1", amount: 95, date: AS_OF, name: "ZELLE TO SAM PARK", pending: false, iso_currency_code: "USD" },
+      ],
+      modified: [],
+      removed: [],
+      nextCursor: "c-zelle",
+    }, NOW);
+    const z = await db.select().from(schema.transactions).where(and(eq(schema.transactions.userId, USER), inArray(schema.transactions.providerId, ["tx_z1", "tx_z2"])));
+    const jordan = z.find((r) => r.providerId === "tx_z1")!;
+    const sam = z.find((r) => r.providerId === "tx_z2")!;
+    expect(jordan.merchantKey).toBe("zelle");
+    await settleReview(USER, [jordan.id], "gifts");
+    const [j, s2] = await Promise.all([
+      db.select().from(schema.transactions).where(eq(schema.transactions.id, jordan.id)),
+      db.select().from(schema.transactions).where(eq(schema.transactions.id, sam.id)),
+    ]);
+    expect(j[0]!.category).toBe("gifts");
+    expect(s2[0]!.category).toBe(sam.category);
+    expect(s2[0]!.classSource).not.toBe("learned");
+  });
+
+  it("fills in merchant logos on redelivery without re-categorizing", async () => {
+    const [before] = await db.select().from(schema.transactions).where(and(eq(schema.transactions.userId, USER), eq(schema.transactions.providerId, "tx_acme_1")));
+    await applySyncBatch(db, { id: connId, userId: USER }, {
+      accounts: ACCOUNTS,
+      added: [
+        {
+          transaction_id: "tx_acme_1",
+          account_id: "cc2",
+          amount: 310,
+          date: AS_OF,
+          name: "ACME WIDGETS 991",
+          pending: false,
+          iso_currency_code: "USD",
+          personal_finance_category: { primary: "GENERAL_MERCHANDISE", detailed: "GENERAL_MERCHANDISE_OTHER_GENERAL_MERCHANDISE", confidence_level: "LOW" },
+          logo_url: "https://plaid-merchant-logos.plaid.com/acme.png",
+          website: "acme.example",
+        },
+      ],
+      modified: [],
+      removed: [],
+      nextCursor: "c-acme-3",
+    }, NOW);
+    const [after] = await db.select().from(schema.transactions).where(eq(schema.transactions.id, before!.id));
+    expect(after!.logoUrl).toBe("https://plaid-merchant-logos.plaid.com/acme.png");
+    expect(after!.website).toBe("acme.example");
+    expect({ category: after!.category, classSource: after!.classSource, reason: after!.reason, userLocked: after!.userLocked }).toEqual({
+      category: before!.category,
+      classSource: before!.classSource,
+      reason: before!.reason,
+      userLocked: before!.userLocked,
+    });
   });
 
   it("updates analyses after new activity: a material new obligation surfaces, a $4 coffee does not", async () => {

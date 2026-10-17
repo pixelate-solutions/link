@@ -1,17 +1,20 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Search } from "lucide-react";
+import { Check, Search } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { recurringAction, searchAction } from "@/app/actions";
+import { recurringAction, searchAction, settleReviewAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { categoryLabel } from "@/lib/finance/categories";
+import { isPaymentRail } from "@/lib/finance/merchants";
 import { formatMoney } from "@/lib/finance/money";
 import type { Picture } from "@/lib/finance/plan";
 import type { TxnListRow } from "@/server/services/activity";
 import { cn, shortDate } from "@/lib/utils";
 import { MerchantMark } from "./category-dot";
+import { PICKABLE, reviewPrompt } from "./review";
 import { TransactionSheet } from "./transaction-sheet";
 
 type Filter = "all" | "review" | "recurring" | "income" | "transfers";
@@ -51,6 +54,7 @@ export function ActivityView({
   accounts,
   businesses,
   recurring,
+  logos,
   today,
 }: {
   initial: TxnListRow[];
@@ -59,6 +63,7 @@ export function ActivityView({
   accounts: { id: string; name: string; mask: string | null; businessId: string | null }[];
   businesses: { id: string; name: string }[];
   recurring: Picture["recurring"];
+  logos: Record<string, string>;
   today: string;
 }) {
   const params = useSearchParams();
@@ -141,37 +146,51 @@ export function ActivityView({
           </button>
         ))}
         {(accounts.length > 1 || businesses.length > 0) && filter !== "recurring" && (
-          <select
-            aria-label="Which accounts"
-            value={accountId}
-            onChange={(e) => setAccountId(e.target.value)}
-            className="ml-auto h-8 shrink-0 rounded-full bg-surface px-3 text-[13px] text-fg-2 outline-none"
-          >
-            <option value="">All accounts</option>
-            {businesses.length > 0 && (
-              <optgroup label="Personal or business">
-                <option value="scope:personal">Personal</option>
-                {businesses.map((b) => (
-                  <option key={b.id} value={`scope:${b.id}`}>
-                    {b.name}
-                  </option>
+          <Select value={accountId || "all"} onValueChange={(v) => setAccountId(v === "all" ? "" : v)}>
+            <SelectTrigger aria-label="Which accounts" size="sm" className="ml-auto h-8 max-w-[14rem] shrink-0 bg-surface px-3 text-[13px] text-fg-2">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value="all">All accounts</SelectItem>
+              {businesses.length > 0 && (
+                <SelectGroup>
+                  <SelectSeparator />
+                  <SelectLabel>Personal or business</SelectLabel>
+                  <SelectItem value="scope:personal">Personal</SelectItem>
+                  {businesses.map((b) => (
+                    <SelectItem key={b.id} value={`scope:${b.id}`}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              )}
+              <SelectGroup>
+                <SelectSeparator />
+                <SelectLabel>Account</SelectLabel>
+                {accounts.map((a) => (
+                  <SelectItem key={a.id} value={`acct:${a.id}`}>
+                    {a.name}
+                    {a.mask ? ` ··${a.mask}` : ""}
+                  </SelectItem>
                 ))}
-              </optgroup>
-            )}
-            <optgroup label="Account">
-              {accounts.map((a) => (
-                <option key={a.id} value={`acct:${a.id}`}>
-                  {a.name}
-                  {a.mask ? ` ··${a.mask}` : ""}
-                </option>
-              ))}
-            </optgroup>
-          </select>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         )}
       </div>
 
       {filter === "recurring" ? (
-        <RecurringList recurring={recurring} onChanged={() => router.refresh()} />
+        <RecurringList recurring={recurring} logos={logos} onChanged={() => router.refresh()} />
+      ) : filter === "review" && rows.length > 0 ? (
+        <ReviewList
+          rows={rows}
+          busy={pending}
+          onOpen={setOpen}
+          onChanged={() => {
+            load(false);
+            router.refresh();
+          }}
+        />
       ) : (
         <div className={cn("mt-5 transition-opacity", pending && "opacity-60")} aria-busy={pending}>
           {groups.length === 0 && !pending && (
@@ -184,7 +203,7 @@ export function ActivityView({
                 {g.rows.map((r) => (
                   <li key={r.id} className="border-b border-line last:border-0">
                     <button onClick={() => setOpen(r.id)} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2/60 focus-visible:bg-surface-2">
-                      <MerchantMark name={r.merchant} cat={r.category} />
+                      <MerchantMark name={r.merchant} cat={r.category} logo={r.logoUrl} />
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-1.5">
                           <span className="truncate text-[15px] font-medium">{r.merchant}</span>
@@ -221,7 +240,7 @@ export function ActivityView({
 
 const MONTHLY: Record<string, number> = { weekly: 52 / 12, biweekly: 26 / 12, semimonthly: 2, monthly: 1, quarterly: 1 / 3, semiannual: 1 / 6, annual: 1 / 12 };
 
-function RecurringList({ recurring, onChanged }: { recurring: Picture["recurring"]; onChanged: () => void }) {
+function RecurringList({ recurring, logos, onChanged }: { recurring: Picture["recurring"]; logos: Record<string, string>; onChanged: () => void }) {
   const [pending, start] = useTransition();
   const visible = recurring.filter((r) => r.kind === "income" || r.kind === "bill" || r.kind === "subscription" || (r.kind === "savings" && r.amount < 0));
   const sections = [
@@ -241,7 +260,7 @@ function RecurringList({ recurring, onChanged }: { recurring: Picture["recurring
           <ul className="overflow-hidden rounded-lg bg-surface">
             {s.items.map((r) => (
               <li key={r.key} className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-0">
-                <MerchantMark name={r.merchant} cat={r.category} />
+                <MerchantMark name={r.merchant} cat={r.category} logo={logos[r.merchant.toLowerCase()]} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[15px] font-medium">{r.merchant}</span>
                   <span className="block truncate text-[13px] text-muted">
@@ -260,6 +279,107 @@ function RecurringList({ recurring, onChanged }: { recurring: Picture["recurring
           </ul>
         </section>
       ))}
+    </div>
+  );
+}
+
+/**
+ * "Needs a look", grouped by merchant and direction: one answer settles every
+ * transaction in the group and teaches Link the merchant for the future.
+ */
+function ReviewList({ rows, busy, onOpen, onChanged }: { rows: TxnListRow[]; busy: boolean; onOpen: (id: string) => void; onChanged: () => void }) {
+  const [working, setWorking] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [, start] = useTransition();
+  const groups = new Map<string, TxnListRow[]>();
+  for (const r of rows) {
+    if (!r.needsReview) continue;
+    // Payment rails (Zelle, checks) group by the bank's description, i.e. by who was paid.
+    const key = `${r.merchantKey}|${r.amount < 0 ? "out" : "in"}${isPaymentRail(r.merchantKey) ? `|${r.name}` : ""}`;
+    groups.set(key, [...(groups.get(key) ?? []), r]);
+  }
+
+  const settle = (key: string, items: TxnListRow[], cat: string | null) =>
+    start(async () => {
+      const first = items[0]!;
+      setError(null);
+      setWorking(key);
+      const r = await settleReviewAction(
+        items.map((x) => x.id),
+        cat,
+      );
+      setWorking(null);
+      if (!r.ok) return setError(r.error);
+      setNotice(
+        isPaymentRail(first.merchantKey)
+          ? `${items.length === 1 ? "Saved" : `All ${items.length} saved`} as ${categoryLabel(cat ?? first.category)}.`
+          : `${first.merchant} is ${categoryLabel(cat ?? first.category)}. Link will remember that.`,
+      );
+      onChanged();
+    });
+
+  return (
+    <div className="mt-5">
+      <div className="rounded-lg bg-surface p-5">
+        <p className="text-[15px] font-semibold tracking-[-0.01em]">Link wasn&apos;t sure about these</p>
+        <p className="mt-1 text-[14px] text-fg-2">
+          Confirm or fix one and Link applies it to every transaction from that merchant, and remembers it next time. You can change any category later, even ones Link was sure about.
+        </p>
+      </div>
+      {notice && (
+        <p className="mt-3 flex items-center gap-1.5 px-1 text-[14px] text-accent-ink" role="status">
+          <Check size={15} /> {notice}
+        </p>
+      )}
+      {error && <p role="alert" className="mt-3 text-[13px] text-caution">{error}</p>}
+      <ul className="mt-3 space-y-2">
+        {[...groups.entries()].map(([key, items]) => {
+          const first = items[0]!;
+          const p = reviewPrompt(first.reason, first.category, first.kind, first.amount);
+          const total = items.reduce((s, r) => s + r.amount, 0);
+          return (
+            <motion.li key={key} layout className="rounded-lg bg-surface p-4">
+              <div className="flex items-start gap-3">
+                <button onClick={() => onOpen(first.id)} className="shrink-0" aria-label={`Open ${first.merchant}`}>
+                  <MerchantMark name={first.merchant} cat={first.category} logo={first.logoUrl} />
+                </button>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <button onClick={() => onOpen(first.id)} className="truncate text-left text-[15px] font-medium hover:underline">
+                      {first.merchant}
+                    </button>
+                    <span className={cn("shrink-0 text-[15px] tabular", total > 0 && "text-accent-ink")}>{formatMoney(total, { cents: items.length === 1, signed: total > 0 })}</span>
+                  </div>
+                  <p className="truncate text-[13px] text-muted">
+                    {isPaymentRail(first.merchantKey) && `${first.name} · `}
+                    {items.length > 1 ? `${items.length} transactions · latest ${shortDate(first.date)}` : shortDate(first.date)}
+                  </p>
+                  <p className="mt-3 text-[15px] font-medium">{p.ask}</p>
+                  <p className="text-[13px] text-fg-2">{p.why}</p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Button size="sm" variant="primary" busy={working === key} disabled={busy && working !== key} onClick={() => settle(key, items, null)}>
+                      <Check size={14} /> Yes{items.length > 1 ? `, all ${items.length}` : ""}
+                    </Button>
+                    <Select value="" onValueChange={(v) => settle(key, items, v)} disabled={working === key}>
+                      <SelectTrigger aria-label={`Choose the right category for ${first.merchant}`} className="h-8 text-[13px]">
+                        <SelectValue placeholder="No, it's…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PICKABLE.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {categoryLabel(c)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </motion.li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

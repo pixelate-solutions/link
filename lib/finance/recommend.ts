@@ -418,13 +418,13 @@ function businessRecs(ctx: Ctx): RecommendationDraft[] {
         basis: gap,
         score: 0,
       });
-    } else if (b.draws > 0 && b.profit > 0 && b.draws > b.profit * 1.15 && b.cash < (b.expenses + b.draws) * 3) {
-      const over = b.draws - b.profit;
+    } else if (b.draws > 0 && b.ownerProfit > 0 && b.draws > b.ownerProfit * 1.15 && b.cash < (b.expenses + b.draws) * 3) {
+      const over = b.draws - b.ownerProfit;
       out.push({
         fingerprint: `business_draws:${b.id}`,
         kind: "business_draws",
         title: `You're taking ${formatMoney(over)} a month more from ${b.name} than it earns`,
-        detail: `It earns about ${formatMoney(b.profit)} a month and you draw ${formatMoney(b.draws)}, so its cash is shrinking. Drawing ${formatMoney(Math.floor(b.profit / 50_00) * 50_00)} or less keeps it steady.`,
+        detail: `${b.ownershipPct < 100 ? `Your ${b.ownershipPct}% of its profit is` : "It earns"} about ${formatMoney(b.ownerProfit)} a month and you draw ${formatMoney(b.draws)}, so its cash is shrinking. Drawing ${formatMoney(Math.floor(b.ownerProfit / 50_00) * 50_00)} or less keeps it steady.`,
         impact: { monthly: over, annual: over * 12 },
         evidence: [
           { label: "Typical profit", value: `${formatMoney(b.profit)}/mo` },
@@ -442,15 +442,21 @@ function businessRecs(ctx: Ctx): RecommendationDraft[] {
         score: 0,
       });
     }
-    if (b.profit >= 500_00 && b.taxSetAsideMonthly > 0) {
+    if (b.ownerProfit >= 500_00 && b.taxSetAsideMonthly > 0) {
+      const fromPersonal = b.personalTaxMonthly > 0;
       out.push({
         fingerprint: `business_taxes:${b.id}`,
         kind: "business_taxes",
-        title: `Set aside about ${formatMoney(Math.round(b.taxSetAsideMonthly / 25_00) * 25_00)} a month from ${b.name} for taxes`,
-        detail: `That's ${b.taxSetAsidePct}% of its typical ${formatMoney(b.profit)} monthly profit, so quarterly estimated taxes don't come out of your plan.`,
+        title: `Set aside about ${formatMoney(Math.round(b.taxSetAsideMonthly / 25_00) * 25_00)} a month for ${b.name}'s taxes`,
+        detail: !b.passThrough
+          ? `That's ${b.taxSetAsidePct}% of its typical profit, kept in the business for the taxes it owes.`
+          : fromPersonal
+            ? `Your ${formatMoney(b.ownerProfit)} monthly share of profit is taxed on your personal return, and you draw most of it out, so about ${formatMoney(b.personalTaxMonthly)} of the tax will come from your personal money. Your plan already holds that back; a separate savings account for it makes quarterly payments painless.`
+            : `Your ${formatMoney(b.ownerProfit)} monthly share of profit is taxed on your personal return even though you leave it in the business. Keep about this much there for quarterly estimated payments.`,
         impact: { monthly: b.taxSetAsideMonthly, annual: b.taxSetAsideMonthly * 12 },
         evidence: [
-          { label: "Typical profit", value: `${formatMoney(b.profit)}/mo` },
+          { label: b.ownershipPct < 100 ? `Your ${b.ownershipPct}% of profit` : "Typical profit", value: `${formatMoney(b.ownerProfit)}/mo` },
+          { label: "Your draws", value: `${formatMoney(b.draws)}/mo` },
           { label: "Set-aside rate", value: `${b.taxSetAsidePct}%` },
         ],
         assumptions: [`${b.taxSetAsidePct}% is a rough rule of thumb you can change; your actual rate depends on your situation.`],
@@ -499,9 +505,23 @@ export function generateRecommendations(ctx: Ctx): RecommendationDraft[] {
   return all.sort((a, b) => b.score - a.score);
 }
 
-/** A dismissed recommendation resurfaces only after a material change in its impact. */
-export function shouldResurface(prevBasis: Minor, nextBasis: Minor, dismissedAt: Date, now: Date): boolean {
+/** Feedback markers on recommendation rows. */
+export const SKIPPED = "skipped";
+export const RESURFACED = "resurfaced";
+
+/** Score at or above which a skipped recommendation is worth showing again. */
+export const RESURFACE_SCORE = 0.6;
+/** How long a skipped, important recommendation stays away. */
+export const RESURFACE_SKIPPED_DAYS = 7;
+
+/**
+ * A dismissed recommendation resurfaces after a material change in its impact.
+ * A skipped one ("not now") also comes back after a week if it still ranks as
+ * important: people skip by accident, or before they understood it.
+ */
+export function shouldResurface(prevBasis: Minor, nextBasis: Minor, dismissedAt: Date, now: Date, skipped?: { score: number }): boolean {
   const days = (now.getTime() - dismissedAt.getTime()) / 86_400_000;
+  if (skipped && skipped.score >= RESURFACE_SCORE && days >= RESURFACE_SKIPPED_DAYS) return true;
   if (days < 30) return false;
   if (prevBasis === 0) return nextBasis > 0;
   return Math.abs(nextBasis - prevBasis) / Math.abs(prevBasis) >= 0.5;

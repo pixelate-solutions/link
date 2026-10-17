@@ -48,7 +48,7 @@ if (page.url().includes("welcome")) {
 await page.waitForLoadState("networkidle");
 await page.screenshot({ path: `${out}/04-home.png`, fullPage: true });
 await page.click("text=Ask Link");
-await page.fill("#ask-input", "I'm 38. Without any accounts connected yet, what do you need from me to plan an early retirement?");
+await page.fill("#ask-input", process.env.QUESTION ?? "I'm 38. Without any accounts connected yet, what do you need from me to plan an early retirement?");
 await page.keyboard.press("Enter");
 await page.waitForTimeout(1500);
 await page.waitForFunction(() => {
@@ -58,5 +58,15 @@ await page.waitForFunction(() => {
 await page.waitForTimeout(1000);
 await page.screenshot({ path: `${out}/05-ask.png` });
 const answer = await page.locator('[aria-live="polite"]').innerText();
+await page.keyboard.press("Escape");
+await page.getByRole("button", { name: "Account and settings" }).first().click();
+await page.waitForSelector("text=Connected accounts");
+await page.waitForTimeout(800);
+await page.screenshot({ path: `${out}/06-account.png` });
+for (const path of ["plan", "activity"]) {
+  await page.goto(`${base}/${path}`);
+  await page.waitForLoadState("networkidle");
+  await page.screenshot({ path: `${out}/07-${path}.png`, fullPage: true });
+}
 console.log(JSON.stringify({ url: page.url(), hosts: [...hosts].filter((h) => !h.includes("clerk")).sort(), api, errors, answer: answer.slice(-900) }, null, 1));
 await browser.close();

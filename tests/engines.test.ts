@@ -10,6 +10,8 @@ import type { LedgerAccount, LedgerTxn } from "@/lib/finance/ledger";
 import { detectRecurring } from "@/lib/finance/recurring";
 import { shouldResurface } from "@/lib/finance/recommend";
 import { matchTransfers } from "@/lib/finance/transfers";
+import { type BusinessRecord, isOwnersMoney, ownerEconomics } from "@/lib/finance/business";
+import { kindForCategory } from "@/lib/finance/classify";
 
 let n = 0;
 const tx = (p: Partial<LedgerTxn> & { date: string; amount: number }): LedgerTxn => ({
@@ -35,6 +37,21 @@ describe("transfers", () => {
       { id: "f", accountId: "sav", accountType: "depository", amount: 90000, date: "2026-10-09", kind: "transfer" },
     ]);
     expect(m.map((x) => [x.outflowId, x.inflowId])).toEqual([["a", "b"]]);
+  });
+  it("pairs business ↔ personal moves as draws, but not two unrelated real events of the same size", () => {
+    const draw = matchTransfers([
+      { id: "a", accountId: "biz", accountType: "depository", amount: -300000, date: "2026-10-01", kind: "transfer", businessId: "b1" },
+      { id: "b", accountId: "chk", accountType: "depository", amount: 300000, date: "2026-10-02", kind: "income" },
+    ]);
+    expect(draw.map((x) => [x.outflowKind, x.inflowCategory])).toEqual([["owner_draw", "owner_draw"]]);
+    // S corp payroll debit and the owner's paycheck; client retainer and personal rent.
+    const separate = matchTransfers([
+      { id: "p", accountId: "biz", accountType: "depository", amount: -412000, date: "2026-10-13", kind: "expense", businessId: "b1" },
+      { id: "q", accountId: "chk", accountType: "depository", amount: 412000, date: "2026-10-15", kind: "income" },
+      { id: "r", accountId: "chk", accountType: "depository", amount: -200000, date: "2026-10-01", kind: "expense" },
+      { id: "s", accountId: "biz", accountType: "depository", amount: 200000, date: "2026-10-03", kind: "income", businessId: "b1" },
+    ]);
+    expect(separate).toEqual([]);
   });
   it("labels card payments and loan payments by the receiving account", () => {
     const [card] = matchTransfers([
@@ -117,6 +134,17 @@ describe("safe to spend", () => {
     expect(model.cash).toBe(-7500);
     expect(s.amount).toBeLessThan(0);
     expect(s.perDay).toBe(0);
+  });
+  it("has a breakdown that adds up to the total when pending charges are itemized", () => {
+    const model = buildCashModel({
+      accounts: [checking({ current: 500000, available: null })],
+      txns: [tx({ date: "2026-10-14", amount: -2500, pending: true })],
+      series: [],
+      asOf: "2026-10-15",
+    });
+    const s = safeToSpend({ model, essentialMonthly: 0, now });
+    expect(s.breakdown.find((b) => b.label === "Pending (deducted)")?.amount).toBe(-2500);
+    expect(s.breakdown.reduce((a, b) => a + b.amount, 0)).toBe(s.amount);
   });
 });
 
@@ -203,5 +231,38 @@ describe("recommendation resurfacing", () => {
     expect(shouldResurface(10000, 20000, d, new Date("2026-09-10"))).toBe(false);
     expect(shouldResurface(10000, 11000, d, new Date("2026-10-10"))).toBe(false);
     expect(shouldResurface(10000, 16000, d, new Date("2026-10-10"))).toBe(true);
+  });
+
+  it("brings back a skipped item after a week only if it is still important", () => {
+    const d = new Date("2026-09-01");
+    expect(shouldResurface(10000, 10000, d, new Date("2026-09-05"), { score: 0.9 })).toBe(false);
+    expect(shouldResurface(10000, 10000, d, new Date("2026-09-09"), { score: 0.9 })).toBe(true);
+    expect(shouldResurface(10000, 10000, d, new Date("2026-09-20"), { score: 0.3 })).toBe(false);
+  });
+});
+
+describe("business owner economics", () => {
+  const rec = (p: Partial<BusinessRecord> = {}): BusinessRecord => ({ id: "b", name: "B", structure: "llc", ownershipPct: 100, countTowardGoals: false, taxSetAsidePct: 25, ...p });
+  it("puts the tax on drawn-out profit on personal money, and lets retained profit pay its own", () => {
+    // Profit $6k/mo, all drawn: the whole $1.5k of tax falls on personal money.
+    expect(ownerEconomics(rec(), 600000, 600000)).toMatchObject({ ownerProfit: 600000, taxSetAsideMonthly: 150000, personalTaxMonthly: 150000, retainedMonthly: 0 });
+    // Profit $8k, $3k drawn: $5k stays in the business and covers the $2k of tax there.
+    expect(ownerEconomics(rec(), 800000, 300000)).toMatchObject({ taxSetAsideMonthly: 200000, personalTaxMonthly: 0, retainedMonthly: 300000 });
+  });
+  it("uses only the owner's share of profit for partners, and leaves corporate tax with the business", () => {
+    expect(ownerEconomics(rec({ structure: "partnership", ownershipPct: 50 }), 2000000, 500000)).toMatchObject({ ownerProfit: 1000000, taxSetAsideMonthly: 250000, personalTaxMonthly: 0 });
+    expect(ownerEconomics(rec({ structure: "other" }), 600000, 600000)).toMatchObject({ passThrough: false, personalTaxMonthly: 0 });
+  });
+  it("treats a sole proprietorship's money as the owner's", () => {
+    expect(isOwnersMoney(rec({ structure: "sole_prop" }))).toBe(true);
+    expect(isOwnersMoney(rec({ structure: "s_corp" }))).toBe(false);
+    expect(isOwnersMoney(rec({ structure: "s_corp", countTowardGoals: true }))).toBe(true);
+  });
+  it("maps business categories to the right kind", () => {
+    expect(kindForCategory("revenue", 50000)).toBe("income");
+    expect(kindForCategory("owner_draw", -50000)).toBe("owner_draw");
+    expect(kindForCategory("owner_draw", 50000)).toBe("income");
+    expect(kindForCategory("owner_contribution", -50000)).toBe("investment_transfer");
+    expect(kindForCategory("software", 1000)).toBe("refund");
   });
 });

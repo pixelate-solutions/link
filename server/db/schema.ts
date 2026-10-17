@@ -197,6 +197,8 @@ export const transactions = link.table(
     providerDetailed: text("provider_detailed"),
     providerConfidence: text("provider_confidence"),
     paymentChannel: text("payment_channel"),
+    logoUrl: text("logo_url"),
+    website: text("website"),
     // Enrichment.
     merchant: text("merchant").notNull(),
     merchantKey: text("merchant_key").notNull(),

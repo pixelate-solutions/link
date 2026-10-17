@@ -2,7 +2,9 @@ import { and, desc, eq } from "drizzle-orm";
 import type { Picture } from "@/lib/finance/plan";
 import { daysBetween } from "@/lib/finance/dates";
 import { getDb, schema } from "../db/client";
+import { RESURFACED } from "@/lib/finance/recommend";
 import { listConnections } from "./account";
+import { merchantLogos } from "./activity";
 import { activeRecommendations, getPicture } from "./picture";
 import { listPendingProposals } from "./proposals";
 
@@ -17,6 +19,8 @@ export type RecView = {
   assumptions: string[];
   tradeoffs: string | null;
   confidence: number;
+  /** Skipped earlier and brought back because it still matters. */
+  resurfaced: boolean;
 };
 
 export function toRecView(r: Awaited<ReturnType<typeof activeRecommendations>>[number]): RecView {
@@ -31,6 +35,7 @@ export function toRecView(r: Awaited<ReturnType<typeof activeRecommendations>>[n
     assumptions: r.assumptions as string[],
     tradeoffs: r.tradeoffs,
     confidence: r.confidence,
+    resurfaced: r.feedback === RESURFACED,
   };
 }
 
@@ -44,6 +49,10 @@ export interface HomeView {
   proposals: { id: string; summary: string }[];
   needsReconnect: { id: string; institution: string | null }[];
   demo: boolean;
+  /** Things the user wrote down for Link to keep in mind, newest first. */
+  context: { id: string; content: string }[];
+  /** Merchant name (lowercased) → logo, for upcoming bills. */
+  logos: Record<string, string>;
 }
 
 /** Decide what Home leads with. Deterministic: same data, same layout. */
@@ -60,15 +69,28 @@ export async function homeView(userId: string): Promise<HomeView> {
   const db = await getDb();
   const [connections, [user]] = await Promise.all([listConnections(userId), db.select().from(schema.users).where(eq(schema.users.id, userId))]);
   const picture = connections.length ? await getPicture(userId) : null;
-  const [recs, proposals] = await Promise.all([activeRecommendations(userId), listPendingProposals(userId)]);
+  const [recs, proposals, context, logos] = await Promise.all([
+    activeRecommendations(userId),
+    listPendingProposals(userId),
+    db
+      .select({ id: schema.memories.id, content: schema.memories.content })
+      .from(schema.memories)
+      .where(and(eq(schema.memories.userId, userId), eq(schema.memories.kind, "context")))
+      .orderBy(desc(schema.memories.createdAt))
+      .limit(20),
+    connections.length ? merchantLogos(userId) : Promise.resolve({}),
+  ]);
   return {
     mode: homeMode(picture, connections),
     name: user?.name ?? null,
     picture,
-    recommendations: recs.slice(0, 4).map(toRecView),
+    // Three are shown; the rest step in as the user skips.
+    recommendations: recs.slice(0, 8).map(toRecView),
     proposals: proposals.slice(0, 3).map((p) => ({ id: p.id, summary: p.summary })),
     needsReconnect: connections.filter((c) => c.status === "login_required").map((c) => ({ id: c.id, institution: c.institutionName })),
     demo: connections.some((c) => c.provider === "demo"),
+    context,
+    logos,
   };
 }
 

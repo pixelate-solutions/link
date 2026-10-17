@@ -1,10 +1,10 @@
 import { and, eq, inArray, notInArray } from "drizzle-orm";
 import { computeAll, type Picture, type PlanInputs } from "@/lib/finance/plan";
-import { generateRecommendations, type RecommendationDraft, shouldResurface } from "@/lib/finance/recommend";
+import { generateRecommendations, RESURFACED, type RecommendationDraft, SKIPPED, shouldResurface } from "@/lib/finance/recommend";
 import { type Db, getDb, schema } from "../db/client";
 import { loadUserData, type UserData } from "./data";
 
-export const PICTURE_VERSION = 3;
+export const PICTURE_VERSION = 4;
 
 export interface PlanContext {
   data: UserData;
@@ -68,6 +68,7 @@ export async function refreshPicture(userId: string, now = new Date()): Promise<
  *  - new fingerprint → inserted as active
  *  - existing active → refreshed in place (no duplicates)
  *  - dismissed → stays dismissed unless the impact changed materially after 30 days
+ *  - skipped → comes back after a week if it still ranks as important (marked "resurfaced")
  *  - applied/done → never re-created for the same fingerprint
  *  - active but no longer generated → expired
  */
@@ -99,10 +100,10 @@ export async function syncRecommendations(db: Db, userId: string, drafts: Recomm
         .update(schema.recommendations)
         .set({ ...values, status: "active", basisMinor: d.basis })
         .where(and(eq(schema.recommendations.id, row.id), eq(schema.recommendations.userId, userId)));
-    } else if (row.status === "dismissed" && row.resolvedAt && shouldResurface(row.basisMinor, d.basis, row.resolvedAt, now)) {
+    } else if (row.status === "dismissed" && row.resolvedAt && shouldResurface(row.basisMinor, d.basis, row.resolvedAt, now, row.feedback === SKIPPED ? { score: d.score } : undefined)) {
       await db
         .update(schema.recommendations)
-        .set({ ...values, status: "active", basisMinor: d.basis, resolvedAt: null, feedback: null })
+        .set({ ...values, status: "active", basisMinor: d.basis, resolvedAt: null, feedback: RESURFACED })
         .where(and(eq(schema.recommendations.id, row.id), eq(schema.recommendations.userId, userId)));
     }
   }

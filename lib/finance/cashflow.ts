@@ -286,10 +286,12 @@ export function safeToSpend(input: {
     input.bufferOverride ?? Math.max(100_00, Math.round(((input.essentialMonthly / DAYS_PER_MONTH) * 7) / 10_00) * 10_00);
 
   const amount = model.cash + incomeTotal - billsTotal - savingsTotal - committed - buffer;
+  // model.cash is already net of pending charges; when they're itemized, show the balance before them so the rows add up.
+  const showPending = !model.usedAvailable && model.pendingOutflows > 0;
   const breakdown = [
-    { label: "Spendable cash", amount: model.cash },
+    { label: "Spendable cash", amount: model.cash + (showPending ? model.pendingOutflows : 0) },
     ...(incomeTotal ? [{ label: reliable.length === 1 ? "Paycheck expected first" : "Paychecks expected first", amount: incomeTotal }] : []),
-    ...(model.usedAvailable || !model.pendingOutflows ? [] : [{ label: "Pending (deducted)", amount: -model.pendingOutflows }]),
+    ...(showPending ? [{ label: "Pending (deducted)", amount: -model.pendingOutflows }] : []),
     { label: "Bills in this window", amount: -billsTotal },
     ...(savingsTotal ? [{ label: "Scheduled savings", amount: -savingsTotal }] : []),
     ...(committed ? [{ label: "Savings you committed to", amount: -committed }] : []),

@@ -101,7 +101,16 @@ describe("business accounts", () => {
   it("recommends a tax set-aside from business profit", async () => {
     const recs = await activeRecommendations(U);
     const tax = recs.find((r) => r.kind === "business_taxes");
-    expect(tax?.title).toMatch(/Rivera Studio LLC for taxes/);
+    expect(tax?.title).toMatch(/Rivera Studio LLC's taxes/);
+  });
+
+  it("holds back tax on drawn-out profit in the personal plan", async () => {
+    const { picture: p, inputs } = await computeContext(U);
+    const b = p.businesses[0]!;
+    expect(b.passThrough).toBe(true);
+    expect(b.taxSetAsideMonthly).toBe(Math.round((b.ownerProfit * b.taxSetAsidePct) / 100));
+    expect(p.flows.businessTaxMonthly).toBe(b.personalTaxMonthly);
+    expect(inputs.businessTaxMonthly).toBe(b.personalTaxMonthly);
   });
 
   it("turning the business off makes its accounts personal again", async () => {
