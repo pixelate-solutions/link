@@ -310,7 +310,7 @@ export async function actOnRecommendation(userId: string, id: string, action: "a
     return { status: "done" as const };
   }
   const a = rec.action as { type: string; category?: string; monthly?: number; changes?: ScenarioChange[] } | null;
-  let result: { status: "applied"; scenarioId?: string } = { status: "applied" };
+  const result: { status: "applied"; scenarioId?: string } = { status: "applied" };
   if (a?.type === "budget" && a.category && isCategoryId(a.category) && a.monthly != null) {
     await setBudgetItem(userId, a.category, a.monthly, "recommendation");
   } else if (a?.type === "commit_savings" && a.monthly) {

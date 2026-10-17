@@ -1,4 +1,4 @@
-import { type Baseline, computeBaseline, monthToDate } from "./analysis";
+import { type Baseline, computeBaseline, monthToDate, typicalSpendByDay } from "./analysis";
 import { type BudgetItem, type BudgetLine, autoBudget, budgetStatus } from "./budget";
 import { type CashModel, type Forecast, type SafeToSpend, buildCashModel, forecastCash, safeToSpend } from "./cashflow";
 import type { CategoryId } from "./categories";
@@ -81,7 +81,7 @@ export interface GoalView {
   /** Extra monthly amount Link's plan suggests on top. */
   allocationMonthly: Minor;
   /** The projection if the plan's extra amount is followed. */
-  withPlan?: { headline: string; status: GoalStatus; projectedDate?: ISODate | null } | null;
+  withPlan?: { headline: string; status: GoalStatus; projectedDate?: ISODate | null; fiWindow?: FiProjection["window"] } | null;
   fi?: FiProjection;
   targetAmount?: Minor;
   savedAmount?: Minor;
@@ -127,7 +127,7 @@ export interface Picture {
   recurring: Pick<RecurringSeries, "key" | "merchant" | "kind" | "category" | "cadence" | "amount" | "nextDate" | "confidence" | "accountId" | "occurrences" | "firstDate" | "lastDate">[];
   safeToSpend: SafeToSpend;
   forecast: { days: number; points: { date: ISODate; expected: Minor; low: Minor; high: Minor }[]; shortfall: Forecast["shortfall"]; lowest: Forecast["lowest"]; events: Forecast["events"] };
-  budget: { lines: BudgetLine[]; spentThisMonth: Minor; plannedThisMonth: Minor; incomeThisMonth: Minor };
+  budget: { lines: BudgetLine[]; spentThisMonth: Minor; plannedThisMonth: Minor; incomeThisMonth: Minor; typicalByNow: Minor };
   goals: GoalView[];
   allocations: Allocation[];
   questions: { key: FactKey; question: string; why: string; goalId: string }[];
@@ -614,7 +614,7 @@ export function computeAll(input: PictureInput): { picture: Picture; inputs: Pla
       const extra = allocationFor(g.id);
       if (extra > 0) {
         const planned = projectGoal(g, inputs, contribution + extra, ctx);
-        view.withPlan = { headline: planned.headline, status: planned.status, projectedDate: planned.projectedDate ?? null };
+        view.withPlan = { headline: planned.headline, status: planned.status, projectedDate: planned.projectedDate ?? null, fiWindow: planned.fi?.window ?? null };
       }
       return { ...view, contributionMonthly: contribution, allocationMonthly: extra };
     });
@@ -686,6 +686,7 @@ export function computeAll(input: PictureInput): { picture: Picture; inputs: Pla
       spentThisMonth: mtd.total,
       plannedThisMonth: budgetItems.reduce((s, i) => s + i.monthly, 0),
       incomeThisMonth: mtd.income,
+      typicalByNow: typicalSpendByDay(ledger, baseline.months, Number(asOf.slice(8, 10))),
     },
     goals: goalViews,
     allocations,

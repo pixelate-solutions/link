@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { getDb, schema } from "./db/client";
 import { sign, unsign } from "./crypto";
 
@@ -23,6 +24,8 @@ export class UnauthorizedError extends Error {
 
 /** Resolve the signed-in user's id on the server. Never accepts an id from the client. */
 export async function currentUserId(): Promise<string | null> {
+  // Identity is per request: never let a page that checks it be prerendered.
+  await connection();
   const mode = authMode();
   if (mode === "clerk") {
     const { auth } = await import("@clerk/nextjs/server");

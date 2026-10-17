@@ -177,3 +177,19 @@ export function monthToDate(txns: LedgerTxn[], asOf: ISODate): { total: Minor; b
   }
   return { total, byCategory, income };
 }
+
+/**
+ * What a typical month had spent by this day of the month (median across
+ * complete months), so fixed bills early in the month don't read as overspending.
+ */
+export function typicalSpendByDay(txns: LedgerTxn[], months: string[], day: number): Minor {
+  if (!months.length) return 0;
+  const set = new Set(months);
+  const totals = new Map<string, Minor>(months.map((m) => [m, 0]));
+  for (const t of txns) {
+    const m = monthKey(t.date);
+    if (t.pending || !set.has(m) || Number(t.date.slice(8, 10)) > day) continue;
+    for (const l of lines(t)) if (countsAsSpending(l.kind)) totals.set(m, totals.get(m)! - l.amount);
+  }
+  return median([...totals.values()]);
+}

@@ -281,3 +281,24 @@ export function projectFi(inputs: FiInputs, opts: { paths?: number; sensitivity?
     sensitivity,
   };
 }
+
+/** Year-by-year portfolio (investments + retained cash) under one scenario, for charts. */
+export function trajectory(inputs: FiInputs, a: Assumptions, years: number): { year: number; value: Minor; required: Minor }[] {
+  const out: { year: number; value: Minor; required: Minor }[] = [];
+  let p = inputs.investable;
+  let cash = 0;
+  const r = (1 + a.realReturn) ** (1 / 12) - 1;
+  for (let m = 0; m <= years * 12; m++) {
+    if (m % 12 === 0) out.push({ year: m / 12, value: Math.round(p + cash), required: requiredPortfolio(inputs, a, m) });
+    const c = contributionAt(inputs, m);
+    p = p * (1 + r) + c.invest;
+    cash += c.cash;
+    for (const e of inputs.events ?? []) if (e.oneTime && Math.round(e.startYear * 12) === m) cash += e.oneTime;
+    if (cash < 0) {
+      p += cash;
+      cash = 0;
+    }
+    if (p < 0) p = 0;
+  }
+  return out;
+}

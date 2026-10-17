@@ -238,7 +238,7 @@ export async function syncConnection(connectionId: string, userId: string): Prom
     .select()
     .from(schema.connections)
     .where(and(eq(schema.connections.id, connectionId), eq(schema.connections.userId, userId)));
-  if (!conn || conn.status === "disconnected") return { accounts: 0, added: 0, modified: 0, removed: 0 };
+  if (!conn || conn.status === "disconnected" || conn.provider !== "plaid") return { accounts: 0, added: 0, modified: 0, removed: 0 };
   const accessToken = decryptSecret(conn.accessTokenEnc, conn.itemId);
   const api = plaid();
   try {
@@ -332,7 +332,7 @@ export async function disconnect(userId: string, connectionId: string, deleteDat
     .from(schema.connections)
     .where(and(eq(schema.connections.id, connectionId), eq(schema.connections.userId, userId)));
   if (!conn) throw new Error("Connection not found");
-  if (conn.status !== "disconnected") {
+  if (conn.status !== "disconnected" && conn.provider === "plaid") {
     try {
       await plaid().itemRemove({ access_token: decryptSecret(conn.accessTokenEnc, conn.itemId) });
     } catch (err) {

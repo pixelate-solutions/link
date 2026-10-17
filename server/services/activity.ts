@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, ilike, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { type CategoryId, isCategoryId, type TransactionKind, TRANSACTION_KINDS } from "@/lib/finance/categories";
 import type { Rule } from "@/lib/finance/classify";
 import type { Minor } from "@/lib/finance/money";

@@ -1,4 +1,6 @@
-import { type CategoryId, type TransactionKind, isCategoryId } from "./categories";
+import { type CategoryId, category as categoryDef, type TransactionKind, isCategoryId } from "./categories";
+
+const categoryLabelLower = (c: CategoryId) => categoryDef(c).label.toLowerCase();
 import type { Minor } from "./money";
 import { normalizeMerchant } from "./merchants";
 
@@ -305,7 +307,7 @@ export function classify(input: ClassifyInput, ctx: ClassifyContext = {}): Class
       category: m.category,
       source: "merchant",
       confidence: 0.92,
-      reason: `${m.name} is a known ${m.category.replace("_", " ")} merchant`,
+      reason: `${m.name} is a known ${categoryLabelLower(m.category)} merchant`,
     });
   }
   if (providerCat && providerConf >= 0.7) {
