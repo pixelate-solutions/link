@@ -135,6 +135,14 @@ describe("safe to spend", () => {
     expect(s.amount).toBeLessThan(0);
     expect(s.perDay).toBe(0);
   });
+  it("counts savings as cash, so moving money into savings isn't a cost", () => {
+    const model = buildCashModel({ accounts: [checking({ current: 300000, available: 300000 })], txns: [], series: [], asOf: "2026-10-15" });
+    const without = safeToSpend({ model, essentialMonthly: 0, now });
+    const withSavings = safeToSpend({ model, essentialMonthly: 0, now, savings: 1200000, committedSavingsMonthly: 50000 });
+    expect(withSavings.amount - without.amount).toBe(1200000);
+    expect(withSavings.breakdown.map((b) => b.label)).toEqual(["Checking", "Savings", "Bills in this window", "Safety buffer"]);
+    expect(withSavings.breakdown.reduce((a, b) => a + b.amount, 0)).toBe(withSavings.amount);
+  });
   it("has a breakdown that adds up to the total when pending charges are itemized", () => {
     const model = buildCashModel({
       accounts: [checking({ current: 500000, available: null })],

@@ -620,7 +620,11 @@ export function computeAll(input: PictureInput): { picture: Picture; inputs: Pla
     }
   }
   const committedSavings = prefs.committedSavingsMonthly ?? 0;
-  const sts = safeToSpend({ model, essentialMonthly: baseline.essential, bufferOverride: prefs.bufferMinor, committedSavingsMonthly: committedSavings, now: input.now, cardPaymentDays });
+  // Personal savings and money market count as cash; CDs are locked up and stay out.
+  const savingsCash = visible
+    .filter((a) => isCashReserve(a) && (a.subtype ?? "").toLowerCase() !== "cd")
+    .reduce((s, a) => s + Math.max(0, a.available ?? a.current ?? 0), 0);
+  const sts = safeToSpend({ model, essentialMonthly: baseline.essential, bufferOverride: prefs.bufferMinor, committedSavingsMonthly: committedSavings, now: input.now, cardPaymentDays, savings: savingsCash });
   const fc = forecastCash(model, 90, cardPaymentDays);
 
   const mtd = monthToDate(ledger, asOf);

@@ -4,7 +4,7 @@ import { generateRecommendations, RESURFACED, type RecommendationDraft, SKIPPED,
 import { type Db, getDb, schema } from "../db/client";
 import { loadUserData, type UserData } from "./data";
 
-export const PICTURE_VERSION = 4;
+export const PICTURE_VERSION = 5;
 
 export interface PlanContext {
   data: UserData;

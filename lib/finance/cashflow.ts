@@ -239,6 +239,8 @@ export function safeToSpend(input: {
   committedSavingsMonthly?: Minor;
   now?: Date;
   cardPaymentDays?: Map<string, number[]>;
+  /** Cash in savings and money market accounts. It counts, and moving money into it isn't a cost. */
+  savings?: Minor;
 }): SafeToSpend {
   const { model } = input;
   const limitations: string[] = [];
@@ -285,16 +287,22 @@ export function safeToSpend(input: {
   const buffer =
     input.bufferOverride ?? Math.max(100_00, Math.round(((input.essentialMonthly / DAYS_PER_MONTH) * 7) / 10_00) * 10_00);
 
-  const amount = model.cash + incomeTotal - billsTotal - savingsTotal - committed - buffer;
+  // With savings in the pool, a transfer from checking to savings is money that stays yours.
+  const savings = Math.max(0, input.savings ?? 0);
+  const countsSavings = input.savings != null;
+  const leaving = countsSavings ? 0 : savingsTotal;
+  const reserved = countsSavings ? 0 : committed;
+  const amount = model.cash + savings + incomeTotal - billsTotal - leaving - reserved - buffer;
   // model.cash is already net of pending charges; when they're itemized, show the balance before them so the rows add up.
   const showPending = !model.usedAvailable && model.pendingOutflows > 0;
   const breakdown = [
-    { label: "Spendable cash", amount: model.cash + (showPending ? model.pendingOutflows : 0) },
+    { label: countsSavings ? "Checking" : "Spendable cash", amount: model.cash + (showPending ? model.pendingOutflows : 0) },
+    ...(countsSavings ? [{ label: "Savings", amount: savings }] : []),
     ...(incomeTotal ? [{ label: reliable.length === 1 ? "Paycheck expected first" : "Paychecks expected first", amount: incomeTotal }] : []),
     ...(showPending ? [{ label: "Pending (deducted)", amount: -model.pendingOutflows }] : []),
     { label: "Bills in this window", amount: -billsTotal },
-    ...(savingsTotal ? [{ label: "Scheduled savings", amount: -savingsTotal }] : []),
-    ...(committed ? [{ label: "Savings you committed to", amount: -committed }] : []),
+    ...(leaving ? [{ label: "Scheduled savings", amount: -leaving }] : []),
+    ...(reserved ? [{ label: "Savings you committed to", amount: -reserved }] : []),
     { label: "Safety buffer", amount: -buffer },
   ];
 

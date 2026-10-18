@@ -132,11 +132,13 @@ describe("ingestion → classification → planning (synthetic household)", () =
     expect(cats).not.toContain("card_payment");
   });
 
-  it("calculates Safe to Spend from checking, bills before payday and a buffer — not the raw balance", () => {
+  it("calculates cash after bills from checking and savings, bills before payday and a buffer — not the raw balance", () => {
     const s = picture.safeToSpend;
     expect(["ok", "estimate"]).toContain(s.status);
     expect(s.horizonReason).toBe("next_income");
-    expect(s.amount).toBeLessThan(picture.position.cash);
+    const paychecks = s.breakdown.filter((b) => b.label.startsWith("Paycheck")).reduce((a, b) => a + b.amount, 0);
+    expect(s.amount).toBeLessThan(picture.position.cash + picture.position.reserves + paychecks);
+    expect(s.breakdown.find((b) => b.label === "Savings")?.amount).toBe(picture.position.reserves);
     const total = s.breakdown.reduce((a, b) => a + b.amount, 0);
     expect(total).toBe(s.amount);
   });

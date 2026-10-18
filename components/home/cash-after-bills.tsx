@@ -54,7 +54,7 @@ export function CashAfterBills({ picture, compact }: { picture: Picture; compact
               {s.breakdown.map((b) => (
                 <div key={b.label} className="flex justify-between gap-3">
                   <dt className="text-fg-2">{b.label}</dt>
-                  <dd className="tabular">{formatMoney(b.amount, { signed: b.amount > 0 && b.label !== "Spendable cash" })}</dd>
+                  <dd className="tabular">{formatMoney(b.amount, { signed: b.amount > 0 && !["Spendable cash", "Checking", "Savings"].includes(b.label) })}</dd>
                 </div>
               ))}
               <div className="flex justify-between border-t border-line pt-1.5 font-medium">
