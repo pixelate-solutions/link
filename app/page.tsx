@@ -22,7 +22,7 @@ export default async function Landing() {
           Connect your accounts, say what matters in your own words, and get a plan that updates itself. One clear number, one next step, and honest answers to hard questions.
         </p>
         <div className="mt-10 flex items-center gap-4">
-          <Link href="/sign-up" className="inline-flex h-12 items-center rounded-full bg-fg px-6 text-[15px] font-medium text-bg hover:opacity-90">
+          <Link href="/sign-up" className="inline-flex h-12 items-center rounded-full bg-primary px-6 text-[15px] font-medium text-primary-fg hover:opacity-90">
             Get started
           </Link>
           <span className="text-[13px] text-muted">Read-only bank access. Link never moves money.</span>

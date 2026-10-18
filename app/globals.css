@@ -25,6 +25,11 @@
   --caution-soft: oklch(0.95 0.035 50);
   --focus: oklch(0.6 0.15 158 / 0.45);
   --shadow: 0 1px 2px oklch(0.2 0.02 260 / 0.04), 0 8px 24px -12px oklch(0.2 0.02 260 / 0.12);
+  /* Solid actions and the Home hero: ink on paper in light mode. */
+  --primary: var(--fg);
+  --primary-fg: var(--bg);
+  --hero: var(--fg);
+  --hero-fg: var(--bg);
   color-scheme: light;
 }
 
@@ -45,6 +50,11 @@
   --caution-soft: oklch(0.3 0.06 45);
   --focus: oklch(0.8 0.16 155 / 0.45);
   --shadow: 0 1px 2px oklch(0 0 0 / 0.3), 0 12px 32px -16px oklch(0 0 0 / 0.6);
+  /* Dark mode never flips to white blocks: a dimmed light for actions, a tinted surface for the hero. */
+  --primary: oklch(0.8 0.008 95);
+  --primary-fg: oklch(0.17 0.006 260);
+  --hero: oklch(0.235 0.028 165);
+  --hero-fg: var(--fg);
   color-scheme: dark;
 }
 
@@ -63,6 +73,10 @@
   --color-accent-soft: var(--accent-soft);
   --color-caution: var(--caution);
   --color-caution-soft: var(--caution-soft);
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-hero: var(--hero);
+  --color-hero-fg: var(--hero-fg);
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;

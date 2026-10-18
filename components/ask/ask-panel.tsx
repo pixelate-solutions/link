@@ -301,7 +301,7 @@ export function AskPanel({ open, onOpenChange, prefill, autoSend, nonce }: { ope
               void loadChats();
             }}
             aria-pressed={view === "history"}
-            className={cn("inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium transition-colors", view === "history" ? "bg-fg text-bg" : "text-fg-2 hover:bg-surface-2")}
+            className={cn("inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium transition-colors", view === "history" ? "bg-primary text-primary-fg" : "text-fg-2 hover:bg-surface-2")}
           >
             <History size={15} /> Chats
           </button>
@@ -393,7 +393,7 @@ export function AskPanel({ open, onOpenChange, prefill, autoSend, nonce }: { ope
               type="submit"
               disabled={!canSend}
               aria-label="Send"
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-fg text-bg transition-opacity disabled:opacity-30"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-primary-fg transition-opacity disabled:opacity-30"
             >
               <ArrowUp size={18} />
             </motion.button>
@@ -496,7 +496,7 @@ function Bubble({ m, onResolved }: { m: Message; onResolved: (id: string, status
             ))}
           </div>
         )}
-        {m.content && <div className="max-w-[85%] whitespace-pre-wrap rounded-md rounded-br-sm bg-fg px-3.5 py-2.5 text-[15px] text-bg">{m.content}</div>}
+        {m.content && <div className="max-w-[85%] whitespace-pre-wrap rounded-md rounded-br-sm bg-primary px-3.5 py-2.5 text-[15px] text-primary-fg dark:bg-surface-3 dark:text-fg">{m.content}</div>}
       </motion.div>
     );
   }
@@ -552,7 +552,7 @@ function ProposalCard({ p, onResolved }: { p: Proposal; onResolved: (id: string,
       <p className="mt-1 text-[15px] font-medium">{p.summary || "Proposed change"}</p>
       {p.status === "pending" ? (
         <div className="mt-3 flex gap-2">
-          <button onClick={() => act(true)} disabled={pending} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-fg px-4 text-[13px] font-medium text-bg disabled:opacity-50">
+          <button onClick={() => act(true)} disabled={pending} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-primary px-4 text-[13px] font-medium text-primary-fg disabled:opacity-50">
             <Check size={14} /> Approve
           </button>
           <button onClick={() => act(false)} disabled={pending} className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] text-muted hover:text-fg">

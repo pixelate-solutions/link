@@ -187,7 +187,7 @@ function TransactionDetail({ id, onChanged }: { id: string; onChanged: () => voi
                       aria-selected={c === t.category}
                       disabled={pending}
                       onClick={() => choose(c)}
-                      className={cn("flex items-center justify-between rounded-sm px-3 py-2.5 text-left text-[13px] transition-colors", c === t.category ? "bg-fg text-bg" : "bg-surface-2 hover:bg-surface-3")}
+                      className={cn("flex items-center justify-between rounded-sm px-3 py-2.5 text-left text-[13px] transition-colors", c === t.category ? "bg-primary text-primary-fg" : "bg-surface-2 hover:bg-surface-3")}
                     >
                       {pickLabel(c)}
                       {c === t.category && <Check size={14} />}

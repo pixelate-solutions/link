@@ -136,9 +136,9 @@ export function ActivityView({
             role="tab"
             aria-selected={filter === f.id}
             onClick={() => setFilter(f.id)}
-            className={cn("relative shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors", filter === f.id ? "text-bg" : "bg-surface text-fg-2 hover:text-fg")}
+            className={cn("relative shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors", filter === f.id ? "text-primary-fg" : "bg-surface text-fg-2 hover:text-fg")}
           >
-            {filter === f.id && <motion.span layoutId="activity-filter" className="absolute inset-0 rounded-full bg-fg" />}
+            {filter === f.id && <motion.span layoutId="activity-filter" className="absolute inset-0 rounded-full bg-primary" />}
             <span className="relative">
               {f.label}
               {f.id === "review" && reviewCount > 0 && <span className="ml-1 tabular opacity-70">{reviewCount}</span>}

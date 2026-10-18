@@ -29,7 +29,7 @@ export function SpendingHero({ picture }: { picture: Picture }) {
   const hot = b.lines.filter((l) => l.status === "over" || (l.status === "over_pace" && l.group === "discretionary")).slice(0, 3);
 
   return (
-    <section className="flex h-full flex-col rounded-lg bg-fg p-6 text-bg md:p-7" aria-labelledby="hero-title">
+    <section className="flex h-full flex-col rounded-lg bg-hero p-6 text-hero-fg md:p-7" aria-labelledby="hero-title">
       <div className="flex items-start justify-between gap-3">
         <p id="hero-title" className="text-[13px] font-medium opacity-70">
           {month} spending plan
@@ -47,15 +47,15 @@ export function SpendingHero({ picture }: { picture: Picture }) {
         {perDay > 0 && <> · about {formatMoney(perDay)} a day</>}
       </p>
 
-      <div className="relative mt-5 h-2.5 rounded-full bg-bg/15" aria-hidden>
+      <div className="relative mt-5 h-2.5 rounded-full bg-hero-fg/15" aria-hidden>
         <div className={cn("absolute inset-y-0 left-0 rounded-full", left < 0 || ahead ? "bg-caution" : "bg-accent")} style={{ width: `${pct * 100}%` }} />
-        <div className="absolute -top-1 h-[18px] w-0.5 rounded-full bg-bg/70" style={{ left: `${pacePct * 100}%` }} />
+        <div className="absolute -top-1 h-[18px] w-0.5 rounded-full bg-hero-fg/70" style={{ left: `${pacePct * 100}%` }} />
       </div>
 
       {hot.length > 0 && (
         <ul className="mt-4 flex flex-wrap gap-1.5">
           {hot.map((l) => (
-            <li key={l.category} className="rounded-full bg-bg/10 px-2.5 py-1 text-[12px]">
+            <li key={l.category} className="rounded-full bg-hero-fg/10 px-2.5 py-1 text-[12px]">
               {categoryLabel(l.category)} · {formatMoney(Math.max(0, l.spent - (l.status === "over" ? l.monthly : l.expectedByNow)))} {l.status === "over" ? "over" : "ahead"}
             </li>
           ))}
@@ -63,7 +63,7 @@ export function SpendingHero({ picture }: { picture: Picture }) {
       )}
 
       <div className="mt-auto flex flex-wrap gap-2 pt-6">
-        <Link href="/plan#spending" className="inline-flex h-9 items-center gap-1.5 rounded-full bg-bg px-4 text-[13px] font-medium text-fg transition-opacity hover:opacity-90">
+        <Link href="/plan#spending" className="inline-flex h-9 items-center gap-1.5 rounded-full bg-hero-fg px-4 text-[13px] font-medium text-hero dark:bg-primary dark:text-primary-fg transition-opacity hover:opacity-90">
           See your spending plan <ArrowRight size={14} />
         </Link>
         <Link href="/activity" className="inline-flex h-9 items-center rounded-full px-3 text-[13px] font-medium opacity-80 transition-opacity hover:opacity-100">

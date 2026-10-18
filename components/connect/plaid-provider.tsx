@@ -85,7 +85,7 @@ export function PlaidProvider({ children }: { children: ReactNode }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 12 }}
             role={status.tone === "error" ? "alert" : "status"}
-            className="fixed inset-x-4 bottom-24 z-[60] mx-auto flex max-w-md items-center gap-3 rounded-md bg-fg px-4 py-3 text-[14px] text-bg shadow-soft md:bottom-6"
+            className="fixed inset-x-4 bottom-24 z-[60] mx-auto flex max-w-md items-center gap-3 rounded-md bg-primary px-4 py-3 text-[14px] text-primary-fg shadow-soft md:bottom-6"
           >
             {status.tone === "busy" && <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-r-transparent" aria-hidden />}
             <span className="flex-1">{status.text}</span>
