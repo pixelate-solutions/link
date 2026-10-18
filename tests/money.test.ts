@@ -52,3 +52,16 @@ describe("account labels", () => {
     expect(accountLabel({ name: "Brokerage", mask: null, institution: null })).toBe("Brokerage");
   });
 });
+
+describe("plain-language answers", () => {
+  it("reads amounts, years and dates without a strict format", async () => {
+    const { readAnswer } = await import("@/server/ai/answer");
+    const today = "2026-10-17";
+    expect(readAnswer("children_planned", "May or June of 2028", today)).toBe(1.6);
+    expect(readAnswer("children_planned", "in 2 years", today)).toBe(2);
+    expect(readAnswer("children_planned", "we're expecting already", today)).toBe(0);
+    expect(readAnswer("outside_investments", "about $45k in my 401(k)", today)).toBe(45000);
+    expect(readAnswer("birth_year", "I was born in 1998", today)).toBe(1998);
+    expect(readAnswer("retirement_spending_annual", "not sure", today)).toBeNull();
+  });
+});

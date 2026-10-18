@@ -1,28 +1,33 @@
 "use client";
 
+import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { answerFactAction } from "@/app/actions";
+import { answerFactAction, answerQuestionAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Card, Eyebrow } from "./card";
 
-const MONEY = new Set(["retirement_spending_annual", "outside_investments", "workplace_contribution_monthly", "social_security_annual", "home_price", "travel_budget_annual", "child_cost_monthly"]);
+const PLACEHOLDER: Record<string, string> = {
+  birth_year: "1990",
+  children_planned: "Maybe in a couple of years",
+  emergency_months: "About six months",
+  expected_income_change: "I'm getting a 10% raise in January",
+};
 
-/** Progressive learning: at most one question, only when the answer would change the plan. */
+/** Progressive learning: at most one question, answered in your own words. */
 export function QuestionCard({ q }: { q: { key: string; question: string; why: string } }) {
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
-  const money = MONEY.has(q.key);
   const submit = (skip: boolean) =>
     start(async () => {
       setError(null);
-      const n = skip ? null : Number(value.replace(/[$,\s]/g, ""));
-      if (!skip && (n == null || Number.isNaN(n))) return setError("Enter a number.");
-      const r = await answerFactAction(q.key, n);
+      const r = skip ? await answerFactAction(q.key, null) : await answerQuestionAction(q.key, value);
       if (!r.ok) return setError(r.error);
       setValue("");
+      setSaved(skip ? null : ((r.data as { understood?: string } | undefined)?.understood || "Saved."));
       router.refresh();
     });
   return (
@@ -32,25 +37,20 @@ export function QuestionCard({ q }: { q: { key: string; question: string; why: s
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          submit(false);
+          if (value.trim()) submit(false);
         }}
         className="mt-4 flex gap-2"
       >
         <label htmlFor={`q-${q.key}`} className="sr-only">
           {q.question}
         </label>
-        <div className="relative min-w-0 flex-1">
-          {money && <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted">$</span>}
-          <input
-            id={`q-${q.key}`}
-            inputMode="numeric"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder={q.key === "birth_year" ? "1988" : money ? "0" : ""}
-            className="h-11 w-full rounded-full bg-surface-2 pr-4 tabular outline-none focus:ring-2 focus:ring-[var(--focus)]"
-            style={{ paddingLeft: money ? 28 : 16 }}
-          />
-        </div>
+        <input
+          id={`q-${q.key}`}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={PLACEHOLDER[q.key] ?? "About $500"}
+          className="h-11 min-w-0 flex-1 rounded-full bg-surface-2 px-4 outline-none placeholder:text-muted focus:ring-2 focus:ring-[var(--focus)]"
+        />
         <Button type="submit" variant="primary" busy={pending} disabled={!value.trim()}>
           Save
         </Button>
@@ -58,6 +58,11 @@ export function QuestionCard({ q }: { q: { key: string; question: string; why: s
           Skip
         </Button>
       </form>
+      {saved && (
+        <p role="status" className="mt-2 flex items-center gap-1.5 text-[13px] text-accent-ink">
+          <Check size={14} /> {saved}
+        </p>
+      )}
       {error && (
         <p role="alert" className="mt-2 text-[13px] text-caution">
           {error}

@@ -75,6 +75,25 @@ export async function answerFactAction(key: string, value: number | null) {
   });
 }
 
+/** Answer a planning question in plain words; Link works out the number and keeps the words too. */
+export async function answerQuestionAction(key: string, text: string) {
+  return run(async (u) => {
+    const k = z.enum(FACT_KEYS).parse(key);
+    const answer = z.string().trim().min(1).max(500).parse(text);
+    const { interpretAnswer } = await import("@/server/ai/answer");
+    const { FACT_QUESTIONS } = await import("@/lib/finance/goals");
+    const today = new Date().toISOString().slice(0, 10);
+    const { value, understood } = await interpretAnswer(u, k, answer, today);
+    if (value == null || !Number.isFinite(value)) throw new Error("Link couldn't find an amount or a date in that. Try saying it another way.");
+    const v = k === "expected_income_change" ? value : Math.max(0, value);
+    if (k === "birth_year" && (v < 1920 || v > new Date().getFullYear() - 14)) throw new Error("That doesn't look like a birth year.");
+    await setFact(u, k, MONEY_FACTS.includes(k) ? toMinor(v) : v);
+    // The plan needs a number; the words carry what the number can't ("May or June", "maybe twins").
+    await addContext(u, `${FACT_QUESTIONS[k]} ${answer}`.slice(0, 500));
+    return { understood };
+  });
+}
+
 export async function deleteFactAction(key: string) {
   return run((u) => deleteFact(u, z.enum(FACT_KEYS).parse(key)));
 }

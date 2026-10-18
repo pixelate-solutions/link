@@ -5,16 +5,13 @@ import type { BusinessView } from "@/lib/finance/business";
 import { categoryLabel } from "@/lib/finance/categories";
 import { formatMoney } from "@/lib/finance/money";
 import { cn } from "@/lib/utils";
+import { ProfitBars } from "./profit-bars";
 
 function runwayText(b: BusinessView) {
   if (b.runwayMonths == null) return null;
   return b.burning ? `${b.runwayMonths.toFixed(1)} months of cash at the current pace` : `Cash covers ${b.runwayMonths.toFixed(1)} months of expenses`;
 }
 
-function monthLabel(m: string) {
-  const label = new Date(`${m}-01T00:00:00Z`).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
-  return m.slice(0, 4) === String(new Date().getFullYear()) ? label : `${label} '${m.slice(2, 4)}`;
-}
 
 /** Compact: how the business is doing, at a glance. */
 export function BusinessSummaryCard({ b }: { b: BusinessView }) {
@@ -44,7 +41,6 @@ export function BusinessSummaryCard({ b }: { b: BusinessView }) {
 
 /** Detailed: the business on its own terms. */
 export function BusinessDetailCard({ b }: { b: BusinessView }) {
-  const max = Math.max(1, ...b.months.map((m) => Math.abs(m.profit)));
   return (
     <Card id="business">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -68,22 +64,7 @@ export function BusinessDetailCard({ b }: { b: BusinessView }) {
       </dl>
 
       {b.months.length > 0 && (
-        <figure className="mt-6" aria-label="Profit by month">
-          <div className="flex h-24 items-end gap-2">
-            {b.months.map((m) => (
-              <div key={m.month} className="flex h-full flex-1 flex-col justify-end" title={`${monthLabel(m.month)}: ${formatMoney(m.profit)} profit`}>
-                <div className={cn("rounded-t-[4px]", m.profit >= 0 ? "bg-accent" : "bg-caution")} style={{ height: `${Math.max(3, (Math.abs(m.profit) / max) * 100)}%` }} />
-              </div>
-            ))}
-          </div>
-          <div className="mt-1.5 flex gap-2 text-[11px] text-muted">
-            {b.months.map((m) => (
-              <span key={m.month} className="flex-1 text-center">
-                {monthLabel(m.month)}
-              </span>
-            ))}
-          </div>
-        </figure>
+        <ProfitBars months={b.months} />
       )}
 
       <div className="mt-6 grid gap-6 md:grid-cols-2">
