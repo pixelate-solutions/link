@@ -12,7 +12,7 @@ import { isPaymentRail, railPayee } from "@/lib/finance/merchants";
 import { formatMoney } from "@/lib/finance/money";
 import type { Picture } from "@/lib/finance/plan";
 import type { TxnListRow } from "@/server/services/activity";
-import { cn, shortDate } from "@/lib/utils";
+import { accountLabel, cn, shortDate } from "@/lib/utils";
 import { MerchantMark } from "./category-dot";
 import { PICKABLE, pickLabel, reviewPrompt } from "./review";
 import { TransactionSheet } from "./transaction-sheet";
@@ -60,7 +60,7 @@ export function ActivityView({
   initial: TxnListRow[];
   hasMore: boolean;
   reviewCount: number;
-  accounts: { id: string; name: string; mask: string | null; businessId: string | null }[];
+  accounts: { id: string; name: string; mask: string | null; businessId: string | null; institution: string | null }[];
   businesses: { id: string; name: string }[];
   recurring: Picture["recurring"];
   logos: Record<string, string>;
@@ -169,8 +169,7 @@ export function ActivityView({
                 <SelectLabel>Account</SelectLabel>
                 {accounts.map((a) => (
                   <SelectItem key={a.id} value={`acct:${a.id}`}>
-                    {a.name}
-                    {a.mask ? ` ··${a.mask}` : ""}
+                    {accountLabel(a)}
                   </SelectItem>
                 ))}
               </SelectGroup>
@@ -180,7 +179,7 @@ export function ActivityView({
       </div>
 
       {filter === "recurring" ? (
-        <RecurringList recurring={recurring} logos={logos} onChanged={() => router.refresh()} />
+        <RecurringList recurring={recurring} logos={logos} accounts={accounts} onChanged={() => router.refresh()} />
       ) : filter === "review" && rows.length > 0 ? (
         <ReviewList
           rows={rows}
@@ -212,7 +211,7 @@ export function ActivityView({
                         <span className="block truncate text-[13px] text-muted">
                           {r.hasSplits ? "Split" : categoryLabel(r.category)}
                           {r.pending && " · Pending"}
-                          {r.accountMask && ` · ··${r.accountMask}`}
+                          {` · ${accountLabel({ name: r.accountName, mask: r.accountMask, institution: r.institution })}`}
                           {r.businessId && <span className="ml-1.5 rounded-full bg-accent-soft px-1.5 py-px text-[11px] font-medium text-accent-ink">{bizName.get(r.businessId) ?? "Business"}</span>}
                         </span>
                       </span>
@@ -240,7 +239,18 @@ export function ActivityView({
 
 const MONTHLY: Record<string, number> = { weekly: 52 / 12, biweekly: 26 / 12, semimonthly: 2, monthly: 1, quarterly: 1 / 3, semiannual: 1 / 6, annual: 1 / 12 };
 
-function RecurringList({ recurring, logos, onChanged }: { recurring: Picture["recurring"]; logos: Record<string, string>; onChanged: () => void }) {
+function RecurringList({
+  recurring,
+  logos,
+  accounts,
+  onChanged,
+}: {
+  recurring: Picture["recurring"];
+  logos: Record<string, string>;
+  accounts: { id: string; name: string; mask: string | null; institution: string | null }[];
+  onChanged: () => void;
+}) {
+  const acct = new Map(accounts.map((a) => [a.id, accountLabel(a)]));
   const [pending, start] = useTransition();
   const visible = recurring.filter((r) => r.kind === "income" || r.kind === "bill" || r.kind === "subscription" || (r.kind === "savings" && r.amount < 0));
   const sections = [
@@ -266,6 +276,7 @@ function RecurringList({ recurring, logos, onChanged }: { recurring: Picture["re
                   <span className="block truncate text-[13px] text-muted">
                     {r.cadence}
                     {r.nextDate && ` · next ${shortDate(r.nextDate)}`}
+                    {acct.get(r.accountId) && ` · ${acct.get(r.accountId)}`}
                   </span>
                 </span>
                 <span className="text-right">
@@ -383,7 +394,7 @@ function ReviewCard({
           </div>
           <p className="truncate text-[13px] text-muted">
             {rail && `${railPayee(first.merchantKey, first.name)} · `}
-            {many ? `${items.length} transactions, ${first.amount < 0 ? "money out" : "money in"}` : `${shortDate(first.date)} · ${first.accountName}${first.accountMask ? ` ··${first.accountMask}` : ""}`}
+            {many ? `${items.length} transactions, ${first.amount < 0 ? "money out" : "money in"}` : `${shortDate(first.date)} · ${accountLabel({ name: first.accountName, mask: first.accountMask, institution: first.institution })}`}
           </p>
 
           {many && (
@@ -401,7 +412,7 @@ function ReviewCard({
                           <span className="w-24 shrink-0 tabular text-muted">{shortDate(r.date)}</span>
                           <span className="min-w-0 flex-1 truncate text-fg-2">
                             {r.name}
-                            {r.accountMask && <span className="text-muted"> · ··{r.accountMask}</span>}
+                            <span className="text-muted"> · {accountLabel({ name: r.accountName, mask: r.accountMask, institution: r.institution })}</span>
                             {r.note && <span className="text-muted"> · “{r.note}”</span>}
                           </span>
                           <span className={cn("shrink-0 tabular", r.amount > 0 && "text-accent-ink")}>{formatMoney(r.amount, { cents: true, signed: r.amount > 0 })}</span>

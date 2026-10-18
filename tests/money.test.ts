@@ -42,3 +42,13 @@ describe("dates", () => {
     expect(shortDate("2025-12-30", { weekday: "short", month: "short", day: "numeric" }, now)).toBe("Tue, Dec 30, 2025");
   });
 });
+
+describe("account labels", () => {
+  it("names the bank once, fixes all-caps names, and adds the last digits", async () => {
+    const { accountLabel } = await import("@/lib/utils");
+    expect(accountLabel({ name: "TOTAL CHECKING", mask: "5960", institution: "Chase" })).toBe("Chase Total Checking ··5960");
+    expect(accountLabel({ name: "CHASE SAVINGS", mask: "2130", institution: "Chase" })).toBe("Chase Savings ··2130");
+    expect(accountLabel({ name: "Discover it Card", mask: "2460", institution: "Discover" })).toBe("Discover it Card ··2460");
+    expect(accountLabel({ name: "Brokerage", mask: null, institution: null })).toBe("Brokerage");
+  });
+});

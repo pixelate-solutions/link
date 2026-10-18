@@ -22,3 +22,13 @@ export function shortDate(iso: string, opts: Intl.DateTimeFormatOptions = { mont
   const otherYear = opts.year === undefined && iso.slice(0, 4) !== String(now.getFullYear());
   return new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-US", { ...opts, ...(otherYear ? { year: "numeric" } : {}), timeZone: "UTC" });
 }
+
+/**
+ * "Chase Total Checking ··5960": the bank, the account and its last digits.
+ * Banks often send names in capitals, and many already include the bank's name.
+ */
+export function accountLabel(a: { name: string; mask?: string | null; institution?: string | null }): string {
+  const name = a.name === a.name.toUpperCase() ? a.name.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) : a.name;
+  const bank = a.institution && !name.toLowerCase().includes(a.institution.toLowerCase().split(" ")[0]!) ? `${a.institution} ` : "";
+  return `${bank}${name}${a.mask ? ` ··${a.mask}` : ""}`;
+}

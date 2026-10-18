@@ -52,6 +52,7 @@ export async function searchTransactions(userId: string, f: TxnFilters) {
       id: t.id,
       accountId: t.accountId,
       accountName: schema.accounts.name,
+      institution: schema.connections.institutionName,
       accountMask: schema.accounts.mask,
       businessId: schema.accounts.businessId,
       date: t.date,
@@ -76,6 +77,7 @@ export async function searchTransactions(userId: string, f: TxnFilters) {
     })
     .from(t)
     .innerJoin(schema.accounts, and(eq(schema.accounts.id, t.accountId), eq(schema.accounts.userId, userId)))
+    .leftJoin(schema.connections, eq(schema.connections.id, schema.accounts.connectionId))
     .where(and(...conds))
     .orderBy(desc(t.date), desc(t.id))
     .limit(limit + 1);
@@ -103,7 +105,7 @@ export async function getTransaction(userId: string, id: string) {
     .from(schema.transactions)
     .where(and(eq(schema.transactions.id, id), eq(schema.transactions.userId, userId)));
   if (!row) return null;
-  const [splits, history, pair] = await Promise.all([
+  const [splits, history, pair, [account]] = await Promise.all([
     db.select().from(schema.splits).where(and(eq(schema.splits.transactionId, id), eq(schema.splits.userId, userId))),
     db
       .select()
@@ -116,8 +118,13 @@ export async function getTransaction(userId: string, id: string) {
           .from(schema.transactions)
           .where(and(eq(schema.transactions.userId, userId), eq(schema.transactions.transferPairId, row.transferPairId)))
       : Promise.resolve([]),
+    db
+      .select({ name: schema.accounts.name, mask: schema.accounts.mask, institution: schema.connections.institutionName })
+      .from(schema.accounts)
+      .leftJoin(schema.connections, eq(schema.connections.id, schema.accounts.connectionId))
+      .where(and(eq(schema.accounts.id, row.accountId), eq(schema.accounts.userId, userId))),
   ]);
-  return { ...row, splits, corrections: history, pair: pair.filter((p) => p.id !== id) };
+  return { ...row, splits, corrections: history, pair: pair.filter((p) => p.id !== id), account: account ?? null };
 }
 
 /**

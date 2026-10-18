@@ -12,7 +12,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { type CategoryId, categoryLabel } from "@/lib/finance/categories";
 import { isPaymentRail } from "@/lib/finance/merchants";
 import { formatMoney } from "@/lib/finance/money";
-import { cn, shortDate } from "@/lib/utils";
+import { accountLabel, cn, shortDate } from "@/lib/utils";
 import { MerchantMark } from "./category-dot";
 import { PICKABLE, pickLabel, reviewPrompt } from "./review";
 
@@ -126,6 +126,7 @@ function TransactionDetail({ id, onChanged }: { id: string; onChanged: () => voi
           <p className="mt-1 text-[13px] text-muted">
             {shortDate(t.date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
             {t.pending && " · Pending"}
+            {t.account && ` · ${accountLabel(t.account)}`}
           </p>
 
           {t.needsReview && !t.hasSplits && (
