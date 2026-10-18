@@ -179,14 +179,71 @@ export function Projection({ goal, inputs }: { goal: GoalView; inputs: PlanInput
   );
 }
 
+/** "$3,500", "3.5k", "120000" → minor units. */
+function parseDollars(text: string): number | null {
+  const m = text.replace(/[$,\s]/g, "").match(/^(\d+(?:\.\d+)?)(k|m)?(\/(mo|yr))?$/i);
+  if (!m) return null;
+  const mult = m[2]?.toLowerCase() === "m" ? 1_000_000 : m[2] ? 1_000 : 1;
+  return Math.round(Number(m[1]) * mult * 100);
+}
+
+/**
+ * A slider with a typed value. Typing can go beyond the slider's range; the
+ * range then stretches to include it.
+ */
 function Control({ label, value, min, max, step, v, onChange }: { label: string; value: string; min: number; max: number; step: number; v: number; onChange: (n: number) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState("");
+  const [bad, setBad] = useState(false);
+  const commit = () => {
+    const n = parseDollars(text);
+    if (n == null) return setBad(true);
+    onChange(n);
+    setEditing(false);
+    setBad(false);
+  };
   return (
     <div>
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-baseline justify-between gap-3">
         <span className="text-[13px] text-fg-2">{label}</span>
-        <span className="text-[15px] font-medium tabular">{value}</span>
+        {editing ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              commit();
+            }}
+            className="flex items-center gap-1"
+          >
+            <span className="text-muted">$</span>
+            <input
+              autoFocus
+              aria-label={label}
+              inputMode="decimal"
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value);
+                setBad(false);
+              }}
+              onBlur={commit}
+              onKeyDown={(e) => e.key === "Escape" && (setEditing(false), setBad(false))}
+              className={cn("h-8 w-28 rounded-sm bg-surface-2 px-2 text-right text-[15px] font-medium tabular outline-none focus:ring-2", bad ? "ring-2 ring-caution" : "focus:ring-[var(--focus)]")}
+            />
+          </form>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setText(String(Math.round(v / 100)));
+              setEditing(true);
+            }}
+            aria-label={`${label}: ${value}. Type an amount`}
+            className="rounded-sm px-1.5 py-0.5 text-[15px] font-medium tabular underline decoration-muted/40 decoration-dotted underline-offset-4 transition-colors hover:bg-surface-2"
+          >
+            {value}
+          </button>
+        )}
       </div>
-      <Slider className="mt-2" rangeClassName="bg-fg/70" min={min} max={max} step={step} value={[v]} onValueChange={([n]) => onChange(n!)} aria-label={label} />
+      <Slider className="mt-2" rangeClassName="bg-fg/70" min={Math.min(min, v)} max={Math.max(max, v)} step={step} value={[v]} onValueChange={([n]) => onChange(n!)} aria-label={label} />
     </div>
   );
 }
