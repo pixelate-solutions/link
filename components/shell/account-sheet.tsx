@@ -65,6 +65,7 @@ export function AccountSheet({ open, onOpenChange }: { open: boolean; onOpenChan
   const [rule, setRule] = useState("");
   const [confirm, setConfirm] = useState("");
   const [tokenName, setTokenName] = useState("");
+  const [tokenAccess, setTokenAccess] = useState<"read" | "write">("read");
   const [created, setCreated] = useState<{ id: string; name: string; token: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -341,7 +342,7 @@ export function AccountSheet({ open, onOpenChange }: { open: boolean; onOpenChan
 
           <Section title="API access">
             <p className="mb-3 text-[13px] text-muted">
-              Let scripts and AI agents read your Link data with a token. Tokens can read everything but change nothing.{" "}
+              Let scripts and AI agents use your Link data with a token. A read-only token sees everything and changes nothing; a read-and-change token can also recategorize, budget, edit goals and everything else you can do here.{" "}
               <a href="/api/v1" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-fg">
                 Endpoints
               </a>
@@ -368,7 +369,8 @@ export function AccountSheet({ open, onOpenChange }: { open: boolean; onOpenChan
                 {data.apiTokens.map((t) => (
                   <li key={t.id} className="flex items-center justify-between gap-3 text-[14px]">
                     <span className="min-w-0 truncate text-fg-2">
-                      {t.name} <span className="font-mono text-[12px] text-muted">{t.prefix}…</span>
+                      {t.name} <span className="font-mono text-[12px] text-muted">{t.prefix}…</span>{" "}
+                      <span className="text-[12px] text-muted">· {t.access === "write" ? "Read and change" : "Read only"}</span>
                     </span>
                     <span className="flex shrink-0 items-center gap-3">
                       <span className="text-[12px] text-muted">{t.lastUsedAt ? `Used ${relativeTime(t.lastUsedAt)}` : "Never used"}</span>
@@ -390,11 +392,28 @@ export function AccountSheet({ open, onOpenChange }: { open: boolean; onOpenChan
                 ))}
               </ul>
             )}
+            <div className="mb-2 flex gap-1 rounded-full bg-surface-2 p-1" role="radiogroup" aria-label="Token access">
+              {([
+                ["read", "Read only"],
+                ["write", "Read and change"],
+              ] as const).map(([v, label]) => (
+                <button
+                  key={v}
+                  type="button"
+                  role="radio"
+                  aria-checked={tokenAccess === v}
+                  onClick={() => setTokenAccess(v)}
+                  className={cn("flex-1 rounded-full py-1.5 text-[13px]", tokenAccess === v ? "bg-surface text-fg shadow-soft" : "text-muted")}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 act(async () => {
-                  const r = await createApiTokenAction(tokenName);
+                  const r = await createApiTokenAction(tokenName, tokenAccess);
                   if (r.ok) {
                     setCreated(r.data);
                     setCopied(false);

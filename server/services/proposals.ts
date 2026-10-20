@@ -9,6 +9,7 @@ import { addRules } from "./activity";
 import { audit } from "./audit";
 import { refreshPicture } from "./picture";
 import { createGoalsFromStatement, getPreferences, setBudgetItem, setFact, setPreferences, updateGoal } from "./plan";
+import { UserFacingError } from "../errors";
 
 /**
  * Consequential changes proposed by the agent (or an MCP client). Nothing is
@@ -67,11 +68,11 @@ export async function describeProposal(userId: string, p: ProposalPayload): Prom
 export async function createProposal(userId: string, payload: ProposalPayload, _modelSummary: string, conversationId?: string | null) {
   const db = await getDb();
   // Validate early so the user never approves something that can't apply.
-  if (payload.kind === "rule" && !parseRuleText(payload.text)) throw new Error("Couldn't turn that into a rule. Try: \"Costco is groceries unless it's gas\".");
-  if (payload.kind === "budget" && !isCategoryId(payload.category)) throw new Error("Unknown category");
+  if (payload.kind === "rule" && !parseRuleText(payload.text)) throw new UserFacingError("Couldn't turn that into a rule. Try: \"Costco is groceries unless it's gas\".");
+  if (payload.kind === "budget" && !isCategoryId(payload.category)) throw new UserFacingError("Unknown category");
   if (payload.kind === "goal_update") {
     const [g] = await db.select({ id: schema.goals.id }).from(schema.goals).where(and(eq(schema.goals.id, payload.goalId), eq(schema.goals.userId, userId)));
-    if (!g) throw new Error("Goal not found");
+    if (!g) throw new UserFacingError("Goal not found");
   }
   const [row] = await db
     .insert(schema.proposals)
@@ -97,7 +98,7 @@ export async function resolveProposal(userId: string, id: string, approve: boole
     .set({ status: "applying" })
     .where(and(eq(schema.proposals.id, id), eq(schema.proposals.userId, userId), eq(schema.proposals.status, "pending")))
     .returning();
-  if (!p) throw new Error("Proposal not found or already resolved");
+  if (!p) throw new UserFacingError("Proposal not found or already resolved");
   try {
   if (approve) {
     const payload = p.payload as ProposalPayload;
@@ -126,7 +127,7 @@ export async function resolveProposal(userId: string, id: string, approve: boole
         break;
       case "rule": {
         const parsed = parseRuleText(payload.text);
-        if (!parsed) throw new Error("Rule no longer parses");
+        if (!parsed) throw new UserFacingError("Rule no longer parses");
         await addRules(userId, parsed, "ai");
         break;
       }

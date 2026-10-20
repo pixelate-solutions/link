@@ -4,7 +4,7 @@ Link serves its tool registry over the Model Context Protocol, using MCP TypeScr
 
 - **Endpoint:** `POST/GET/DELETE /api/mcp`.
 - **Auth:** a Link API token (`Authorization: Bearer link_…`, created in Account → API access), a Clerk session, an OAuth token or an API key (`auth({ acceptsToken: [...] })`). Locally, the dev session. The route resolves the user and builds a server bound to that user for the request (`buildMcpServer(userId)`). Unauthenticated requests get `401` with `WWW-Authenticate: Bearer`.
-- **Annotations:** read tools carry `readOnlyHint: true`. Propose and record tools don't, and aren't offered at all to a Link API token (`buildMcpServer(userId, { readOnly: true })`).
+- **Annotations:** read tools carry `readOnlyHint: true`. Propose and record tools don't, and aren't offered at all to a read-only Link API token (`buildMcpServer(userId, { readOnly: true })`). A read-and-change token gets every tool, like a signed-in session.
 - **Approval:** propose-tools only create approval requests, which the user approves inside Link. An MCP client cannot change goals, preferences, budgets or rules on its own.
 - **Money units:** dollars with 2 decimals at this boundary. Internally, Link uses cents.
 

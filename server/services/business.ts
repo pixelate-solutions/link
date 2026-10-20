@@ -3,6 +3,7 @@ import { getDb, schema } from "../db/client";
 import { processUser } from "../pipeline/process";
 import { reclassify } from "../pipeline/reclassify";
 import { audit } from "./audit";
+import { UserFacingError } from "../errors";
 
 export const STRUCTURES = ["sole_prop", "llc", "s_corp", "partnership", "other"] as const;
 export type Structure = (typeof STRUCTURES)[number];
@@ -40,7 +41,7 @@ export async function updateBusiness(
     .set(clean)
     .where(and(eq(schema.businesses.id, id), eq(schema.businesses.userId, userId)))
     .returning({ id: schema.businesses.id });
-  if (!res.length) throw new Error("Business not found");
+  if (!res.length) throw new UserFacingError("Business not found");
   await audit(userId, "user", "business.update", id, clean);
   await processUser(userId);
 }
@@ -67,10 +68,10 @@ async function relabelAccounts(userId: string, accountIds: string[]) {
 export async function setAccountBusiness(userId: string, accountId: string, businessId: string | null) {
   const db = await getDb();
   const [acct] = await db.select().from(schema.accounts).where(and(eq(schema.accounts.id, accountId), eq(schema.accounts.userId, userId)));
-  if (!acct) throw new Error("Account not found");
+  if (!acct) throw new UserFacingError("Account not found");
   if (businessId) {
     const [b] = await db.select({ id: schema.businesses.id }).from(schema.businesses).where(and(eq(schema.businesses.id, businessId), eq(schema.businesses.userId, userId)));
-    if (!b) throw new Error("Business not found");
+    if (!b) throw new UserFacingError("Business not found");
   }
   if ((acct.businessId ?? null) === businessId) return;
   await db.update(schema.accounts).set({ businessId, updatedAt: new Date() }).where(and(eq(schema.accounts.id, accountId), eq(schema.accounts.userId, userId)));
@@ -86,7 +87,7 @@ export async function deleteBusiness(userId: string, id: string) {
     .from(schema.accounts)
     .where(and(eq(schema.accounts.userId, userId), eq(schema.accounts.businessId, id)));
   const res = await db.delete(schema.businesses).where(and(eq(schema.businesses.id, id), eq(schema.businesses.userId, userId))).returning({ id: schema.businesses.id });
-  if (!res.length) throw new Error("Business not found");
+  if (!res.length) throw new UserFacingError("Business not found");
   // Its accounts become personal again (FK sets business_id to null).
   await relabelAccounts(userId, accts.map((a) => a.id));
   await audit(userId, "user", "business.delete", id);

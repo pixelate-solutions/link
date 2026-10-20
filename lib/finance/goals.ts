@@ -33,6 +33,8 @@ export const FACT_KEYS = [
   "emergency_months",
 ] as const;
 export type FactKey = (typeof FACT_KEYS)[number];
+/** Facts that are amounts of money, stored in minor units. The rest are counts, years or months. */
+export const MONEY_FACTS: readonly FactKey[] = ["retirement_spending_annual", "outside_investments", "workplace_contribution_monthly", "social_security_annual", "home_price", "travel_budget_annual", "child_cost_monthly"];
 
 export const FACT_QUESTIONS: Record<FactKey, string> = {
   birth_year: "What year were you born?",

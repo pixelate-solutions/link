@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { CATEGORIES, type CategoryId } from "@/lib/finance/categories";
-import { FACT_KEYS, GOAL_KINDS, type FactKey } from "@/lib/finance/goals";
+import { FACT_KEYS, GOAL_KINDS, MONEY_FACTS } from "@/lib/finance/goals";
 import { toMinor } from "@/lib/finance/money";
 import { authMode, DEV_COOKIE, requireUser, UnauthorizedError } from "@/server/auth";
 import { publicError } from "@/server/errors";
@@ -54,7 +54,6 @@ async function run<T>(fn: (userId: string) => Promise<T>, revalidate = true): Pr
 const category = z.enum(CATEGORIES.map((c) => c.id) as [CategoryId, ...CategoryId[]]);
 const uuid = z.string().uuid();
 const dollars = z.number().finite();
-const MONEY_FACTS: FactKey[] = ["retirement_spending_annual", "outside_investments", "workplace_contribution_monthly", "social_security_annual", "home_price", "travel_budget_annual", "child_cost_monthly"];
 
 // ── Goals & facts ────────────────────────────────────────────────────────────
 
@@ -291,10 +290,10 @@ export async function deleteMemoryAction(id: string) {
 // ── API access ───────────────────────────────────────────────────────────────
 
 /** Returns the token itself exactly once; only its hash is kept. */
-export async function createApiTokenAction(name: string) {
+export async function createApiTokenAction(name: string, access: "read" | "write" = "read") {
   return run(async (u) => {
     const { createApiToken } = await import("@/server/services/api-tokens");
-    const t = await createApiToken(u, z.string().max(60).parse(name));
+    const t = await createApiToken(u, z.string().max(60).parse(name), z.enum(["read", "write"]).parse(access));
     return { id: t.id, name: t.name, token: t.token };
   }, false);
 }
@@ -368,7 +367,7 @@ export async function accountOverviewAction() {
       rules: rules.map((r) => ({ id: r.id, description: r.description })),
       prefs: { lifestyleWeight: prefs.lifestyleWeight, protectedCategories: prefs.protectedCategories as string[], bufferMinor: prefs.bufferMinor },
       facts: facts.map((f) => ({ key: f.key, value: f.value as { value?: number; skipped?: boolean }, source: f.source })),
-      apiTokens: tokens.map((t) => ({ id: t.id, name: t.name, prefix: t.prefix, lastUsedAt: t.lastUsedAt?.toISOString() ?? null, createdAt: t.createdAt.toISOString() })),
+      apiTokens: tokens.map((t) => ({ id: t.id, name: t.name, prefix: t.prefix, access: t.access, lastUsedAt: t.lastUsedAt?.toISOString() ?? null, createdAt: t.createdAt.toISOString() })),
     };
   }, false);
 }

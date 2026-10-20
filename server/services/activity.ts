@@ -8,6 +8,7 @@ import { getDb, schema } from "../db/client";
 import { reclassify } from "../pipeline/reclassify";
 import { processUser } from "../pipeline/process";
 import { audit } from "./audit";
+import { UserFacingError } from "../errors";
 
 export interface TxnFilters {
   query?: string;
@@ -137,13 +138,15 @@ export async function correctTransaction(
   id: string,
   change: { category: CategoryId; kind?: TransactionKind; applyToMerchant?: boolean; note?: string | null; confirmed?: boolean },
   actor: "user" | "agent" = "user",
+  /** `process: false` skips recomputing the picture, for callers correcting many at once. */
+  opts: { process?: boolean } = {},
 ) {
   const db = await getDb();
   const [row] = await db
     .select()
     .from(schema.transactions)
     .where(and(eq(schema.transactions.id, id), eq(schema.transactions.userId, userId)));
-  if (!row) throw new Error("Transaction not found");
+  if (!row) throw new UserFacingError("Transaction not found");
   const kind = change.kind ?? inferKindForCategory(change.category, row.amountMinor, row.kind as TransactionKind);
   const applyToMerchant = change.applyToMerchant ?? true;
   await db.transaction(async (tx) => {
@@ -173,7 +176,7 @@ export async function correctTransaction(
   let updatedOthers = 0;
   if (applyToMerchant) updatedOthers = await reclassify(db, userId, { merchantKey: row.merchantKey });
   await audit(userId, actor, change.confirmed ? "transaction.confirm" : "transaction.correct", id, { category: change.category, kind, applyToMerchant });
-  await processUser(userId);
+  if (opts.process !== false) await processUser(userId);
   return { kind, updatedOthers };
 }
 
@@ -188,7 +191,7 @@ export async function confirmTransaction(userId: string, id: string) {
     .select({ category: schema.transactions.category, kind: schema.transactions.kind })
     .from(schema.transactions)
     .where(and(eq(schema.transactions.id, id), eq(schema.transactions.userId, userId)));
-  if (!row || !isCategoryId(row.category)) throw new Error("Transaction not found");
+  if (!row || !isCategoryId(row.category)) throw new UserFacingError("Transaction not found");
   return correctTransaction(userId, id, { category: row.category, kind: row.kind as TransactionKind, applyToMerchant: true, confirmed: true });
 }
 
@@ -202,7 +205,7 @@ export async function settleReview(userId: string, ids: string[], category: Cate
   const db = await getDb();
   const t = schema.transactions;
   const rows = await db.select().from(t).where(and(eq(t.userId, userId), inArray(t.id, ids), isNull(t.removedAt)));
-  if (!rows.length) throw new Error("Transaction not found");
+  if (!rows.length) throw new UserFacingError("Transaction not found");
   if (!isPaymentRail(rows[0]!.merchantKey)) {
     const first = rows[0]!;
     return category ? correctTransaction(userId, first.id, { category, applyToMerchant: true }) : confirmTransaction(userId, first.id);
@@ -264,12 +267,12 @@ export async function splitTransaction(userId: string, id: string, parts: { amou
     .select()
     .from(schema.transactions)
     .where(and(eq(schema.transactions.id, id), eq(schema.transactions.userId, userId)));
-  if (!row) throw new Error("Transaction not found");
-  if (parts.length === 1) throw new Error("A split needs at least two parts");
+  if (!row) throw new UserFacingError("Transaction not found");
+  if (parts.length === 1) throw new UserFacingError("A split needs at least two parts");
   if (parts.length) {
     const total = parts.reduce((s, p) => s + p.amount, 0);
-    if (total !== row.amountMinor) throw new Error(`Split parts must add up to the transaction amount (${row.amountMinor}), got ${total}`);
-    if (parts.some((p) => Math.sign(p.amount) !== Math.sign(row.amountMinor) || p.amount === 0)) throw new Error("Each part must have the same sign as the transaction");
+    if (total !== row.amountMinor) throw new UserFacingError(`Split parts must add up to the transaction amount (${row.amountMinor}), got ${total}`);
+    if (parts.some((p) => Math.sign(p.amount) !== Math.sign(row.amountMinor) || p.amount === 0)) throw new UserFacingError("Each part must have the same sign as the transaction");
   }
   await db.transaction(async (tx) => {
     await tx.delete(schema.splits).where(and(eq(schema.splits.transactionId, id), eq(schema.splits.userId, userId)));

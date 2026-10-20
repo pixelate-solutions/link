@@ -17,13 +17,16 @@ async function resolveUser(req: Request): Promise<string | null> {
 }
 
 async function handle(req: Request) {
-  // Link API tokens are read-only: they get the read tools and nothing that records or proposes.
+  // A read-only Link token gets the read tools and nothing that records or proposes;
+  // a write token gets every tool, like a signed-in session.
   const token = bearerToken(req);
-  const userId = token ? await verifyApiToken(token) : await resolveUser(req);
+  const verified = token ? await verifyApiToken(token) : null;
+  const userId = token ? (verified?.userId ?? null) : await resolveUser(req);
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401, headers: { "WWW-Authenticate": "Bearer" } });
   await ensureUser(userId);
-  const scopes = token ? ["link:read"] : ["link:read", "link:propose"];
-  return mcpHandler.fetch(req, { authInfo: { token: token ? "api_token" : "session", clientId: "link", scopes, extra: { userId, readOnly: Boolean(token) } } });
+  const readOnly = Boolean(token) && verified?.access !== "write";
+  const scopes = readOnly ? ["link:read"] : ["link:read", "link:propose"];
+  return mcpHandler.fetch(req, { authInfo: { token: token ? "api_token" : "session", clientId: "link", scopes, extra: { userId, readOnly } } });
 }
 
 export { handle as GET, handle as POST, handle as DELETE };

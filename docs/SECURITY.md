@@ -8,7 +8,11 @@
   - list and aggregate isolation;
   - ids smuggled into tool arguments;
   - MCP binding.
-- **Link API tokens** (`server/services/api-tokens.ts`) authenticate `/api/v1/*` and `/api/mcp` for scripts and agents. A token is `link_` + 32 random bytes, shown once; only its SHA-256 hash is stored. Tokens are read-only: `/api/v1` has only GET endpoints that change no user data (pinned by a whole-database fingerprint in `tests/api.test.ts`; `/export` adds an `account.export` audit entry), and a token MCP session gets only the read tools (each call is still logged to `tool_calls`). Revoking takes effect on the next request.
+- **Link API tokens** (`server/services/api-tokens.ts`) authenticate `/api/v1/*` and `/api/mcp` for scripts and agents. A token is `link_` + 32 random bytes, shown once; only its SHA-256 hash is stored. Each token is `read` or `write` (`api_tokens.access`, default `read`).
+  - **Read** tokens can call only the GET endpoints, which change no user data (pinned by a whole-database fingerprint in `tests/api.test.ts`; `/export` adds an `account.export` audit entry). In MCP they get only the read tools (each call is still logged to `tool_calls`).
+  - **Write** tokens can also call the POST/PATCH/PUT/DELETE endpoints, which go through the same services as the app's own actions, and get every MCP tool. Every successful write adds an `api.write` audit row with the method, path and token id. Writes can't manage tokens, disconnect banks or delete the account.
+  - **Writes need a token.** `/api/v1` accepts the browser session for GETs only, so another site can't make changes through a signed-in browser.
+  - Revoking takes effect on the next request.
 - **Dev auth** (`LINK_DEV_AUTH=1`) is refused under `NODE_ENV=production`, with no override. Verified against `next start`: `/api/dev/session` returns 404, and protected pages redirect to sign-in.
 
 **Verified unauthenticated responses (production build):**
@@ -75,6 +79,6 @@ Applying a recommendation, accepting a scenario, and approving a proposal each c
 ## Known gaps
 
 - **No per-user rate limiting** on `/api/ask` or `/api/v1`. Model cost is tracked per run but not capped.
-- **MCP token scopes are not enforced per tool** for Clerk sessions, OAuth tokens and API keys: they get every tool (Link API tokens get only the read tools). Writes still go through in-app approval; scope enforcement comes with the OAuth setup.
+- **MCP token scopes are not enforced per tool** for Clerk sessions, OAuth tokens, API keys and read-and-change Link tokens: they get every tool (read-only Link tokens get only the read tools). Writes still go through in-app approval; scope enforcement comes with the OAuth setup.
 - **Single-user ownership only.** Shared households are not implemented, so nothing can be shared by accident.
 - **`npm audit` reports advisories in dev-only tooling**: drizzle-kit's bundled esbuild, and eslint-config-next's glob dependencies. They are not in the runtime bundle.

@@ -1,0 +1,1 @@
+ALTER TABLE "link"."api_tokens" ADD COLUMN "access" text DEFAULT 'read' NOT NULL;

@@ -84,6 +84,7 @@ export const apiTokens = link.table(
     hash: text("hash").notNull(),
     /** The token's first characters, so the user can tell tokens apart. */
     prefix: text("prefix").notNull(),
+    access: text("access").notNull().default("read"), // read | write
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
     createdAt: createdAt(),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),

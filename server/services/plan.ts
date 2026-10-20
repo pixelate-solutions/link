@@ -9,6 +9,7 @@ import { getDb, schema } from "../db/client";
 import { interpretGoalsWithAI } from "../ai/interpret";
 import { audit } from "./audit";
 import { computeContext, refreshPicture } from "./picture";
+import { UserFacingError } from "../errors";
 
 // ── Goals ───────────────────────────────────────────────────────────────────
 
@@ -69,7 +70,7 @@ export async function updateGoal(
 ) {
   const db = await getDb();
   const [goal] = await db.select().from(schema.goals).where(and(eq(schema.goals.id, id), eq(schema.goals.userId, userId)));
-  if (!goal) throw new Error("Goal not found");
+  if (!goal) throw new UserFacingError("Goal not found");
   const interpretation = { ...(goal.interpretation as GoalInterpretation) };
   if (patch.targetMinor !== undefined) interpretation.target = { ...interpretation.target, amount: patch.targetMinor ?? undefined };
   if (patch.targetDate !== undefined) interpretation.target = { ...interpretation.target, date: patch.targetDate ?? undefined };
@@ -244,7 +245,7 @@ export async function acceptScenario(userId: string, id: string) {
     .set({ status: "accepted", updatedAt: new Date() })
     .where(and(eq(schema.scenarios.id, id), eq(schema.scenarios.userId, userId), eq(schema.scenarios.status, "draft")))
     .returning();
-  if (!row) throw new Error("Scenario not found or already accepted");
+  if (!row) throw new UserFacingError("Scenario not found or already accepted");
   const applied: string[] = [];
   for (const c of row.changes as ScenarioChange[]) {
     if (c.type === "child") {
@@ -297,8 +298,8 @@ function describeChange(c: ScenarioChange): string {
 export async function actOnRecommendation(userId: string, id: string, action: "apply" | "done" | "dismiss" | "skip", feedback?: string) {
   const db = await getDb();
   const [rec] = await db.select().from(schema.recommendations).where(and(eq(schema.recommendations.id, id), eq(schema.recommendations.userId, userId)));
-  if (!rec) throw new Error("Recommendation not found");
-  if (rec.status !== "active") throw new Error("This was already handled.");
+  if (!rec) throw new UserFacingError("Recommendation not found");
+  if (rec.status !== "active") throw new UserFacingError("This was already handled.");
   const now = new Date();
   if (action === "dismiss" || action === "skip") {
     // Skipping is "not now", not "never": important items come back (see shouldResurface).
@@ -330,7 +331,7 @@ export async function actOnRecommendation(userId: string, id: string, action: "a
     const s = await scenario(userId, rec.title, a.changes);
     return { status: "applied" as const, scenarioId: s.id, preview: true };
   } else {
-    throw new Error("This recommendation needs an action outside Link. Mark it done once you've made the change.");
+    throw new UserFacingError("This recommendation needs an action outside Link. Mark it done once you've made the change.");
   }
   await db
     .update(schema.recommendations)
