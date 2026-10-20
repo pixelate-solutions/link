@@ -201,6 +201,86 @@ describe("REST API v1", () => {
     expect((await get(A, "conversations/00000000-0000-4000-8000-000000000000")).status).toBe(404);
   });
 
+  it("returns everything the bank sent, including the full mortgage terms", async () => {
+    const accounts = (await get(A, "accounts")).body.data as { name: string; plaid: Body["data"]; subtype: string; institution: string }[];
+    const mortgage = accounts.find((a) => a.subtype === "mortgage")!;
+    expect(mortgage.plaid.liability).toMatchObject({
+      type: "mortgage",
+      escrow_balance: 3141.5,
+      maturity_date: "2052-04-01",
+      origination_principal_amount: 312000,
+      ytd_interest_paid: 14210.12,
+      property_address: { city: "Springfield" },
+      interest_rate: { percentage: 6.25, type: "fixed" },
+    });
+    expect(mortgage.plaid.account.mask).toBe("6666");
+    expect(accounts.find((a) => a.subtype === "credit card" && a.plaid.liability)!.plaid.liability.aprs[0].apr_percentage).toBe(22.49);
+
+    const [t] = (await get(A, "transactions?limit=1")).body.data;
+    expect(t.plaid.transaction_id).toBe(t.providerId);
+    expect(t.authorizedDate !== undefined && t.paymentChannel !== undefined).toBe(true);
+    expect((await get(A, `transactions/${t.id}`)).body.data.plaid.transaction_id).toBe(t.providerId);
+  });
+
+  it("names every account in the overview, with Home's spending card and layout", async () => {
+    const o = (await get(A, "overview")).body.data;
+    expect(o.accounts).toHaveLength(o.coverage.accounts);
+    expect(o.accounts.find((a: { subtype: string }) => a.subtype === "mortgage")).toMatchObject({ institution: "Fixture Bank", balance: 285400_00, apr: 6.25 });
+    expect(o.spending).toMatchObject({ planned: o.budget.plannedThisMonth, status: expect.stringMatching(/on_track|spending_fast|over_plan/) });
+    expect(["empty", "syncing", "shortfall", "new", "steady"]).toContain(o.homeMode);
+    expect((await get(A, "budget")).body.data.summary).toEqual(o.spending);
+  });
+
+  it("returns Needs a look as the app groups it, with the question Link asks", async () => {
+    const r = (await get(A, "review")).body;
+    expect(r.meta.count).toBe((await get(A, "overview")).body.data.coverage.reviewCount);
+    if (r.data.length) {
+      const g = r.data[0];
+      expect(g.question).toMatch(/\?$/);
+      expect(g.ids).toHaveLength(g.count);
+      expect(g.total).toBe(g.transactions.reduce((s: number, t: { amount: number }) => s + t.amount, 0));
+    }
+  });
+
+  it("returns tokens, history, the assistant's activity and chat files", async () => {
+    const t = await createApiToken(A, "listed", "write");
+    const tokens = (await get(A, "tokens")).body.data;
+    expect(tokens.find((x: { id: string }) => x.id === t.id)).toMatchObject({ name: "listed", access: "write" });
+    expect(JSON.stringify(tokens)).not.toMatch(/hash|link_[A-Za-z0-9_-]{20,}/);
+    const history = (await get(A, "history")).body;
+    expect(history.data.map((h: { action: string; target: string }) => `${h.action} ${h.target}`)).toContain(`api_token.create ${t.id}`);
+    expect((await get(A, "history?limit=1")).body.data).toHaveLength(1);
+    expect((await get(A, "history?cursor=nope")).status).toBe(400);
+    // Paging returns every entry exactly once.
+    const all = (await get(A, "history?limit=500")).body.data.map((h: { id: number }) => h.id);
+    const paged: number[] = [];
+    let cursor: number | null = null;
+    do {
+      const r: Awaited<ReturnType<typeof get>> = await get(A, `history?limit=2${cursor ? `&cursor=${cursor}` : ""}`);
+      paged.push(...r.body.data.map((h: { id: number }) => h.id));
+      cursor = r.body.meta.nextCursor;
+    } while (cursor);
+    expect(paged).toEqual(all);
+    expect((await get(A, "assistant")).body.data).toMatchObject({ runs: expect.any(Array), toolCalls: expect.any(Array) });
+
+    const { saveUpload } = await import("@/server/services/attachments");
+    const file = await saveUpload(A, { name: "notes.txt", type: "text/plain", bytes: Buffer.from("hello from a chat") });
+    const url = new URL(`http://link.test/api/v1/attachments/${file.id}`);
+    const res = await handleApiRequest({ userId: A, method: "GET", segments: ["attachments", file.id], query: url.searchParams, canWrite: false });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toMatch(/text\/plain/);
+    expect(await res.text()).toBe("hello from a chat");
+    expect((await get(B, `attachments/${file.id}`)).status).toBe(404);
+  });
+
+  it("exports every table, never a token hash", async () => {
+    const e = (await get(A, "export")).body.data;
+    for (const k of ["proposals", "goalProgress", "balanceHistory", "toolCalls", "agentRuns", "auditLog", "apiTokens", "accounts", "transactions"]) expect(e, k).toHaveProperty(k);
+    expect(e.balanceHistory.length).toBeGreaterThan(0);
+    expect(e.apiTokens.every((t: object) => !("hash" in t))).toBe(true);
+    expect(e.accounts.find((a: { subtype: string }) => a.subtype === "mortgage").plaid.liability.escrow_balance).toBe(3141.5);
+  });
+
   it("gives token MCP sessions only the read-only tools", async () => {
     const [ct, st] = InMemoryTransport.createLinkedPair();
     await buildMcpServer(A, { readOnly: true }).connect(st);
@@ -402,4 +482,74 @@ describe("REST API v1 writes", () => {
     expect((await call(W, "PATCH", "transactions/not-a-uuid", { category: "gifts" })).status).toBe(404);
   });
 
+});
+
+describe("keeping what Plaid sends", () => {
+  const P = "plaid_keep";
+  let connId: string;
+  beforeAll(async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
+    ({ db } = await testDb());
+    ({ connId } = await seedHousehold(db, P));
+  }, 120_000);
+
+  it("fills in details on a redelivery without touching your corrections, and keeps the last liability", async () => {
+    const { applySyncBatch } = await import("@/server/plaid/sync");
+    const { ACCOUNTS, buildHousehold } = await import("./fixtures/household");
+    const [first] = buildHousehold();
+    const { truth: _t, ...raw } = first!;
+    const [row] = await db.select().from(schema.transactions).where(eq(schema.transactions.providerId, raw.transaction_id));
+    await call(P, "PATCH", `transactions/${row!.id}`, { category: "gifts", applyToMerchant: false, note: "mine" });
+
+    // Plaid sends the same transaction again with more detail, and this time no liabilities.
+    const richer = { ...raw, location: { city: "Austin", region: "TX" }, payment_meta: { reference_number: "R-1" }, check_number: null };
+    await applySyncBatch(db, { id: connId, userId: P }, { accounts: ACCOUNTS, added: [], modified: [richer], removed: [], nextCursor: "c2", liabilities: null, item: { item_id: "item_x", consent_expiration_time: null, products: ["transactions", "liabilities"] } }, NOW);
+
+    const t = (await get(P, `transactions/${row!.id}`)).body.data;
+    expect(t).toMatchObject({ category: "gifts", note: "mine", userLocked: true });
+    expect(t.plaid).toMatchObject({ location: { city: "Austin" }, payment_meta: { reference_number: "R-1" } });
+    const mortgage = ((await get(P, "accounts")).body.data as { subtype: string; plaid: Body["data"] }[]).find((a) => a.subtype === "mortgage")!;
+    expect(mortgage.plaid.liability.escrow_balance).toBe(3141.5);
+    expect((await get(P, "connections")).body.data[0].plaid).toMatchObject({ item_id: "item_x", products: ["transactions", "liabilities"] });
+  });
+
+  it("keeps stored investment history when Plaid's call fails, and drops a paid-off loan's terms", async () => {
+    const { applySyncBatch } = await import("@/server/plaid/sync");
+    const { ACCOUNTS, LIABILITIES } = await import("./fixtures/household");
+    const sync = (extra: object) => applySyncBatch(db, { id: connId, userId: P }, { accounts: ACCOUNTS, added: [], modified: [], removed: [], nextCursor: "c3", ...extra }, NOW);
+    const ira = async () => ((await get(P, "accounts")).body.data as { subtype: string; plaid: Body["data"] }[]).find((a) => a.subtype === "ira")!.plaid;
+    const mortgage = async () => ((await get(P, "accounts")).body.data as { subtype: string; plaid: Body["data"] }[]).find((a) => a.subtype === "mortgage")!.plaid;
+
+    await sync({ liabilities: LIABILITIES, investments: { ira: { holdings: [{ security_id: "s1", quantity: 3 }], investmentTransactions: [{ investment_transaction_id: "it1", date: "2026-09-01", type: "buy" }] } } });
+    expect((await ira()).investmentTransactions).toHaveLength(1);
+    // The investment-transactions call failed this time: holdings refresh, history stays.
+    await sync({ liabilities: LIABILITIES, investments: { ira: { holdings: [{ security_id: "s1", quantity: 4 }] } } });
+    expect((await ira()).holdings[0].quantity).toBe(4);
+    expect((await ira()).investmentTransactions).toHaveLength(1);
+
+    // Liabilities succeeded but no longer list the mortgage: it was paid off.
+    expect((await mortgage()).liability).toBeDefined();
+    await sync({ liabilities: { credit: LIABILITIES.credit } });
+    expect((await mortgage()).liability).toBeUndefined();
+    // A failed liabilities call (null) changes nothing.
+    await sync({ liabilities: LIABILITIES });
+    await sync({ liabilities: null });
+    expect((await mortgage()).liability.type).toBe("mortgage");
+  });
+
+  it("stores no full account numbers and survives NUL characters", async () => {
+    const { applySyncBatch } = await import("@/server/plaid/sync");
+    const { ACCOUNTS, LIABILITIES, buildHousehold } = await import("./fixtures/household");
+    const { truth: _t, ...raw } = buildHousehold()[1]!;
+    const liabilities = { ...LIABILITIES, mortgage: LIABILITIES.mortgage!.map((m) => ({ ...m, account_number: "0012345678" })) };
+    const txn = { ...raw, location: { address: "12 Main\u0000 St" }, counterparties: [{ name: "Shop", account_numbers: { bacs: { account: "12345678" } } }] };
+    await applySyncBatch(db, { id: connId, userId: P }, { accounts: ACCOUNTS, added: [], modified: [txn], removed: [], nextCursor: "c4", liabilities }, NOW);
+    const m = ((await get(P, "accounts")).body.data as { subtype: string; plaid: Body["data"] }[]).find((a) => a.subtype === "mortgage")!.plaid.liability;
+    expect(m.account_number_last4).toBe("5678");
+    expect(m).not.toHaveProperty("account_number");
+    const [row] = await db.select().from(schema.transactions).where(eq(schema.transactions.providerId, raw.transaction_id));
+    expect((row!.plaid as Body["data"]).location.address).toBe("12 Main St");
+    expect(JSON.stringify(row!.plaid)).not.toContain("12345678");
+  });
 });

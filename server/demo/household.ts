@@ -41,7 +41,28 @@ export const LIABILITIES: PlaidLiabilitiesLike = {
   credit: [
     { account_id: "cc1", aprs: [{ apr_percentage: 22.49, apr_type: "purchase_apr" }], last_statement_balance: 1712.3, minimum_payment_amount: 35, next_payment_due_date: "2026-10-25" },
   ],
-  mortgage: [{ account_id: "mort", interest_rate: { percentage: 6.25 }, next_monthly_payment: 2050, next_payment_due_date: "2026-11-01" }],
+  mortgage: [
+    {
+      account_id: "mort",
+      interest_rate: { percentage: 6.25, type: "fixed" },
+      next_monthly_payment: 2050,
+      next_payment_due_date: "2026-11-01",
+      escrow_balance: 3141.5,
+      has_pmi: false,
+      has_prepayment_penalty: false,
+      last_payment_amount: 2050,
+      last_payment_date: "2026-10-01",
+      loan_term: "30 year",
+      loan_type_description: "conventional",
+      maturity_date: "2052-04-01",
+      origination_date: "2022-03-15",
+      origination_principal_amount: 312000,
+      past_due_amount: null,
+      property_address: { street: "1 Example St", city: "Springfield", region: "IL", postal_code: "62701", country: "US" },
+      ytd_interest_paid: 14210.12,
+      ytd_principal_paid: 4120.4,
+    },
+  ],
 };
 
 type Pfc = [string, string, string?];

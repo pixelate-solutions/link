@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { getTableColumns, sql } from "drizzle-orm";
 import {
   bigint,
   customType,
@@ -132,6 +132,8 @@ export const connections = link.table(
     institutionLogo: text("institution_logo"),
     /** Has investment accounts whose balances need the Investments permission (granted in Plaid update mode). */
     needsInvestmentsConsent: boolean("needs_investments_consent").notNull().default(false),
+    /** Plaid's item as last reported (products, consent expiry, error), exactly as sent. */
+    plaid: jsonb("plaid"),
     accessTokenEnc: text("access_token_enc").notNull(),
     cursor: text("cursor"),
     status: text("status").notNull().default("active"), // active | login_required | error | disconnected
@@ -170,6 +172,12 @@ export const accounts = link.table(
     minPaymentMinor: money("min_payment_minor"),
     statementBalanceMinor: money("statement_balance_minor"),
     nextPaymentDue: date("next_payment_due", { mode: "string" }),
+    /**
+     * Everything Plaid sent about this account, exactly as sent (dollars, Plaid's conventions):
+     * `account`, `liability` (credit, mortgage, student, loan or line of credit, with `type`),
+     * and `holdings` / `investmentTransactions` for investment accounts.
+     */
+    plaid: jsonb("plaid"),
     source: text("source").notNull().default("plaid"), // plaid | manual | demo
     hidden: boolean("hidden").notNull().default(false),
     closed: boolean("closed").notNull().default(false),
@@ -222,6 +230,8 @@ export const transactions = link.table(
     paymentChannel: text("payment_channel"),
     logoUrl: text("logo_url"),
     website: text("website"),
+    /** The transaction exactly as Plaid sent it (dollars; positive = money out). */
+    plaid: jsonb("plaid"),
     // Enrichment.
     merchant: text("merchant").notNull(),
     merchantKey: text("merchant_key").notNull(),
@@ -601,3 +611,8 @@ export const auditLog = link.table(
   },
   (t) => [index("audit_log_user").on(t.userId, t.createdAt)],
 );
+
+/** Every column except `plaid`, for paths that never read the raw payload (it can be large). */
+export const accountColumns = (({ plaid: _plaid, ...c }) => c)(getTableColumns(accounts));
+export const transactionColumns = (({ plaid: _plaid, ...c }) => c)(getTableColumns(transactions));
+

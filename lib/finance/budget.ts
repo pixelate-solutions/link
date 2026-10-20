@@ -55,3 +55,36 @@ export function adjustForIncome(items: BudgetItem[], shortfall: Minor, protected
     covered: cut,
   };
 }
+
+export interface SpendingSummary {
+  planned: Minor;
+  spent: Minor;
+  /** Negative = over plan. */
+  left: Minor;
+  daysLeft: number;
+  /** What's left per remaining day; 0 when nothing is left. */
+  perDay: Minor;
+  /** Where a typical month of yours is by today, capped at the plan. */
+  pace: Minor;
+  status: "on_track" | "spending_fast" | "over_plan";
+  /** Up to three categories over plan, or flexible ones running ahead, with how far. */
+  hot: { category: CategoryId; status: "over" | "over_pace"; amount: Minor }[];
+}
+
+/** The lead number on Home: this month's spending against the plan, and how it's pacing. */
+export function spendingSummary(b: { lines: BudgetLine[]; spentThisMonth: Minor; plannedThisMonth: Minor; typicalByNow: Minor }, asOf: ISODate): SpendingSummary {
+  const planned = b.plannedThisMonth;
+  const spent = Math.max(0, b.spentThisMonth);
+  const left = planned - spent;
+  const daysLeft = daysInMonth(asOf) - Number(asOf.slice(8, 10)) + 1;
+  // Rent and other early-month bills are included in a typical month, so paying them isn't "fast".
+  const pace = Math.min(planned, b.typicalByNow);
+  const ahead = spent > pace * 1.08 + 25_00;
+  // Fixed bills land on their own schedule; only flexible categories can run "ahead".
+  const hot = b.lines
+    .filter((l) => l.status === "over" || (l.status === "over_pace" && l.group === "discretionary"))
+    .slice(0, 3)
+    .map((l) => ({ category: l.category, status: l.status as "over" | "over_pace", amount: Math.max(0, l.spent - (l.status === "over" ? l.monthly : l.expectedByNow)) }));
+  return { planned, spent, left, daysLeft, perDay: left > 0 ? Math.floor(left / daysLeft) : 0, pace, status: left < 0 ? "over_plan" : ahead ? "spending_fast" : "on_track", hot };
+}
+

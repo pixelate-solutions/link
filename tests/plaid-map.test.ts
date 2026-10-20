@@ -39,6 +39,24 @@ describe("investment balances", () => {
     expect(r.needsConsent).toBe(false);
     expect(r.accounts[0]!.balances.current).toBe(42000.5);
   });
+  it("keeps every holding with its security, and the investment transactions", async () => {
+    const { investmentBalances } = await import("@/server/plaid/sync");
+    const api = {
+      investmentsHoldingsGet: async () => ({
+        data: {
+          accounts: [{ account_id: "k1", balances: { current: 1000 } }],
+          holdings: [{ account_id: "k1", security_id: "s1", institution_value: 1000, quantity: 10, cost_basis: 900 }],
+          securities: [{ security_id: "s1", ticker_symbol: "VTI", name: "Vanguard Total Stock Market" }],
+        },
+      }),
+      investmentsTransactionsGet: async () => ({
+        data: { investment_transactions: [{ account_id: "k1", security_id: "s1", type: "buy", amount: 100 }], securities: [{ security_id: "s1", ticker_symbol: "VTI" }], total_investment_transactions: 1 },
+      }),
+    };
+    const r = await investmentBalances(api as never, "tok", [acct]);
+    expect(r.details!.k1!.holdings[0]).toMatchObject({ quantity: 10, cost_basis: 900, security: { ticker_symbol: "VTI" } });
+    expect(r.details!.k1!.investmentTransactions![0]).toMatchObject({ type: "buy", security: { ticker_symbol: "VTI" } });
+  });
   it("flags the connection when the permission is missing, instead of trusting $0", async () => {
     const { investmentBalances } = await import("@/server/plaid/sync");
     const api = { investmentsHoldingsGet: async () => { throw Object.assign(new Error("x"), { response: { data: { error_code: "ADDITIONAL_CONSENT_REQUIRED" } } }); } };

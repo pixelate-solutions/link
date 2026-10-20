@@ -11,6 +11,7 @@
 - **Link API tokens** (`server/services/api-tokens.ts`) authenticate `/api/v1/*` and `/api/mcp` for scripts and agents. A token is `link_` + 32 random bytes, shown once; only its SHA-256 hash is stored. Each token is `read` or `write` (`api_tokens.access`, default `read`).
   - **Read** tokens can call only the GET endpoints, which change no user data (pinned by a whole-database fingerprint in `tests/api.test.ts`; `/export` adds an `account.export` audit entry). In MCP they get only the read tools (each call is still logged to `tool_calls`).
   - **Write** tokens can also call the POST/PATCH/PUT/DELETE endpoints, which go through the same services as the app's own actions, and get every MCP tool. Every successful write adds an `api.write` audit row with the method, path and token id. Writes can't manage tokens, disconnect banks or delete the account.
+  - **Raw bank data:** `accounts.plaid`, `transactions.plaid` and `connections.plaid` keep what Plaid sent, including loan account numbers and property addresses, and the API returns them. Plaid access tokens are never stored there.
   - **Writes need a token.** `/api/v1` accepts the browser session for GETs only, so another site can't make changes through a signed-in browser.
   - Revoking takes effect on the next request.
 - **Dev auth** (`LINK_DEV_AUTH=1`) is refused under `NODE_ENV=production`, with no override. Verified against `next start`: `/api/dev/session` returns 404, and protected pages redirect to sign-in.

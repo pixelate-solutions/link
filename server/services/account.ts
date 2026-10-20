@@ -49,7 +49,8 @@ export async function exportUserData(userId: string) {
   const [user, accounts, transactions, splits, rules, corrections, recurring, goals, facts, preferences, budgets, scenarios, recommendations, conversations, messages, memories] = await Promise.all([
     db.select().from(schema.users).where(eq(schema.users.id, userId)),
     db.select().from(schema.accounts).where(eq(schema.accounts.userId, userId)),
-    db.select().from(schema.transactions).where(eq(schema.transactions.userId, userId)),
+    // Without each transaction's raw Plaid payload: it would more than double the size (see /api/v1/transactions).
+    db.select(schema.transactionColumns).from(schema.transactions).where(eq(schema.transactions.userId, userId)),
     db.select().from(schema.splits).where(eq(schema.splits.userId, userId)),
     db.select().from(schema.rules).where(eq(schema.rules.userId, userId)),
     db.select().from(schema.corrections).where(eq(schema.corrections.userId, userId)),
@@ -64,16 +65,33 @@ export async function exportUserData(userId: string) {
     db.select().from(schema.messages).where(eq(schema.messages.userId, userId)),
     db.select().from(schema.memories).where(eq(schema.memories.userId, userId)),
   ]);
-  const businesses = await db.select().from(schema.businesses).where(eq(schema.businesses.userId, userId));
+  const [businesses, proposals, goalProgress, balanceHistory, toolCalls, agentRuns, auditLog, plaidItems, apiTokens] = await Promise.all([
+    db.select().from(schema.businesses).where(eq(schema.businesses.userId, userId)),
+    db.select().from(schema.proposals).where(eq(schema.proposals.userId, userId)),
+    db.select().from(schema.goalProgress).where(eq(schema.goalProgress.userId, userId)),
+    db.select().from(schema.balanceHistory).where(eq(schema.balanceHistory.userId, userId)),
+    db.select().from(schema.toolCalls).where(eq(schema.toolCalls.userId, userId)),
+    db.select().from(schema.agentRuns).where(eq(schema.agentRuns.userId, userId)),
+    db.select().from(schema.auditLog).where(eq(schema.auditLog.userId, userId)),
+    db.select({ id: schema.connections.id, plaid: schema.connections.plaid }).from(schema.connections).where(eq(schema.connections.userId, userId)),
+    // Never the hash.
+    db
+      .select({ id: schema.apiTokens.id, name: schema.apiTokens.name, prefix: schema.apiTokens.prefix, access: schema.apiTokens.access, lastUsedAt: schema.apiTokens.lastUsedAt, createdAt: schema.apiTokens.createdAt, revokedAt: schema.apiTokens.revokedAt })
+      .from(schema.apiTokens)
+      .where(eq(schema.apiTokens.userId, userId)),
+  ]);
   // File contents stay out of the JSON; each one downloads from Ask.
   const files = await db
     .select({ id: schema.attachments.id, conversationId: schema.attachments.conversationId, messageId: schema.attachments.messageId, source: schema.attachments.source, name: schema.attachments.name, mime: schema.attachments.mime, size: schema.attachments.size, createdAt: schema.attachments.createdAt })
     .from(schema.attachments)
     .where(eq(schema.attachments.userId, userId));
-  const connections = (await listConnections(userId)).map((c) => ({ ...c, note: "Access tokens are never exported." }));
+  const connections = (await listConnections(userId)).map((c) => ({ ...c, plaid: plaidItems.find((p) => p.id === c.id)?.plaid ?? null, note: "Access tokens are never exported." }));
   return {
     exportedAt: new Date().toISOString(),
-    conventions: { money: "integer minor units (cents); positive = money into your account" },
+    conventions: {
+      money: "integer minor units (cents); positive = money into your account",
+      plaid: "`plaid` fields are exactly what Plaid sent, in dollars. Each transaction's own Plaid details are not in this file; GET /api/v1/transactions returns them",
+    },
     user: user[0] ?? null,
     businesses,
     connections,
@@ -93,6 +111,13 @@ export async function exportUserData(userId: string) {
     messages,
     files,
     memories,
+    proposals,
+    goalProgress,
+    balanceHistory,
+    toolCalls,
+    agentRuns,
+    auditLog,
+    apiTokens,
   };
 }
 

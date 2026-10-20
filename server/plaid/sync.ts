@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { CountryCode, PersonalFinanceCategoryVersion, Products } from "plaid";
 import { type AccountType, classify } from "@/lib/finance/classify";
 import { todayISO } from "@/lib/finance/dates";
@@ -8,7 +8,7 @@ import { enqueue } from "../jobs";
 import { log } from "../log";
 import { loadClassifyContext } from "../pipeline/context";
 import { plaid, plaidErrorCode, webhookUrl } from "./client";
-import { mapAccount, mapLiabilities, mapTransactionFacts, type PlaidAccountLike, type PlaidLiabilitiesLike, type PlaidTxnLike } from "./map";
+import { cleanRaw, mapAccount, mapLiabilities, mapTransactionFacts, type PlaidAccountLike, type PlaidLiabilitiesLike, type PlaidTxnLike } from "./map";
 
 export interface SyncBatch {
   accounts: PlaidAccountLike[];
@@ -17,7 +17,19 @@ export interface SyncBatch {
   removed: { transaction_id: string; account_id?: string | null }[];
   nextCursor: string;
   liabilities?: PlaidLiabilitiesLike | null;
+  /** Per Plaid account id: holdings (with their securities) and investment transactions, as sent. */
+  investments?: Record<string, PlaidInvestments> | null;
+  /** The item (bank connection) as Plaid reports it. */
+  item?: Record<string, unknown> | null;
 }
+
+export interface PlaidInvestments {
+  holdings: Record<string, unknown>[];
+  /** Absent when Plaid's call failed: the ones already stored are kept. */
+  investmentTransactions?: Record<string, unknown>[];
+}
+
+const INVESTMENT_HISTORY_DAYS = 730;
 
 export interface SyncResult {
   accounts: number;
@@ -44,7 +56,7 @@ export async function applySyncBatch(
   now = new Date(),
 ): Promise<SyncResult> {
   return db.transaction(async (tx) => {
-    const accountIds = await upsertAccounts(tx, conn, batch.accounts, batch.liabilities, now);
+    const accountIds = await upsertAccounts(tx, conn, batch.accounts, batch.liabilities, batch.investments, now);
     const ctx = await loadClassifyContext(tx, conn.userId);
 
     // Plaid never reuses a removed id: removal wins over an add/modify in the same batch.
@@ -110,11 +122,13 @@ export async function applySyncBatch(
       };
 
       if (prior && sameFacts(prior, facts) && !prior.removedAt) {
-        // Redelivery of an unchanged record. Only fill in branding we didn't have; never re-enrich.
-        if ((facts.logoUrl && facts.logoUrl !== prior.logoUrl) || (facts.website && facts.website !== prior.website)) {
+        // Redelivery of an unchanged record. Only fill in what we didn't have (branding, Plaid's details); never re-enrich.
+        const raw = cleanRaw(t);
+        const newPlaid = stableJson(prior.plaid) !== stableJson(raw);
+        if ((facts.logoUrl && facts.logoUrl !== prior.logoUrl) || (facts.website && facts.website !== prior.website) || newPlaid) {
           await tx
             .update(schema.transactions)
-            .set({ logoUrl: facts.logoUrl ?? prior.logoUrl, website: facts.website ?? prior.website })
+            .set({ logoUrl: facts.logoUrl ?? prior.logoUrl, website: facts.website ?? prior.website, plaid: raw })
             .where(and(eq(schema.transactions.id, prior.id), eq(schema.transactions.userId, conn.userId)));
         }
         continue;
@@ -135,6 +149,7 @@ export async function applySyncBatch(
           .update(schema.transactions)
           .set({
             ...facts,
+            plaid: cleanRaw(t),
             pendingProviderId: facts.pendingProviderId ?? prior.pendingProviderId,
             ...(next ?? {}),
             transferPairId: keepEnrichment ? prior.transferPairId : null,
@@ -146,7 +161,7 @@ export async function applySyncBatch(
         byKey.set(`${acct.id}|${facts.providerId}`, { ...prior, providerId: facts.providerId });
         modified++;
       } else {
-        inserts.push({ userId: conn.userId, accountId: acct.id, source: "plaid", ...facts, ...enrichment() });
+        inserts.push({ userId: conn.userId, accountId: acct.id, source: "plaid", ...facts, plaid: cleanRaw(t), ...enrichment() });
         added++;
       }
     }
@@ -174,11 +189,16 @@ export async function applySyncBatch(
 
     await tx
       .update(schema.connections)
-      .set({ cursor: batch.nextCursor, lastSyncedAt: now, status: "active", errorCode: null, updatedAt: now })
+      .set({ cursor: batch.nextCursor, lastSyncedAt: now, status: "active", errorCode: null, updatedAt: now, ...(batch.item ? { plaid: cleanRaw(batch.item) } : {}) })
       .where(and(eq(schema.connections.id, conn.id), eq(schema.connections.userId, conn.userId)));
 
     return { accounts: accountIds.size, added, modified, removed };
   });
+}
+
+/** JSON with object keys sorted: Postgres stores jsonb with its own key order. */
+function stableJson(v: unknown): string {
+  return JSON.stringify(v ?? null, (_k, x) => (x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => (a < b ? -1 : 1))) : x));
 }
 
 function sameFacts(row: TxnRow, f: ReturnType<typeof mapTransactionFacts>) {
@@ -204,6 +224,7 @@ async function upsertAccounts(
   conn: { id: string; userId: string },
   accounts: PlaidAccountLike[],
   liabilities: PlaidLiabilitiesLike | null | undefined,
+  investments: Record<string, PlaidInvestments> | null | undefined,
   now: Date,
 ) {
   const liab = mapLiabilities(liabilities);
@@ -211,12 +232,29 @@ async function upsertAccounts(
   const today = todayISO("UTC", now);
   for (const a of accounts) {
     const m = mapAccount(a, now);
-    const l = liab.get(a.account_id);
-    const values = { ...m, ...(l ?? {}), updatedAt: now };
+    const { raw: liability, ...l } = liab.get(a.account_id) ?? {};
+    const inv = investments?.[a.account_id];
+    // Everything Plaid sent. Anything a failed call didn't bring keeps the last we had;
+    // a liability Plaid no longer lists (a paid-off loan) is dropped.
+    const plaid = cleanRaw({
+      account: a,
+      ...(liability ? { liability } : {}),
+      ...(inv ? { holdings: inv.holdings, ...(inv.investmentTransactions ? { investmentTransactions: inv.investmentTransactions } : {}) } : {}),
+    });
+    const dropLiability = liabilities != null && !liability;
+    const values = { ...m, ...l, updatedAt: now };
     const [row] = await tx
       .insert(schema.accounts)
-      .values({ userId: conn.userId, connectionId: conn.id, source: "plaid", ...values })
-      .onConflictDoUpdate({ target: [schema.accounts.connectionId, schema.accounts.providerAccountId], set: values })
+      .values({ userId: conn.userId, connectionId: conn.id, source: "plaid", ...values, plaid })
+      .onConflictDoUpdate({
+        target: [schema.accounts.connectionId, schema.accounts.providerAccountId],
+        set: {
+          ...values,
+          plaid: dropLiability
+            ? sql`(coalesce(${schema.accounts.plaid}, '{}'::jsonb) - 'liability') || ${JSON.stringify(plaid)}::jsonb`
+            : sql`coalesce(${schema.accounts.plaid}, '{}'::jsonb) || ${JSON.stringify(plaid)}::jsonb`,
+        },
+      })
       .returning({ id: schema.accounts.id, type: schema.accounts.type, subtype: schema.accounts.subtype, userId: schema.accounts.userId, businessId: schema.accounts.businessId });
     if (!row || row.userId !== conn.userId) throw new Error("Account ownership mismatch");
     out.set(a.account_id, { id: row.id, type: row.type as AccountType, subtype: row.subtype, business: Boolean(row.businessId) });
@@ -284,7 +322,7 @@ export async function syncConnection(connectionId: string, userId: string): Prom
         access_token: accessToken,
         cursor,
         count: 500,
-        options: { include_personal_finance_category: true, personal_finance_category_version: PersonalFinanceCategoryVersion.V2 },
+        options: { include_personal_finance_category: true, include_original_description: true, personal_finance_category_version: PersonalFinanceCategoryVersion.V2 },
       });
       return data as unknown as Awaited<ReturnType<PageFetcher>>;
     }, conn.cursor);
@@ -301,9 +339,31 @@ export async function syncConnection(connectionId: string, userId: string): Prom
       const { data } = await api.accountsGet({ access_token: accessToken });
       pages.accounts = data.accounts as unknown as PlaidAccountLike[];
     }
-    const investments = await investmentBalances(api, accessToken, pages.accounts);
+    // Two years of investment history the first time; after that, the last month merged into what we have.
+    const stored = await db
+      .select({ providerAccountId: schema.accounts.providerAccountId, type: schema.accounts.type, history: sql<Record<string, unknown>[] | null>`${schema.accounts.plaid}->'investmentTransactions'` })
+      .from(schema.accounts)
+      .where(and(eq(schema.accounts.connectionId, conn.id), eq(schema.accounts.userId, userId)));
+    const fullHistory = !conn.cursor || stored.some((a) => a.type === "investment" && a.history == null);
+    const investments = await investmentBalances(api, accessToken, pages.accounts, new Date(), fullHistory ? INVESTMENT_HISTORY_DAYS : 30);
     pages.accounts = investments.accounts;
-    const result = await applySyncBatch(db, { id: conn.id, userId }, { ...pages, liabilities });
+    if (investments.details && !fullHistory) {
+      const cutoff = todayISO("UTC", new Date(Date.now() - INVESTMENT_HISTORY_DAYS * 86_400_000));
+      for (const [accountId, d] of Object.entries(investments.details)) {
+        if (!d.investmentTransactions) continue;
+        const merged = new Map<string, Record<string, unknown>>();
+        for (const t of [...(stored.find((a) => a.providerAccountId === accountId)?.history ?? []), ...d.investmentTransactions]) merged.set(String(t.investment_transaction_id), t);
+        d.investmentTransactions = [...merged.values()].filter((t) => String(t.date) >= cutoff).sort((x, y) => String(y.date).localeCompare(String(x.date)));
+      }
+    }
+    let item: Record<string, unknown> | null = null;
+    try {
+      const { data } = await api.itemGet({ access_token: accessToken });
+      item = { ...data.item, status: data.status ?? null } as Record<string, unknown>;
+    } catch (err) {
+      log.info("sync: item unavailable", { code: plaidErrorCode(err) });
+    }
+    const result = await applySyncBatch(db, { id: conn.id, userId }, { ...pages, liabilities, investments: investments.details, item });
     if (investments.needsConsent !== conn.needsInvestmentsConsent) {
       await db.update(schema.connections).set({ needsInvestmentsConsent: investments.needsConsent }).where(and(eq(schema.connections.id, conn.id), eq(schema.connections.userId, userId)));
     }
@@ -334,15 +394,36 @@ export async function syncConnection(connectionId: string, userId: string): Prom
  * Retirement and brokerage balances come from holdings: without the
  * Investments product many institutions (Empower, for one) report $0.
  */
-export async function investmentBalances(api: ReturnType<typeof plaid>, accessToken: string, accounts: PlaidAccountLike[]): Promise<{ accounts: PlaidAccountLike[]; needsConsent: boolean }> {
-  if (!accounts.some((a) => a.type === "investment" || a.type === "brokerage")) return { accounts, needsConsent: false };
+export async function investmentBalances(
+  api: ReturnType<typeof plaid>,
+  accessToken: string,
+  accounts: PlaidAccountLike[],
+  now = new Date(),
+  historyDays = INVESTMENT_HISTORY_DAYS,
+): Promise<{ accounts: PlaidAccountLike[]; needsConsent: boolean; details: Record<string, PlaidInvestments> | null }> {
+  if (!accounts.some((a) => a.type === "investment" || a.type === "brokerage")) return { accounts, needsConsent: false, details: null };
   try {
     const { data } = await api.investmentsHoldingsGet({ access_token: accessToken });
     const totals = new Map<string, number>();
     for (const h of data.holdings) totals.set(h.account_id, (totals.get(h.account_id) ?? 0) + (h.institution_value ?? 0));
     const fresh = new Map(data.accounts.map((a) => [a.account_id, a]));
+    // The details are extra: if anything about them fails, the balances above still stand.
+    let details: Record<string, PlaidInvestments> | null = null;
+    try {
+      const securities = new Map((data.securities ?? []).map((x) => [x.security_id, x]));
+      const d: Record<string, PlaidInvestments> = {};
+      const history = await investmentTransactions(api, accessToken, now, historyDays);
+      const slot = (id: string) => (d[id] ??= { holdings: [], ...(history ? { investmentTransactions: [] } : {}) });
+      for (const a of data.accounts) slot(a.account_id);
+      for (const h of data.holdings) slot(h.account_id).holdings.push({ ...h, security: securities.get(h.security_id) ?? null });
+      for (const t of history ?? []) slot(String(t.account_id)).investmentTransactions!.push(t);
+      details = d;
+    } catch (err) {
+      log.warn("sync: investment details unavailable", { error: err instanceof Error ? err.message : String(err) });
+    }
     return {
       needsConsent: false,
+      details,
       accounts: accounts.map((a) => {
         const f = fresh.get(a.account_id);
         const current = f?.balances.current || totals.get(a.account_id) || a.balances.current;
@@ -352,8 +433,31 @@ export async function investmentBalances(api: ReturnType<typeof plaid>, accessTo
   } catch (err) {
     const code = plaidErrorCode(err);
     log.info("sync: investments unavailable", { code });
-    return { accounts, needsConsent: code === "ADDITIONAL_CONSENT_REQUIRED" };
+    return { accounts, needsConsent: code === "ADDITIONAL_CONSENT_REQUIRED", details: null };
   }
+}
+
+/**
+ * Buys, sells, contributions and dividends over the last `days`, each with its security.
+ * Null if any page fails, so a partial list never replaces the stored one.
+ */
+async function investmentTransactions(api: ReturnType<typeof plaid>, accessToken: string, now: Date, days: number): Promise<Record<string, unknown>[] | null> {
+  const end = todayISO("UTC", now);
+  const start = todayISO("UTC", new Date(now.getTime() - days * 86_400_000));
+  const out: Record<string, unknown>[] = [];
+  try {
+    for (let offset = 0; offset < 10_000; ) {
+      const { data } = await api.investmentsTransactionsGet({ access_token: accessToken, start_date: start, end_date: end, options: { count: 500, offset } });
+      const securities = new Map((data.securities ?? []).map((x) => [x.security_id, x]));
+      out.push(...data.investment_transactions.map((t) => ({ ...t, security: (t.security_id && securities.get(t.security_id)) || null })));
+      offset += data.investment_transactions.length;
+      if (!data.investment_transactions.length || offset >= data.total_investment_transactions) break;
+    }
+  } catch (err) {
+    log.info("sync: investment transactions unavailable", { code: plaidErrorCode(err) });
+    return null;
+  }
+  return out;
 }
 
 export async function createLinkToken(userId: string, connectionId?: string, opts: { investments?: boolean } = {}): Promise<string> {

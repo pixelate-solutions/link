@@ -186,3 +186,12 @@ export function normalizeMerchant(raw: string, providerMerchant?: string | null)
   const name = titleCase(s).slice(0, 60);
   return { name, key: merchantKey(name), known: false, ...(toast ? { category: "dining" as const } : {}) };
 }
+
+/**
+ * How "Needs a look" groups transactions: by merchant and direction, so one answer settles
+ * the group. Payment rails (Zelle, checks) also split by the bank's description, i.e. by who was paid.
+ */
+export function reviewGroupKey(t: { merchantKey: string; amount: number; name: string }): string {
+  return `${t.merchantKey}|${t.amount < 0 ? "out" : "in"}${isPaymentRail(t.merchantKey) ? `|${railPayee(t.merchantKey, t.name).toLowerCase()}` : ""}`;
+}
+

@@ -11,8 +11,9 @@ import { type Db, schema } from "../db/client";
 
 export const LEDGER_DAYS = 400;
 
-export type AccountRow = typeof schema.accounts.$inferSelect;
-export type TxnRow = typeof schema.transactions.$inferSelect;
+/** Rows as the engines see them: without the raw Plaid payload, which they never read. */
+export type AccountRow = Omit<typeof schema.accounts.$inferSelect, "plaid">;
+export type TxnRow = Omit<typeof schema.transactions.$inferSelect, "plaid">;
 
 export function toLedgerAccount(a: AccountRow): LedgerAccount {
   return {
@@ -127,9 +128,9 @@ export async function loadUserData(db: Db, userId: string, now = new Date()): Pr
   const since = addDays(asOf, -LEDGER_DAYS);
 
   const [accounts, txnRows, goalRows, factRows, prefRows, budgetRows, ignored, businessRows] = await Promise.all([
-    db.select().from(schema.accounts).where(eq(schema.accounts.userId, userId)),
+    db.select(schema.accountColumns).from(schema.accounts).where(eq(schema.accounts.userId, userId)),
     db
-      .select()
+      .select(schema.transactionColumns)
       .from(schema.transactions)
       .where(and(eq(schema.transactions.userId, userId), isNull(schema.transactions.removedAt), gte(schema.transactions.date, since))),
     db

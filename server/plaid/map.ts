@@ -43,10 +43,44 @@ function httpsUrl(v: string | null | undefined): string | null {
   }
 }
 
+/** Plaid's objects carry many more fields than these; every one is kept as sent in `accounts.plaid.liability`. */
+type Raw = Record<string, unknown>;
 export interface PlaidLiabilitiesLike {
-  credit?: { account_id: string | null; aprs?: { apr_percentage: number; apr_type: string }[]; last_statement_balance?: number | null; minimum_payment_amount?: number | null; next_payment_due_date?: string | null }[] | null;
-  mortgage?: { account_id: string; interest_rate?: { percentage?: number | null } | null; next_monthly_payment?: number | null; next_payment_due_date?: string | null }[] | null;
-  student?: { account_id: string | null; interest_rate_percentage?: number | null; minimum_payment_amount?: number | null; next_payment_due_date?: string | null }[] | null;
+  credit?: (Raw & { account_id: string | null; aprs?: { apr_percentage: number; apr_type: string }[]; last_statement_balance?: number | null; minimum_payment_amount?: number | null; next_payment_due_date?: string | null })[] | null;
+  mortgage?: (Raw & { account_id: string; interest_rate?: { percentage?: number | null; type?: string | null } | null; next_monthly_payment?: number | null; next_payment_due_date?: string | null })[] | null;
+  student?: (Raw & { account_id: string | null; interest_rate_percentage?: number | null; minimum_payment_amount?: number | null; next_payment_due_date?: string | null })[] | null;
+  loan?: (Raw & { account_id: string; interest_rate?: { percentage?: number | null } | null; next_payment_amount?: number | null; next_payment_due_date?: string | null })[] | null;
+  line_of_credit?: (Raw & {
+    account_id: string;
+    aprs?: { apr_percentage: number; apr_type: string }[] | null;
+    interest_rate?: { percentage?: number | null } | null;
+    minimum_payment_amount?: number | null;
+    next_payment_amount?: number | null;
+    last_statement_balance?: number | null;
+    next_payment_due_date?: string | null;
+  })[] | null;
+}
+
+export type LiabilityType = "credit" | "mortgage" | "student" | "loan" | "line_of_credit";
+
+/**
+ * A Plaid payload made safe to keep: Postgres jsonb rejects NUL characters (one would fail the
+ * whole sync), and full account numbers are cut to their last four digits, the way banks show them.
+ */
+export function cleanRaw<T>(v: T): T {
+  const walk = (x: unknown): unknown => {
+    if (typeof x === "string") return x.replaceAll("\u0000", "");
+    if (Array.isArray(x)) return x.map(walk);
+    if (!x || typeof x !== "object") return x;
+    const out: Record<string, unknown> = {};
+    for (const [k, val] of Object.entries(x)) {
+      if (k === "account_numbers") continue;
+      if (k === "account_number") out.account_number_last4 = typeof val === "string" && val ? val.slice(-4) : null;
+      else out[k] = walk(val);
+    }
+    return out;
+  };
+  return walk(v) as T;
 }
 
 const ACCOUNT_TYPES = new Set<AccountType>(["depository", "credit", "loan", "investment", "other"]);
@@ -69,34 +103,37 @@ export function mapAccount(a: PlaidAccountLike, asOf: Date) {
   };
 }
 
+/**
+ * The columns Link plans with (rate, payment, statement balance, due date), plus the whole
+ * liability as Plaid sent it, tagged with its `type`, for `accounts.plaid.liability`.
+ */
 export function mapLiabilities(l: PlaidLiabilitiesLike | null | undefined) {
-  const out = new Map<string, { aprBps: number | null; minPaymentMinor: number | null; statementBalanceMinor: number | null; nextPaymentDue: string | null }>();
+  const out = new Map<string, { aprBps: number | null; minPaymentMinor: number | null; statementBalanceMinor: number | null; nextPaymentDue: string | null; raw: Raw & { type: LiabilityType } }>();
   const bps = (pct: number | null | undefined) => (pct == null ? null : Math.round(pct * 100));
+  const minor = (v: number | null | undefined) => (v == null ? null : toMinor(v));
+  const purchaseApr = (aprs: { apr_percentage: number; apr_type: string }[] | null | undefined) => (aprs?.find((a) => a.apr_type === "purchase_apr") ?? aprs?.[0])?.apr_percentage;
+  const add = (type: LiabilityType, raw: Raw & { account_id: string | null }, cols: { aprBps: number | null; minPaymentMinor: number | null; statementBalanceMinor: number | null; nextPaymentDue: string | null }) => {
+    // An account listed under two types keeps the first (credit before line of credit).
+    if (raw.account_id && !out.has(raw.account_id)) out.set(raw.account_id, { ...cols, raw: cleanRaw({ type, ...raw }) });
+  };
   for (const c of l?.credit ?? []) {
-    if (!c.account_id) continue;
-    const apr = c.aprs?.find((a) => a.apr_type === "purchase_apr") ?? c.aprs?.[0];
-    out.set(c.account_id, {
-      aprBps: bps(apr?.apr_percentage),
-      minPaymentMinor: c.minimum_payment_amount == null ? null : toMinor(c.minimum_payment_amount),
-      statementBalanceMinor: c.last_statement_balance == null ? null : toMinor(c.last_statement_balance),
-      nextPaymentDue: c.next_payment_due_date ?? null,
-    });
+    add("credit", c, { aprBps: bps(purchaseApr(c.aprs)), minPaymentMinor: minor(c.minimum_payment_amount), statementBalanceMinor: minor(c.last_statement_balance), nextPaymentDue: c.next_payment_due_date ?? null });
   }
   for (const m of l?.mortgage ?? []) {
-    out.set(m.account_id, {
-      aprBps: bps(m.interest_rate?.percentage),
-      minPaymentMinor: m.next_monthly_payment == null ? null : toMinor(m.next_monthly_payment),
-      statementBalanceMinor: null,
-      nextPaymentDue: m.next_payment_due_date ?? null,
-    });
+    add("mortgage", m, { aprBps: bps(m.interest_rate?.percentage), minPaymentMinor: minor(m.next_monthly_payment), statementBalanceMinor: null, nextPaymentDue: m.next_payment_due_date ?? null });
   }
   for (const s of l?.student ?? []) {
-    if (!s.account_id) continue;
-    out.set(s.account_id, {
-      aprBps: bps(s.interest_rate_percentage),
-      minPaymentMinor: s.minimum_payment_amount == null ? null : toMinor(s.minimum_payment_amount),
-      statementBalanceMinor: null,
-      nextPaymentDue: s.next_payment_due_date ?? null,
+    add("student", s, { aprBps: bps(s.interest_rate_percentage), minPaymentMinor: minor(s.minimum_payment_amount), statementBalanceMinor: null, nextPaymentDue: s.next_payment_due_date ?? null });
+  }
+  for (const n of l?.loan ?? []) {
+    add("loan", n, { aprBps: bps(n.interest_rate?.percentage), minPaymentMinor: minor(n.next_payment_amount), statementBalanceMinor: null, nextPaymentDue: n.next_payment_due_date ?? null });
+  }
+  for (const c of l?.line_of_credit ?? []) {
+    add("line_of_credit", c, {
+      aprBps: bps(purchaseApr(c.aprs) ?? c.interest_rate?.percentage),
+      minPaymentMinor: minor(c.minimum_payment_amount ?? c.next_payment_amount),
+      statementBalanceMinor: minor(c.last_statement_balance),
+      nextPaymentDue: c.next_payment_due_date ?? null,
     });
   }
   return out;

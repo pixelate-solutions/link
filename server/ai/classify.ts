@@ -27,7 +27,7 @@ export async function aiClassifyUser(userId: string, limit = 25) {
   if (!adapter) return { classified: 0 };
   const db = await getDb();
   const rows = await db
-    .select()
+    .select(schema.transactionColumns)
     .from(schema.transactions)
     .where(and(eq(schema.transactions.userId, userId), eq(schema.transactions.needsReview, true), eq(schema.transactions.userLocked, false), isNull(schema.transactions.removedAt)))
     .limit(limit);

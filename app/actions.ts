@@ -206,7 +206,8 @@ export async function transactionAction(id: string) {
   return run(async (u) => {
     const t = await getTransaction(u, uuid.parse(id));
     if (!t) throw new Error("Transaction not found");
-    const { accessTokenEnc: _never, ...safe } = t as typeof t & { accessTokenEnc?: string };
+    // The raw bank payload stays server-side: the sheet doesn't show it (the API returns it).
+    const { accessTokenEnc: _never, plaid: _plaid, ...safe } = t as typeof t & { accessTokenEnc?: string };
     return safe;
   }, false);
 }

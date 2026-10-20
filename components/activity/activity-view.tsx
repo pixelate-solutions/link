@@ -8,7 +8,7 @@ import { explainReviewAction, recurringAction, searchAction, settleReviewAction 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { type CategoryId, categoryLabel } from "@/lib/finance/categories";
-import { isPaymentRail, railPayee } from "@/lib/finance/merchants";
+import { isPaymentRail, railPayee, reviewGroupKey } from "@/lib/finance/merchants";
 import { formatMoney } from "@/lib/finance/money";
 import type { Picture } from "@/lib/finance/plan";
 import type { TxnListRow } from "@/server/services/activity";
@@ -304,8 +304,7 @@ function ReviewList({ rows, busy, onOpen, onChanged }: { rows: TxnListRow[]; bus
   const groups = new Map<string, TxnListRow[]>();
   for (const r of rows) {
     if (!r.needsReview) continue;
-    // Payment rails (Zelle, checks) group by the bank's description, i.e. by who was paid.
-    const key = `${r.merchantKey}|${r.amount < 0 ? "out" : "in"}${isPaymentRail(r.merchantKey) ? `|${railPayee(r.merchantKey, r.name).toLowerCase()}` : ""}`;
+    const key = reviewGroupKey(r);
     groups.set(key, [...(groups.get(key) ?? []), r]);
   }
 

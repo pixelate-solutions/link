@@ -57,6 +57,13 @@
       "when": 1792459765065,
       "tag": "0007_api_token_access",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792467921579,
+      "tag": "0008_plaid_details",
+      "breakpoints": true
     }
   ]
 }
