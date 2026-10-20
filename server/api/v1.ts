@@ -9,6 +9,7 @@ import { getDb, schema } from "../db/client";
 import { exportUserData, listConnections } from "../services/account";
 import { getTransaction, listRules, searchTransactions } from "../services/activity";
 import { attachmentsFor } from "../services/attachments";
+import { audit } from "../services/audit";
 import { activeRecommendations, computeContext, type PlanContext } from "../services/picture";
 import { getPreferences, listFacts } from "../services/plan";
 import { toRecView } from "../services/views";
@@ -16,7 +17,7 @@ import { toRecView } from "../services/views";
 /**
  * Link's read-only REST API (`/api/v1/*`). Every endpoint is a GET, scoped to the
  * authenticated user, and computed live with the same engines as the app.
- * Nothing here writes user data.
+ * Nothing here writes user data (`/export` adds an audit-log entry, like the export button).
  */
 
 export const MONEY_NOTE = "Money is integer cents (minor units) in the account currency. Positive = money into your accounts; negative = money out.";
@@ -45,12 +46,20 @@ interface Endpoint {
 }
 
 const uuid = z.string().uuid();
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
+// A real calendar date: Postgres rejects 2026-09-31, so it must never reach a query.
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD")
+  .refine((d) => {
+    const t = Date.parse(`${d}T00:00:00Z`);
+    return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === d;
+  }, "Not a real date");
 const cents = z.coerce.number().int().min(0);
 const flag = z.enum(["true", "false", "1", "0"]).transform((v) => v === "true" || v === "1");
 
 function parse<T extends z.ZodRawShape>(query: URLSearchParams, shape: T): z.infer<z.ZodObject<T>> {
-  const raw = Object.fromEntries([...query.keys()].filter((k) => k in shape).map((k) => [k, query.get(k)]));
+  // An empty value (`?limit=`) means "not given", not zero.
+  const raw = Object.fromEntries([...query.entries()].filter(([k, v]) => k in shape && v.trim() !== "").map(([k, v]) => [k, v]));
   const r = z.object(shape).safeParse(raw);
   if (!r.success) throw new BadRequest(r.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "));
   return r.data;
@@ -368,7 +377,9 @@ export const ENDPOINTS: Endpoint[] = [
     path: "export",
     description: "Every stored row in one document (the same as Account → Export everything). Large.",
     async run({ userId }) {
-      return { data: await exportUserData(userId) };
+      const data = await exportUserData(userId);
+      await audit(userId, "user", "account.export", null, { via: "api" });
+      return { data };
     },
   },
 ];

@@ -92,11 +92,12 @@ describe("REST API v1", () => {
   });
 
   it("serves every collection endpoint for a real household without writing anything", async () => {
-    // A fingerprint of every row in every table (except the token table, whose last-used time may move).
+    // A fingerprint of every row in every table, except the token table (last-used time may move)
+    // and the audit log (/export records that it ran).
     const tables = (Object.values(schema) as unknown[])
       .filter((t): t is PgTable => is(t, PgTable))
       .map((t) => getTableName(t))
-      .filter((n) => n !== "api_tokens");
+      .filter((n) => n !== "api_tokens" && n !== "audit_log");
     const fingerprint = async () =>
       Object.fromEntries(
         await Promise.all(tables.map(async (n) => [n, (await query<{ h: string }>(sql.raw(`select md5(coalesce(string_agg(r::text, '|' order by r::text), '')) as h from link.${n} r`)))[0]!.h])),
@@ -109,6 +110,8 @@ describe("REST API v1", () => {
       expect(r.body.meta.money).toMatch(/cents/);
     }
     expect(await fingerprint()).toEqual(before);
+    const [exported] = await query<{ n: number }>(sql`select count(*)::int as n from link.audit_log where user_id = ${A} and action = 'account.export'`);
+    expect(exported!.n).toBe(1);
   }, 60_000);
 
   it("returns the numbers the app shows", async () => {
@@ -151,6 +154,10 @@ describe("REST API v1", () => {
     expect(ranged.every((t: { date: string; amount: number }) => t.date >= "2026-09-01" && t.date <= "2026-09-30" && Math.abs(t.amount) >= 10000)).toBe(true);
     expect((await get(A, "transactions?category=nonsense")).status).toBe(400);
     expect((await get(A, "transactions?from=yesterday")).status).toBe(400);
+    expect((await get(A, "transactions?from=2026-09-31")).status).toBe(400);
+    expect((await get(A, "transactions?from=2026-13-01")).status).toBe(400);
+    expect((await get(A, `transactions?cursor=${Buffer.from("2026-02-30|00000000-0000-4000-8000-000000000000").toString("base64url")}`)).status).toBe(400);
+    expect((await get(A, "transactions?limit=&review=&q=")).body.data.length).toBeGreaterThan(0);
     expect((await get(A, "transactions?limit=5000")).status).toBe(400);
     expect((await get(A, "transactions?cursor=garbage")).status).toBe(400);
     expect((await get(A, "debt?extraMonthly=-5")).status).toBe(400);

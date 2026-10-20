@@ -97,7 +97,15 @@ export function AccountSheet({ open, onOpenChange }: { open: boolean; onOpenChan
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title="Account">
+    <Sheet
+      open={open}
+      onOpenChange={(o) => {
+        // A new token is shown once: closing the sheet forgets it.
+        if (!o) setCreated(null);
+        onOpenChange(o);
+      }}
+      title="Account"
+    >
       {!data ? (
         <div className="space-y-3 py-4" aria-busy>
           {[0, 1, 2].map((i) => (

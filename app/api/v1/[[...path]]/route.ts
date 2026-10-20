@@ -22,7 +22,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ path?: s
   try {
     return await handleApiRequest(userId, segments, url.searchParams);
   } catch (err) {
-    log.error("api.v1 failed", { path: segments.join("/"), error: err instanceof Error ? err.message : String(err) });
+    log.error("api.v1 failed", err, { path: segments.join("/") });
     return Response.json({ error: "Something went wrong. Try again." }, { status: 500 });
   }
 }

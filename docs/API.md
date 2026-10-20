@@ -48,6 +48,6 @@ curl -H "Authorization: Bearer $LINK_TOKEN" https://link-omega.vercel.app/api/v1
 | `/proposals` | Assistant-proposed changes (`status`: pending, approved, rejected or all) |
 | `/scenarios` | Saved what-if scenarios and their results |
 | `/conversations`, `/conversations/{id}` | Chats and their messages |
-| `/export` | Every stored row in one document, the same as Account → Export everything |
+| `/export` | Every stored row in one document, the same as Account → Export everything. Recorded in the audit log. One response, so it stops working past Vercel's 4.5 MB limit (around 5,000 transactions); page `/transactions` for bulk pulls |
 
 To pull every transaction, request `/transactions?limit=200` and follow `meta.nextCursor` until it is `null`.

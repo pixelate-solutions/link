@@ -8,7 +8,7 @@
   - list and aggregate isolation;
   - ids smuggled into tool arguments;
   - MCP binding.
-- **Link API tokens** (`server/services/api-tokens.ts`) authenticate `/api/v1/*` and `/api/mcp` for scripts and agents. A token is `link_` + 32 random bytes, shown once; only its SHA-256 hash is stored. Tokens are read-only: `/api/v1` has only GET endpoints that write nothing (pinned by a whole-database fingerprint in `tests/api.test.ts`), and a token MCP session gets only the read tools. Revoking takes effect on the next request.
+- **Link API tokens** (`server/services/api-tokens.ts`) authenticate `/api/v1/*` and `/api/mcp` for scripts and agents. A token is `link_` + 32 random bytes, shown once; only its SHA-256 hash is stored. Tokens are read-only: `/api/v1` has only GET endpoints that change no user data (pinned by a whole-database fingerprint in `tests/api.test.ts`; `/export` adds an `account.export` audit entry), and a token MCP session gets only the read tools (each call is still logged to `tool_calls`). Revoking takes effect on the next request.
 - **Dev auth** (`LINK_DEV_AUTH=1`) is refused under `NODE_ENV=production`, with no override. Verified against `next start`: `/api/dev/session` returns 404, and protected pages redirect to sign-in.
 
 **Verified unauthenticated responses (production build):**
