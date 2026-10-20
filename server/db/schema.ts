@@ -74,6 +74,23 @@ export const preferences = link.table("preferences", {
   updatedAt: updatedAt(),
 });
 
+/** Personal API tokens for reading Link from scripts and agents. Only a SHA-256 hash is stored. */
+export const apiTokens = link.table(
+  "api_tokens",
+  {
+    id: id(),
+    userId: userId(),
+    name: text("name").notNull(),
+    hash: text("hash").notNull(),
+    /** The token's first characters, so the user can tell tokens apart. */
+    prefix: text("prefix").notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [uniqueIndex("api_tokens_hash").on(t.hash), index("api_tokens_user").on(t.userId)],
+);
+
 // ── Businesses ──────────────────────────────────────────────────────────────
 
 /**

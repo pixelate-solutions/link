@@ -42,4 +42,5 @@ See `.env.example`. The source of truth is Infisical: Pixelate Solutions org →
 - [ ] Connect a Plaid sandbox institution (`user_good` / `pass_good`). The connection appears with status *active*, and Home shows "Reading your accounts" followed by "What Link learned".
 - [ ] Fire a sandbox webhook (`/sandbox/item/fire_webhook`) and confirm a `plaid_sync` job runs.
 - [ ] `/api/mcp` returns 401 without auth and lists tools with it.
+- [ ] `/api/v1` lists endpoints; `/api/v1/overview` returns 401 without a token and data with one.
 - [ ] With `OPENAI_API_KEY` set, `npm run ai:eval` passes, and `link.agent_runs` shows `model = gpt-6-luna`.

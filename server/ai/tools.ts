@@ -2,7 +2,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { CATEGORIES, type CategoryId, categoryLabel } from "@/lib/finance/categories";
 import { daysBetween } from "@/lib/finance/dates";
-import { payoffPlan } from "@/lib/finance/debt";
+import { comparePayoff } from "@/lib/finance/debt";
 import { FACT_KEYS, GOAL_KINDS } from "@/lib/finance/goals";
 import { toMinor } from "@/lib/finance/money";
 import { buildCashModel, forecastCash } from "@/lib/finance/cashflow";
@@ -404,9 +404,7 @@ export const TOOLS = [
     effect: "read",
     async run(ctx, a) {
       const { inputs } = await computeContext(ctx.userId);
-      const minimums = inputs.debts.filter((d) => d.aprBps != null).reduce((s, d) => s + (d.minPayment ?? Math.max(25_00, Math.round(d.balance * 0.02))), 0);
-      const budget = minimums + toMinor(a.extra_monthly ?? 0);
-      const plans = (["avalanche", "snowball"] as const).map((s) => payoffPlan(inputs.debts, budget, s));
+      const { budget, plans } = comparePayoff(inputs.debts, toMinor(a.extra_monthly ?? 0));
       return {
         debts: inputs.debts.map((d) => ({ name: untrusted(d.name, 30), balance: usd(d.balance), apr_percent: d.aprBps == null ? null : d.aprBps / 100, minimum: usd(d.minPayment) })),
         monthly_budget: usd(budget),

@@ -40,7 +40,7 @@ npm run dev                     # http://localhost:3000
 - [Rebuild audit](docs/REBUILD_AUDIT.md): what was wrong with the old app, and why it was replaced
 - [Architecture](docs/ARCHITECTURE.md)
 - [Financial calculations](docs/FINANCIAL_CALCULATIONS.md)
-- [AI harness](docs/AI_HARNESS.md) and [MCP tools](docs/MCP_TOOLS.md)
+- [AI harness](docs/AI_HARNESS.md), [MCP tools](docs/MCP_TOOLS.md) and the [REST API](docs/API.md)
 - [Database](docs/DATABASE_MIGRATION.md)
 - [Security](docs/SECURITY.md)
 - [Deployment](docs/DEPLOYMENT.md)

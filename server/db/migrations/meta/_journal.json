@@ -43,6 +43,13 @@
       "when": 1792269142881,
       "tag": "0005_investments_consent",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792454277417,
+      "tag": "0006_api_tokens",
+      "breakpoints": true
     }
   ]
 }

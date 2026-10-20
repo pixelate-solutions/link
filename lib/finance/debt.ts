@@ -113,3 +113,10 @@ export function payoffPlan(debts: Debt[], monthlyBudget: Minor, strategy: Payoff
     excluded,
   };
 }
+
+/** Avalanche vs snowball, funded by the known-rate debts' minimums plus `extra` each month. */
+export function comparePayoff(debts: Debt[], extra: Minor) {
+  const minimums = debts.filter((d) => d.aprBps != null).reduce((s, d) => s + (d.minPayment ?? Math.max(25_00, Math.round(d.balance * 0.02))), 0);
+  const budget = minimums + extra;
+  return { budget, plans: (["avalanche", "snowball"] as const).map((s) => payoffPlan(debts, budget, s)) };
+}

@@ -2,7 +2,7 @@
  * Structured logger. Never log access tokens, account numbers or raw
  * transaction payloads; `redact` scrubs the common shapes defensively.
  */
-const SECRET = /(access-(sandbox|development|production)-[\w-]+|public-(sandbox|development|production)-[\w-]+|sk_(live|test)_\w+|v1\.[\w-]+\.[\w-]+\.[\w-]+)/g;
+const SECRET = /(access-(sandbox|development|production)-[\w-]+|public-(sandbox|development|production)-[\w-]+|sk_(live|test)_\w+|link_[\w-]{20,}|v1\.[\w-]+\.[\w-]+\.[\w-]+)/g;
 
 export function redact(value: unknown): unknown {
   if (typeof value === "string") return value.replace(SECRET, "[redacted]");

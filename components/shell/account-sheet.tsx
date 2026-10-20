@@ -1,19 +1,21 @@
 "use client";
 
 import { SignOutButton } from "@clerk/nextjs";
-import { Download, Laptop, Moon, Sun, Trash2 } from "lucide-react";
+import { Check, Copy, Download, Laptop, Moon, Sun, Trash2 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 import {
   accountOverviewAction,
   addRuleAction,
+  createApiTokenAction,
   deleteAccountAction,
   deleteFactAction,
   deleteMemoryAction,
   deleteRuleAction,
   disconnectAction,
   loadDemoAction,
+  revokeApiTokenAction,
   setPreferencesAction,
   syncNowAction,
 } from "@/app/actions";
@@ -62,6 +64,9 @@ export function AccountSheet({ open, onOpenChange }: { open: boolean; onOpenChan
   const [pending, start] = useTransition();
   const [rule, setRule] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [tokenName, setTokenName] = useState("");
+  const [created, setCreated] = useState<{ id: string; name: string; token: string } | null>(null);
+  const [copied, setCopied] = useState(false);
   const { theme, setTheme } = useTheme();
   const router = useRouter();
 
@@ -324,6 +329,89 @@ export function AccountSheet({ open, onOpenChange }: { open: boolean; onOpenChan
                 </button>
               ))}
             </div>
+          </Section>
+
+          <Section title="API access">
+            <p className="mb-3 text-[13px] text-muted">
+              Let scripts and AI agents read your Link data with a token. Tokens can read everything but change nothing.{" "}
+              <a href="/api/v1" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-fg">
+                Endpoints
+              </a>
+            </p>
+            {created && (
+              <div className="mb-3 rounded-md border border-line p-3">
+                <p className="text-[13px] font-medium">Copy {created.name} now. It won&apos;t be shown again.</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <code className="min-w-0 flex-1 break-all rounded-sm bg-surface-2 px-3 py-2 font-mono text-[12px]">{created.token}</code>
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(created.token);
+                      setCopied(true);
+                    }}
+                  >
+                    {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? "Copied" : "Copy"}
+                  </Button>
+                </div>
+              </div>
+            )}
+            {data.apiTokens.length > 0 && (
+              <ul className="mb-3 space-y-1.5">
+                {data.apiTokens.map((t) => (
+                  <li key={t.id} className="flex items-center justify-between gap-3 text-[14px]">
+                    <span className="min-w-0 truncate text-fg-2">
+                      {t.name} <span className="font-mono text-[12px] text-muted">{t.prefix}…</span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-3">
+                      <span className="text-[12px] text-muted">{t.lastUsedAt ? `Used ${relativeTime(t.lastUsedAt)}` : "Never used"}</span>
+                      <button
+                        onClick={() =>
+                          act(async () => {
+                            const r = await revokeApiTokenAction(t.id);
+                            if (r.ok && created?.id === t.id) setCreated(null);
+                            return r;
+                          })
+                        }
+                        aria-label={`Revoke ${t.name}`}
+                        className="text-muted hover:text-caution"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                act(async () => {
+                  const r = await createApiTokenAction(tokenName);
+                  if (r.ok) {
+                    setCreated(r.data);
+                    setCopied(false);
+                    setTokenName("");
+                  }
+                  return r;
+                });
+              }}
+              className="flex gap-2"
+            >
+              <label htmlFor="token-name" className="sr-only">
+                Token name
+              </label>
+              <input
+                id="token-name"
+                value={tokenName}
+                onChange={(e) => setTokenName(e.target.value)}
+                maxLength={60}
+                placeholder="Name it, e.g. Claude"
+                className="h-10 min-w-0 flex-1 rounded-full bg-surface-2 px-4 text-[14px] outline-none placeholder:text-muted focus:ring-2 focus:ring-[var(--focus)]"
+              />
+              <Button type="submit" size="md" disabled={pending}>
+                Create token
+              </Button>
+            </form>
           </Section>
 
           <Section title="Your data">

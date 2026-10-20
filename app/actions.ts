@@ -288,6 +288,21 @@ export async function deleteMemoryAction(id: string) {
   return run((u) => deleteMemory(u, uuid.parse(id)));
 }
 
+// ── API access ───────────────────────────────────────────────────────────────
+
+/** Returns the token itself exactly once; only its hash is kept. */
+export async function createApiTokenAction(name: string) {
+  return run(async (u) => {
+    const { createApiToken } = await import("@/server/services/api-tokens");
+    const t = await createApiToken(u, z.string().max(60).parse(name));
+    return { id: t.id, name: t.name, token: t.token };
+  }, false);
+}
+
+export async function revokeApiTokenAction(id: string) {
+  return run(async (u) => (await import("@/server/services/api-tokens")).revokeApiToken(u, uuid.parse(id)), false);
+}
+
 export async function finishOnboardingAction() {
   return run(async (u) => {
     const db = await getDb();
@@ -323,7 +338,8 @@ export async function accountOverviewAction() {
     const { plaidConfigured } = await import("@/server/plaid/client");
     const { demoEnabled } = await import("@/server/demo/seed");
     await (await import("@/server/plaid/institutions")).ensureInstitutionLogos(u);
-    const [[user], connections, accounts, memories, rules, prefs, facts] = await Promise.all([
+    const { listApiTokens } = await import("@/server/services/api-tokens");
+    const [[user], connections, accounts, memories, rules, prefs, facts, tokens] = await Promise.all([
       db.select().from(schema.users).where(eq(schema.users.id, u)),
       listConnections(u),
       listAccounts(u),
@@ -331,6 +347,7 @@ export async function accountOverviewAction() {
       listRules(u),
       getPreferences(u),
       listFacts(u),
+      listApiTokens(u),
     ]);
     return {
       user: { name: user?.name ?? null, email: user?.email ?? null },
@@ -351,6 +368,7 @@ export async function accountOverviewAction() {
       rules: rules.map((r) => ({ id: r.id, description: r.description })),
       prefs: { lifestyleWeight: prefs.lifestyleWeight, protectedCategories: prefs.protectedCategories as string[], bufferMinor: prefs.bufferMinor },
       facts: facts.map((f) => ({ key: f.key, value: f.value as { value?: number; skipped?: boolean }, source: f.source })),
+      apiTokens: tokens.map((t) => ({ id: t.id, name: t.name, prefix: t.prefix, lastUsedAt: t.lastUsedAt?.toISOString() ?? null, createdAt: t.createdAt.toISOString() })),
     };
   }, false);
 }
